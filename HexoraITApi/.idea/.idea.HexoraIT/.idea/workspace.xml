@@ -10,121 +10,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="198d8b26-b1d7-4792-9d75-d81f6bab04be" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/AssetsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/AuthControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/ContactsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/ContractsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/DashboardControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/GroupsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/IncidentsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/JwtTokenServiceTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/KnowledgeControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/LicensesControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/OrganizationsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/PasswordsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/Pbkdf2PasswordHasherTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/PlansControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/ProjectsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/SubnetsControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/TasksControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/WarrantiesControllerTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/FakeFixture.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Fakes/FakeCurrentUserIdProvider.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Fakes/FakeFileStorage.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HexoraIT.Tests/Fakes/FakePasswordCipher.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dockerignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.HexoraITApi.dir/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.HexoraITApi.dir/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.HexoraITApi.dir/.idea/indexLayout.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.HexoraITApi.dir/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi.dir/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi.dir/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi.dir/.idea/indexLayout.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi.dir/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi/.idea/indexLayout.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.ITDocsApi/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/Administrator/AdminController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/AssetsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/ContactsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/ContractsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/DashboardController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/DiagramController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/GroupsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/IncidentsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/KnowledgeController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/LicensesController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/OrganizationsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/PasswordsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/PlansController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/ProjectsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/SubnetsController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/TasksController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/App/WarrantiesController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/Auth/AuthController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/Auth/OrgScopedController.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/Interfaces/IFileStorage.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Api/Interfaces/IPasswordCipher.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/AppInitializer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/DataProtectionPasswordCipher.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/HttpCurrentOrgAccessor.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/IJwtTokenService.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/IPasswordHasher.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/JwtTokenService.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/LocalFileStorage.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/PasswordGenerator.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Application/Pbkdf2PasswordHasher.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/AppMappingProfile.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/AppSettings.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/AssetDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/AuthDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/ContactDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/ContractDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/DashboardDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/DiagramDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/GroupDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/IncidentDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/KnowledgeArticleDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/LicenseDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/OrganizationDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/PasswordDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/PlanDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/ProjectDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/SubnetDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/WarrantyItemDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Dtos/WorkTaskDtos.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/BaseEntity.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/Core.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/DashboardLayout.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/Enums.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/Organization.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/Project.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Domain/Entities/User.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/HexoraITApi.csproj" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Infrastructure/AppDbContext.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Infrastructure/DbCurrentUserContext.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Infrastructure/HttpCurrentUserIdProvider.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260716080525_Init.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260716080525_Init.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260718085743_AddOrganizationSoftDelete.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260718085743_AddOrganizationSoftDelete.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260718204848_AddContractDocument.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260718204848_AddContractDocument.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260722172827_AddSystemRole.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260722172827_AddSystemRole.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260723052907_AddProjects.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260723052907_AddProjects.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260723161030_AddDashboardLayout.Designer.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/20260723161030_AddDashboardLayout.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Migrations/AppDbContextModelSnapshot.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Program.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Properties/launchSettings.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/appsettings.Development.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/appsettings.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/global.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.HexoraIT/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.HexoraIT/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/AuthControllerTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/HexoraIT.Tests/Controllers/AuthControllerTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HexoraIT.Tests/obj/Debug/net10.0/HexoraIT.Tests.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/HexoraIT.Tests/obj/Debug/net10.0/HexoraIT.Tests.AssemblyInfo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HexoraIT.Tests/obj/Debug/net10.0/HexoraIT.Tests.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/HexoraIT.Tests/obj/Debug/net10.0/HexoraIT.Tests.AssemblyInfoInputs.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HexoraIT.Tests/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/HexoraIT.Tests/obj/rider.project.model.nuget.info" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HexoraIT.sln.DotSettings.user" beforeDir="false" afterPath="$PROJECT_DIR$/HexoraIT.sln.DotSettings.user" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -161,20 +52,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "24adc19a-2e7b-4dba-83c4-4a88f8348eee.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;24adc19a-2e7b-4dba-83c4-4a88f8348eee.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected=".NET Launch Settings Profile.HexoraITApi: https">
     <configuration name="HexoraITApi: http" type="LaunchSettings" factoryName=".NET Launch Settings Profile">
       <option name="LAUNCH_PROFILE_PROJECT_FILE_PATH" value="$PROJECT_DIR$/HexoraIT.Api/HexoraITApi.csproj" />
@@ -235,6 +126,7 @@
       <updated>1785095314628</updated>
       <workItem from="1785095316251" duration="10136000" />
       <workItem from="1785105682358" duration="532000" />
+      <workItem from="1785106368508" duration="305000" />
     </task>
     <servers />
   </component>
