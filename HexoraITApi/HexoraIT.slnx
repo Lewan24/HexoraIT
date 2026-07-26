@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/HexoraIT.Api/">
+    <Project Path="HexoraIT.Api/HexoraITApi.csproj" />
+  </Folder>
+  <Project Path="HexoraIT.Tests/HexoraIT.Tests.csproj" />
+</Solution>

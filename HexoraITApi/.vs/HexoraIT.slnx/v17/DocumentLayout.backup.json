@@ -1,0 +1,143 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\assetscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\assetscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\groupscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\groupscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\incidentscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\incidentscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\contactscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\contactscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\dashboardcontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\dashboardcontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\contractscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\contractscontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|d:\\programowanie\\react\\hexorait\\hexoraitapi\\hexorait.tests\\controllers\\authcontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FA31CE46-034A-6EC9-66F4-93A8ACFADDDA}|HexoraIT.Tests\\HexoraIT.Tests.csproj|solutionrelative:hexorait.tests\\controllers\\authcontrollertests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 7,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "IncidentsControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\IncidentsControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\IncidentsControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\IncidentsControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\IncidentsControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:40:00.604Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "GroupsControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\GroupsControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\GroupsControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\GroupsControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\GroupsControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:59.974Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "DashboardControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\DashboardControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\DashboardControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\DashboardControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\DashboardControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:59.367Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "ContractsControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\ContractsControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\ContractsControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\ContractsControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\ContractsControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:58.689Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ContactsControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\ContactsControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\ContactsControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\ContactsControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\ContactsControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:52.891Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "AuthControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\AuthControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\AuthControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\AuthControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\AuthControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:39.577Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AssetsControllerTests.cs",
+              "DocumentMoniker": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\AssetsControllerTests.cs",
+              "RelativeDocumentMoniker": "HexoraIT.Tests\\Controllers\\AssetsControllerTests.cs",
+              "ToolTip": "D:\\Programowanie\\React\\HexoraIT\\HexoraITApi\\HexoraIT.Tests\\Controllers\\AssetsControllerTests.cs",
+              "RelativeToolTip": "HexoraIT.Tests\\Controllers\\AssetsControllerTests.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAA0AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-26T22:39:33.828Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
