@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Calendar,
   User, CheckSquare, ChevronRight, ChevronLeft, Loader2,
@@ -42,7 +42,7 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
-  const [color, setColor] = useState(initial?.color! ?? PROJECT_COLORS[0])
+  const [color, setColor] = useState(initial?.color ?? PROJECT_COLORS[0]!)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
