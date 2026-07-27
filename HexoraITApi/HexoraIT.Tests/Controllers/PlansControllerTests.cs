@@ -25,7 +25,8 @@ public class PlansControllerTests : IDisposable
             Priority.High,
             PlanStatus.Planned,
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            ["migration", "servers"]);
+            ["migration", "servers"],
+            [], 0);
 
         var created = await sut.Create(org.Id, dto);
 
@@ -69,7 +70,7 @@ public class PlansControllerTests : IDisposable
                 Priority.Low,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         result.Result.Should().BeOfType<ForbidResult>();
     }
@@ -110,7 +111,7 @@ public class PlansControllerTests : IDisposable
                 Priority.High,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         var result = await sut.GetAll(orgA.Id);
 
@@ -135,7 +136,7 @@ public class PlansControllerTests : IDisposable
                 Priority.Medium,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         var created = create.Result
             .As<CreatedAtActionResult>()
@@ -165,7 +166,7 @@ public class PlansControllerTests : IDisposable
                 Priority.Low,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         var created = create.Result
             .As<CreatedAtActionResult>()
@@ -180,7 +181,7 @@ public class PlansControllerTests : IDisposable
                 Priority.High,
                 PlanStatus.Completed,
                 DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)),
-                ["done"]));
+                ["done"], [], 0));
 
         result.Should().BeOfType<NoContentResult>();
 
@@ -209,7 +210,7 @@ public class PlansControllerTests : IDisposable
                 Priority.Low,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         var created = create.Result
             .As<CreatedAtActionResult>()
@@ -238,7 +239,7 @@ public class PlansControllerTests : IDisposable
                 Priority.Low,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         var created = create.Result
             .As<CreatedAtActionResult>()
@@ -278,7 +279,7 @@ public class PlansControllerTests : IDisposable
                 Priority.High,
                 PlanStatus.Planned,
                 DateOnly.FromDateTime(DateTime.UtcNow),
-                []));
+                [], [], 0));
 
         update.Should().BeOfType<ForbidResult>();
     }

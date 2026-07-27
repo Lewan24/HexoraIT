@@ -135,6 +135,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
         b.Entity<Plan>(e =>
         {
             e.Property(p => p.Tags).HasJsonStringList();
+            e.Property(p => p.AssetIds).HasJsonGuidList();
+            e.Property(p => p.EstimatedCost)
+                .HasColumnType("decimal(18,2)");
         });
 
         b.Entity<Incident>(e =>

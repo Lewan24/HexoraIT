@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Tag, Calendar,
-  CheckCircle2, Circle, Clock, Ban, Loader2,
+  CheckCircle2, Circle, Clock, Ban, Loader2, DollarSign
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { Plan, Priority, PlanStatus } from '../api/types'
@@ -33,6 +33,8 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
   onSave: (p: Omit<Plan, 'id' | 'createdAt'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  const { assets } = useApp()
+
   const [form, setForm] = useState({
     title: initial?.title ?? '',
     description: initial?.description ?? '',
@@ -40,13 +42,15 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
     status: initial?.status ?? 'planned' as PlanStatus,
     targetDate: initial?.targetDate ?? '',
     tags: initial?.tags.join(', ') ?? '',
+    estimatedCost: initial?.estimatedCost ?? 0,
+    assetIds: initial?.assetIds ?? [],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const set = (k: string, v: string) => {
+  const set = (k: string, v: unknown) => {
     setForm(f => ({ ...f, [k]: v }))
     setErrors(e => ({ ...e, [k]: '' }))
   }
@@ -65,6 +69,8 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
         status: form.status as PlanStatus,
         targetDate: form.targetDate,
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+        estimatedCost: Number(form.estimatedCost),
+        assetIds: form.assetIds
       })
     } catch {
       setSubmitting(false)
@@ -82,6 +88,15 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
   }
 
   const busy = submitting || deleting
+
+  const toggleAsset = (id: string) => {
+    setForm(f => ({
+      ...f,
+      assetIds: f.assetIds.includes(id)
+        ? f.assetIds.filter(x => x !== id)
+        : [...f.assetIds, id]
+    }))
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !busy && onClose()}>
@@ -123,6 +138,49 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Target Date</label>
             <input type="date" value={form.targetDate} onChange={e => set('targetDate', e.target.value)} className={inp()} disabled={busy} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
+              Estimated Cost
+            </label>
+
+            <input type="number" min="0" step="0.01" value={form.estimatedCost}
+              onChange={e =>
+                set('estimatedCost', e.target.value)
+              }
+              placeholder="25000" className={inp()} disabled={busy}
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
+              Linked Assets
+            </label>
+
+            <div className="max-h-40 overflow-y-auto bg-navy-700 border border-edge-default rounded-lg p-2 space-y-1">
+              {assets.length === 0 && (
+                <p className="text-xs text-ink-muted">
+                  No assets available
+                </p>
+              )}
+
+              {assets.map(asset => (
+                <label
+                  key={asset.id}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-navy-600 cursor-pointer">
+                  <input type="checkbox" checked={form.assetIds.includes(asset.id)} onChange={() => toggleAsset(asset.id)}/>
+
+                  <span className="text-xs text-ink-primary">
+                    {asset.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {form.assetIds.length > 0 && (
+              <p className="text-[10px] text-ink-muted mt-1">
+                {form.assetIds.length} asset(s) selected
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Tags (comma-separated)</label>
@@ -167,12 +225,31 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
 
   return (
     <button onClick={onClick}
-      className="w-full text-left bg-navy-800 border border-edge-subtle rounded-xl px-4 py-4 hover:border-edge-default hover:bg-navy-750 transition-all group">
+      className="cursor-pointer w-full text-left bg-navy-800 border border-edge-subtle rounded-xl px-4 py-4 hover:border-edge-default hover:bg-navy-750 transition-all group">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink-primary group-hover:text-white transition-colors">{plan.title}</p>
+          <p className="text-sm font-semibold text-ink-primary group-hover:text-white transition-colors">
+            {plan.title}
+            {plan.estimatedCost > 0 && (
+              <span className="inline-flex items-center gap-1 ml-5 text-orange-400">
+                Estimated cost:
+                <span className='inline-flex items-center gap-1'>
+                  <DollarSign size={11}/>
+                  {plan.estimatedCost.toLocaleString('en-US')}
+                </span>
+              </span>
+            )}  
+          </p>
           {plan.description && (
             <p className="text-xs text-ink-muted mt-1 line-clamp-2 leading-relaxed">{plan.description}</p>
+          )}
+
+          {plan.assetIds.length > 0 && (
+            <span className="
+              text-[12px] text-ink-muted
+            ">
+              {plan.assetIds.length} assets included
+            </span>
           )}
         </div>
         <Edit2 size={12} className="text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 flex-shrink-0" />

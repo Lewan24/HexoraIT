@@ -36,8 +36,8 @@ export default function Login() {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: 'radial-gradient(circle, var(--_edge-default, #252525) 1px, transparent 3px)',
-          backgroundSize: '28px 28px',
+          backgroundImage: 'radial-gradient(circle, var(--_edge-default, #252525) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
           opacity: 0.8,
         }}
       />

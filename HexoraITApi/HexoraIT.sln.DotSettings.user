@@ -1,17 +1,10 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=157db2be_002Def90_002D45b1_002Dac8f_002D87e54af1f7dd/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Delete_RemovesIncident #3" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AEntityFrameworkQueryableExtensions_002Ecs_002Fl_003AC_0021_003FUsers_003FArtur_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F0e00603c17f14f238ce4b4a25546f43d2b2938_003F76_003F1b58b112_003FEntityFrameworkQueryableExtensions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AIMapper_002Ecs_002Fl_003AC_0021_003FUsers_003FArtur_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F6898f5b49cfc4781ab8b1e1803783cf349a00_003F56_003F4e44ae77_003FIMapper_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AMapper_002Ecs_002Fl_003AC_0021_003FUsers_003FArtur_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Ff1246839d29201e3a70ea31cb97b0926bd0bc9ecf0fc17b763e7a8262b9e_003FMapper_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=24adc19a_002D2e7b_002D4dba_002D83c4_002D4a88f8348eee/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="All tests from &amp;lt;HexoraIT.Tests&amp;gt;" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;Project Location="D:\Programowanie\React\HexoraIT\HexoraITApi\HexoraIT.Tests" Presentation="&amp;lt;HexoraIT.Tests&amp;gt;" /&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=24adc19a_002D2e7b_002D4dba_002D83c4_002D4a88f8348eee/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="All tests from &amp;lt;HexoraIT.Tests&amp;gt;" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;Project Location="D:\Programowanie\React\HexoraIT\HexoraITApi\HexoraIT.Tests" Presentation="&amp;lt;HexoraIT.Tests&amp;gt;" /&gt;&#xD;
-&lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=aad0c02a_002D26ce_002D4506_002D90bc_002Ddb2ad8cd3528/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="Delete_RemovesIncident" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;xUnit::FA31CE46-034A-6EC9-66F4-93A8ACFADDDA::net10.0::HexoraIT.Tests.Controllers.IncidentsControllerTests.Delete_RemovesIncident&lt;/TestId&gt;&#xD;
-  &lt;/TestAncestor&gt;&#xD;
-&lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=d1421419_002D8aa9_002D4fe8_002D84b6_002D29b6b9ba8ecc/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="Delete_RemovesIncident #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;xUnit::FA31CE46-034A-6EC9-66F4-93A8ACFADDDA::net10.0::HexoraIT.Tests.Controllers.IncidentsControllerTests.Delete_RemovesIncident&lt;/TestId&gt;&#xD;
-  &lt;/TestAncestor&gt;&#xD;
-&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
+	
+	</wpf:ResourceDictionary>

@@ -67,7 +67,8 @@ export interface Contract {
 
 export interface Plan {
   id: string; title: string; description: string; priority: Priority
-  status: PlanStatus; targetDate: string; tags: string[]; createdAt: string
+  status: PlanStatus; targetDate: string; tags: string[];
+  assetIds: string[]; estimatedCost: number; createdAt: string
 }
 
 export interface Incident {

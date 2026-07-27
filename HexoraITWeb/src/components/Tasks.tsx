@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<TaskStatus, { label: string; col: string }> = {
 }
 
 const PROJECT_COLORS = ['#2563eb', '#7c3aed', '#059669', '#dc2626', '#d97706', '#0891b2', '#be185d', '#374151']
-const NO_PROJECT = '__none__' // sentinel for the "No Project" bucket in the UI only — never sent to the API
+const NO_PROJECT = '__none__'
 
 function isOverdue(dueDate: string) {
   if (!dueDate) return false
@@ -33,7 +33,6 @@ function isOverdue(dueDate: string) {
 const inp = (err?: string) =>
   `w-full px-3 py-2 rounded-lg bg-navy-700 border text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none transition-colors disabled:opacity-50 ${err ? 'border-red-500/50 focus:border-red-500' : 'border-edge-default focus:border-blue-500'}`
 
-// ─── Project Modal ──────────────────────────────────────────────────────────
 
 function ProjectModal({ initial, onClose, onSave, onDelete }: {
   initial?: Project
@@ -128,8 +127,6 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
     </div>
   )
 }
-
-// ─── Task Modal ───────────────────────────────────────────────────────────────
 
 function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDelete }: {
   initial?: Task
@@ -277,8 +274,6 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
   )
 }
 
-// ─── Task Card ────────────────────────────────────────────────────────────────
-
 function TaskCard({ task, onEdit, onMove }: {
   task: Task
   onEdit: () => void
@@ -341,11 +336,9 @@ function TaskCard({ task, onEdit, onMove }: {
   )
 }
 
-// ─── Project Switcher ───────────────────────────────────────────────────────
-
 function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
   projects: Project[]
-  activeId: string // NO_PROJECT sentinel or a real project id, or 'all'
+  activeId: string
   onSelect: (id: string) => void
   onNew: () => void
   onEdit: (p: Project) => void
@@ -402,19 +395,12 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
   )
 }
 
-// ─── Tasks ────────────────────────────────────────────────────────────────────
-
 export default function Tasks() {
   const { tasks, projects, isLoading, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject } = useApp()
   const [modal, setModal] = useState<{ open: boolean; initial?: Task }>({ open: false })
   const [projectModal, setProjectModal] = useState<{ open: boolean; initial?: Project } | null>(null)
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('todo')
   const [activeProjectId, setActiveProjectId] = useState<string>('all')
-
-  useEffect(() => {
-    if (activeProjectId === 'all' && projects.length > 0) {
-    }
-  }, [projects, activeProjectId])
 
   const filteredTasks = tasks.filter(t => {
     if (activeProjectId === 'all') return true

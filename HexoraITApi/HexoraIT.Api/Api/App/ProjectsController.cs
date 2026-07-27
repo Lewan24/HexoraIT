@@ -28,6 +28,8 @@ public class ProjectsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         if (organizationId is { } id)
             query = query.Where(p => p.OrganizationId == id);
 
+        query.Include(p => p.Tasks);
+        
         var projects = await query
             .ProjectTo<ProjectDto>(mapper.ConfigurationProvider)
             .ToListAsync();
