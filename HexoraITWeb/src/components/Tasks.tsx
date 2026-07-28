@@ -2,10 +2,11 @@ import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Calendar,
   User, CheckSquare, ChevronRight, ChevronLeft, Loader2,
-  FolderKanban, ChevronDown, Check, Layers,
+  FolderKanban, ChevronDown, Check, Layers, Eye
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { Task, Priority, TaskStatus, Project } from '../api/types'
+import { renderMarkdown, renderMarkdownCompact } from '../lib/markdown'
 
 const PRIORITIES: Priority[] = ['high', 'medium', 'low']
 const STATUSES: TaskStatus[] = ['todo', 'in-progress', 'done']
@@ -146,6 +147,7 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
     tags: initial?.tags.join(', ') ?? '',
     projectId: initial?.projectId ?? defaultProjectId ?? '',
   })
+  const [descPreview, setDescPreview] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -213,9 +215,35 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2}
-              placeholder="Optional details about this task…" className={inp() + ' resize-none'} disabled={busy} />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-medium text-ink-secondary">Description</label>
+              <div className="flex items-center gap-1 bg-navy-900 border border-edge-default rounded-md p-0.5">
+                <button type="button" onClick={() => setDescPreview(false)} disabled={busy}
+                  className={`px-2 py-0.5 rounded text-[10px] transition-colors ${!descPreview ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
+                  Edit
+                </button>
+                <button type="button" onClick={() => setDescPreview(true)} disabled={busy}
+                  className={`px-2 py-0.5 rounded text-[10px] transition-colors ${descPreview ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
+                  Preview
+                </button>
+              </div>
+            </div>
+            {descPreview ? (
+              <div className="w-full min-h-[80px] px-3 py-2.5 rounded-lg bg-navy-700 border border-edge-default overflow-y-auto max-h-40">
+                {form.description.trim() ? (
+                  <div className="space-y-0.5">{renderMarkdown(form.description)}</div>
+                ) : (
+                  <p className="text-xs text-ink-muted italic">Nothing to preview yet.</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
+                  placeholder={`Optional details about this task…\n\n- [ ] Checklist item\n- Bullet point\n**bold** and \`code\``}
+                  className={inp() + ' resize-none font-mono leading-relaxed'} disabled={busy} />
+                <p className="text-[10px] text-ink-muted mt-1">Supports **bold**, `code`, # headers, - lists, - [ ] checkboxes</p>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -274,10 +302,11 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
   )
 }
 
-function TaskCard({ task, onEdit, onMove }: {
+function TaskCard({ task, onEdit, onMove, onPreview }: {
   task: Task
   onEdit: () => void
   onMove: (dir: 'prev' | 'next') => void
+  onPreview: () => void
 }) {
   const pc = PRIORITY_CONFIG[task.priority]
   const overdue = isOverdue(task.dueDate)
@@ -287,12 +316,16 @@ function TaskCard({ task, onEdit, onMove }: {
     <div className="bg-navy-800 border border-edge-subtle rounded-xl px-3.5 py-3 hover:border-edge-default transition-all group">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0">{task.title}</p>
-        <button onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0">
-          <Edit2 size={11} />
+        <button onClick={onPreview} className="p-1 rounded text-ink-muted hover:text-cyan-400 hover:bg-navy-700">
+            <Eye size={11}/>
+        </button>
+
+        <button onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700">
+            <Edit2 size={11}/>
         </button>
       </div>
-      {task.description && (
-        <p className="text-[11px] text-ink-muted truncate mb-2">{task.description}</p>
+      {task.description.trim() && (
+        <div className="space-y-0.5 mb-2">{renderMarkdownCompact(task.description)}</div>
       )}
       <div className="flex items-center gap-1.5 flex-wrap mb-2">
         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${pc.cls}`}>
@@ -335,6 +368,113 @@ function TaskCard({ task, onEdit, onMove }: {
     </div>
   )
 }
+
+function TaskPreviewModal({
+    task,
+    project,
+    onClose,
+    onEdit,
+}: {
+    task: Task
+    project?: Project
+    onClose: () => void
+    onEdit: () => void
+}) {
+    const pc = PRIORITY_CONFIG[task.priority]
+    const overdue = isOverdue(task.dueDate)
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+            <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl border border-edge-default bg-navy-800 shadow-2xl">
+                <div className="flex items-start justify-between border-b border-edge-subtle px-6 py-5">
+
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-xl font-semibold text-ink-primary break-words">
+                            {task.title}
+                        </h2>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <span className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${pc.cls}`}>
+                                {pc.label}
+                            </span>
+
+                            <span className="px-2.5 py-1 rounded-lg border border-edge-default bg-navy-700 text-xs text-ink-secondary">
+                                {STATUS_CONFIG[task.status].label}
+                            </span>
+
+                            {project && (
+                                <span className="px-2.5 py-1 rounded-lg border border-edge-default bg-navy-700 text-xs text-ink-secondary">
+                                    {project.name}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <button onClick={onClose} className="ml-4 rounded-lg p-2 text-ink-muted transition hover:bg-navy-700 hover:text-ink-primary">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-10 gap-y-3 border-b border-edge-subtle px-6 py-4 text-xs">
+                    {task.assignee && (
+                        <div className="flex items-center gap-2 text-ink-secondary">
+                            <User size={13} />
+                            {task.assignee}
+                        </div>
+                    )}
+
+                    {task.dueDate && (
+                        <div
+                            className={`flex items-center gap-2 ${
+                                overdue && task.status !== "done"
+                                    ? "text-red-400"
+                                    : "text-ink-secondary"
+                            }`}>
+                            <Calendar size={13} />
+                            {task.dueDate}
+                        </div>
+                    )}
+
+                    {task.tags.length > 0 && (
+                        <div className="col-span-2 flex flex-wrap gap-2 pt-1">
+                            {task.tags.map((tag) => (
+                                <span key={tag} className="rounded-md border border-edge-subtle bg-navy-700 px-2 py-1 text-[11px] text-ink-muted">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                    {task.description.trim() ? (
+                        <div className="space-y-1">
+                            {renderMarkdown(task.description)}
+                        </div>
+                    ) : (
+                        <div className="py-10 text-center text-sm italic text-ink-muted">
+                            No description.
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-edge-subtle bg-navy-900/40 px-6 py-4">
+                    <button onClick={onClose} className="rounded-lg border border-edge-default bg-navy-700 px-4 py-2 text-xs text-ink-secondary transition hover:bg-navy-600">
+                        Close
+                    </button>
+
+                    <button onClick={onEdit} className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-400">
+                        <Edit2 size={13} />
+                        Edit Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 
 function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
   projects: Project[]
@@ -401,6 +541,7 @@ export default function Tasks() {
   const [projectModal, setProjectModal] = useState<{ open: boolean; initial?: Project } | null>(null)
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('todo')
   const [activeProjectId, setActiveProjectId] = useState<string>('all')
+  const [previewTask, setPreviewTask] = useState<Task | null>(null)
 
   const filteredTasks = tasks.filter(t => {
     if (activeProjectId === 'all') return true
@@ -523,7 +664,7 @@ export default function Tasks() {
             ) : (
               <div className="space-y-2">
                 {byStatus(s).map(task => (
-                  <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onMove={dir => moveTask(task, dir)} />
+                  <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onMove={dir => moveTask(task, dir)} />
                 ))}
               </div>
             )}
@@ -543,7 +684,7 @@ export default function Tasks() {
           ) : (
             <div className="space-y-2">
               {byStatus(mobileStatus).map(task => (
-                <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onMove={dir => moveTask(task, dir)} />
+                <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onMove={dir => moveTask(task, dir)} />
               ))}
             </div>
           )}
@@ -567,6 +708,21 @@ export default function Tasks() {
           onClose={() => setProjectModal(null)}
           onSave={handleSaveProject}
           onDelete={projectModal.initial ? () => handleDeleteProject(projectModal.initial!.id) : undefined}
+        />
+      )}
+
+      {previewTask && (
+        <TaskPreviewModal
+            task={previewTask}
+            project={projects.find(p => p.id === previewTask.projectId)}
+            onClose={() => setPreviewTask(null)}
+            onEdit={() => {
+              setPreviewTask(null)
+              setModal({
+                open: true,
+                initial: previewTask
+              })
+            }}
         />
       )}
     </div>

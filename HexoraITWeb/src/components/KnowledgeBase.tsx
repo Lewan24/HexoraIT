@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { KnowledgeArticle } from '../api/types'
+import { renderMarkdown } from '../lib/markdown'
 
 const CATEGORY_SUGGESTIONS = ['Operations', 'Network', 'Security', 'HR & Processes', 'Hardware', 'Software', 'Other']
 
@@ -24,79 +25,6 @@ function catCls(cat: string) {
 
 const inp = (err?: string) =>
   `w-full px-3 py-2 rounded-lg bg-navy-700 border text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none transition-colors disabled:opacity-50 ${err ? 'border-red-500/50 focus:border-red-500' : 'border-edge-default focus:border-blue-500'}`
-
-// ─── Simple Markdown Renderer ─────────────────────────────────────────────────
-
-function renderMarkdown(content: string): React.ReactNode[] {
-  const lines = content.split('\n')
-  const nodes: React.ReactNode[] = []
-  let i = 0
-
-  while (i < lines.length) {
-    const line = lines[i] ?? ''
-
-    if (line.startsWith('# ')) {
-      nodes.push(<h1 key={i} className="text-base font-semibold text-ink-primary mt-4 mb-2 first:mt-0">{inlineFormat(line.slice(2))}</h1>)
-    } else if (line.startsWith('## ')) {
-      nodes.push(<h2 key={i} className="text-sm font-semibold text-ink-primary mt-4 mb-1.5">{inlineFormat(line.slice(3))}</h2>)
-    } else if (line.startsWith('### ')) {
-      nodes.push(<h3 key={i} className="text-xs font-semibold text-ink-secondary mt-3 mb-1">{inlineFormat(line.slice(4))}</h3>)
-    } else if (line.startsWith('- [x] ') || line.startsWith('- [X] ')) {
-      nodes.push(
-        <div key={i} className="flex items-start gap-2 my-0.5">
-          <div className="w-3.5 h-3.5 rounded border border-blue-500 bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-[8px] text-blue-400">✓</span>
-          </div>
-          <span className="text-xs text-ink-muted line-through">{inlineFormat(line.slice(6))}</span>
-        </div>
-      )
-    } else if (line.startsWith('- [ ] ')) {
-      nodes.push(
-        <div key={i} className="flex items-start gap-2 my-0.5">
-          <div className="w-3.5 h-3.5 rounded border border-edge-default flex-shrink-0 mt-0.5" />
-          <span className="text-xs text-ink-secondary">{inlineFormat(line.slice(6))}</span>
-        </div>
-      )
-    } else if (line.startsWith('- ')) {
-      nodes.push(
-        <div key={i} className="flex items-start gap-2 my-0.5">
-          <span className="w-1 h-1 rounded-full bg-ink-muted flex-shrink-0 mt-1.5" />
-          <span className="text-xs text-ink-secondary leading-relaxed">{inlineFormat(line.slice(2))}</span>
-        </div>
-      )
-    } else if (line === '') {
-      nodes.push(<div key={i} className="h-2" />)
-    } else if (line.startsWith('---')) {
-      nodes.push(<hr key={i} className="border-edge-subtle my-3" />)
-    } else {
-      nodes.push(<p key={i} className="text-xs text-ink-secondary leading-relaxed">{inlineFormat(line)}</p>)
-    }
-    i++
-  }
-  return nodes
-}
-
-function inlineFormat(text: string): React.ReactNode {
-  const parts: React.ReactNode[] = []
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g
-  let last = 0
-  let m: RegExpExecArray | null
-
-  while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index))
-    const match = m[0]
-    if (match.startsWith('**')) {
-      parts.push(<strong key={m.index} className="font-semibold text-ink-primary">{match.slice(2, -2)}</strong>)
-    } else {
-      parts.push(<code key={m.index} className="font-mono text-[10px] px-1 py-0.5 rounded bg-navy-600 border border-edge-default text-cyan-400">{match.slice(1, -1)}</code>)
-    }
-    last = m.index + match.length
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return parts.length === 0 ? text : <>{parts}</>
-}
-
-// ─── Article Modal ────────────────────────────────────────────────────────────
 
 function ArticleModal({ initial, onClose, onSave, onDelete }: {
   initial?: KnowledgeArticle
