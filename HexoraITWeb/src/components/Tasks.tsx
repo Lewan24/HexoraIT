@@ -313,55 +313,60 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
   const statusIdx = STATUSES.indexOf(task.status)
 
   return (
-    <div className="bg-navy-800 border border-edge-subtle rounded-xl px-3.5 py-3 hover:border-edge-default transition-all group">
+    <div className="bg-navy-800 border border-edge-subtle rounded-xl px-3.5 py-3 hover:border-edge-default transition-all group hover:scale-[1.02]">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0">{task.title}</p>
-        <button onClick={onPreview} className="p-1 rounded text-ink-muted hover:text-cyan-400 hover:bg-navy-700">
-            <Eye size={11}/>
+        <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0 cursor-pointer" onClick={onPreview}>{task.title}</p>
+        <button onClick={onPreview} className="p-1 rounded text-ink-muted hover:text-cyan-400 hover:bg-navy-700 cursor-pointer">
+            <Eye size={14} className='text-green-500'/>
         </button>
 
-        <button onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700">
-            <Edit2 size={11}/>
+        <button onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700 cursor-pointer">
+            <Edit2 size={12} className='text-orange-500'/>
         </button>
       </div>
-      {task.description.trim() && (
-        <div className="space-y-0.5 mb-2">{renderMarkdownCompact(task.description)}</div>
-      )}
-      <div className="flex items-center gap-1.5 flex-wrap mb-2">
-        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${pc.cls}`}>
-          <span className={`w-1 h-1 rounded-full ${pc.dot}`} />{pc.label}
-        </span>
-        {task.assignee && (
-          <span className="inline-flex items-center gap-1 text-[10px] text-ink-muted">
-            <User size={9} /> {task.assignee}
-          </span>
+
+      <div className='cursor-pointer' onClick={onPreview}>
+        {task.description.trim() && (
+          <div className="space-y-0.5 mb-2">{renderMarkdownCompact(task.description)}</div>
         )}
-      </div>
-      {(task.dueDate || task.tags.length > 0) && (
-        <div className="flex items-center gap-2 flex-wrap">
-          {task.dueDate && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${overdue && task.status !== 'done' ? 'text-red-400' : 'text-ink-muted'}`}>
-              <Calendar size={9} /> {task.dueDate}
-              {overdue && task.status !== 'done' && <span className="text-[9px]">· overdue</span>}
+
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+          <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${pc.cls}`}>
+            <span className={`w-1 h-1 rounded-full ${pc.dot}`} />{pc.label}
+          </span>
+          {task.assignee && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-ink-muted">
+              <User size={9} /> {task.assignee}
             </span>
           )}
-          {task.tags.slice(0, 2).map(t => (
-            <span key={t} className="text-[9px] text-ink-muted px-1 py-0.5 rounded bg-navy-700 border border-edge-subtle">{t}</span>
-          ))}
         </div>
-      )}
+        {(task.dueDate || task.tags.length > 0) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {task.dueDate && (
+              <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${overdue && task.status !== 'done' ? 'text-red-400' : 'text-ink-muted'}`}>
+                <Calendar size={9} /> {task.dueDate}
+                {overdue && task.status !== 'done' && <span className="text-[9px]">· overdue</span>}
+              </span>
+            )}
+            {task.tags.slice(0, 2).map(t => (
+              <span key={t} className="text-[9px] text-ink-muted px-1 py-0.5 rounded bg-navy-700 border border-edge-subtle">{t}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      
       <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-edge-subtle">
         <button
           onClick={() => onMove('prev')}
           disabled={statusIdx === 0}
-          className="flex items-center gap-0.5 text-[10px] text-ink-muted hover:text-ink-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1.5 py-0.5 rounded hover:bg-navy-700">
+          className="cursor-pointer bg-transparent border border-cyan-600 flex hover:scale-[1.1] hover:border-cyan-300 items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
           <ChevronLeft size={10} /> {statusIdx > 0 ? STATUS_CONFIG[STATUSES[statusIdx - 1]!].label : ''}
         </button>
         <div className="flex-1" />
         <button
           onClick={() => onMove('next')}
           disabled={statusIdx === STATUSES.length - 1}
-          className="flex items-center gap-0.5 text-[10px] text-ink-muted hover:text-ink-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-1.5 py-0.5 rounded hover:bg-navy-700">
+          className="cursor-pointer bg-transparent border border-cyan-600 hover:scale-[1.1] hover:border-cyan-300 flex items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
           {statusIdx < STATUSES.length - 1 ? STATUS_CONFIG[STATUSES[statusIdx + 1]!].label : ''} <ChevronRight size={10} />
         </button>
       </div>
