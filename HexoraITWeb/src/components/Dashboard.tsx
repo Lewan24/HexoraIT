@@ -321,7 +321,7 @@ export default function Dashboard({ navigate }: Props) {
                     <CircleAlert size={14} className="text-red-400" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-ink-primary truncate">{task.title}</p>
-                      <p className="text-[10px] text-ink-muted">Due {task.dueDate}</p>
+                      <p className="text-[10px] text-ink-muted">Due {task.dueDate} - <span className='text-red-400'>Remaining: <i>{daysUntil(task.dueDate) === 0 ? "OVERDUE" : "" + daysUntil(task.dueDate) + " days"}</i></span></p>
                     </div>
                     <PriorityBadge priority={task.priority} />
                   </div>
