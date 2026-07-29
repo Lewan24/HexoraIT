@@ -7,6 +7,8 @@ import { useApp } from '../context/useApp'
 import { warrantyApi } from '../api/resources'
 import type { WarrantyItem, WarrantyType } from '../api/types'
 import DocumentAttachment from '../components/DocumentAttachment'
+import { v7 as uuidv7 } from 'uuid';
+
 
 const WARRANTY_TYPES: WarrantyType[] = ['Standard', 'Extended', 'On-Site NBD', 'Carry-In', 'Mail-In', 'Other']
 const STATUS_FILTERS = ['All', 'Active', 'Expiring', 'Expired'] as const
@@ -35,13 +37,14 @@ function inp(error?: string) {
 
 interface FormProps {
   initial?: WarrantyItem
-  onSave: (d: Omit<WarrantyItem, 'id' | 'starred' | 'status' | 'document'>, pendingFile?: File) => Promise<void>
+  onSave: (d: Omit<WarrantyItem, 'starred' | 'status' | 'document'>, pendingFile?: File) => Promise<void>
   onClose: () => void
 }
 
 function WarrantyForm({ initial, onSave, onClose }: FormProps) {
   const { assets } = useApp()
   const [form, setForm] = useState({
+    id: initial?.id ?? uuidv7(),
     name: initial?.name ?? '',
     vendor: initial?.vendor ?? '',
     serialNumber: initial?.serialNumber ?? '',
@@ -215,6 +218,8 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
     } catch {
       setDeleting(false)
     }
+    setDeleting(false)
+    setConfirmDelete(false)
   }
 
   return (
@@ -372,7 +377,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function Warranty() {
-  const { warrantyItems, isLoading, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, toast } = useApp()
+  const { warrantyItems, isLoading, reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, toast } = useApp()
 
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
@@ -399,11 +404,15 @@ export default function Warranty() {
   }
 
   const handleDelete = async () => {
-    if (!selected) return
-    await deleteWarranty(selected.id)
+    if (!selected)
+       return
+
+    const deletedId = selected.id
+    await deleteWarranty(deletedId)
     toast('Warranty deleted')
+    
     setMobileDetailOpen(false)
-    setSelectedId(filtered.find(w => w.id !== selected.id)?.id ?? null)
+    setSelectedId(null)
   }
 
   if (isLoading) {
@@ -508,14 +517,15 @@ export default function Warranty() {
           onSave={async (d, pendingFile) => {
             await addWarranty({ ...d, starred: false })
             if (pendingFile) {
-              const latest = warrantyItems[0]
-              if (latest) {
-                try { await warrantyApi.uploadDocument(latest.id, pendingFile) }
-                catch { toast('Warranty saved, but the document failed to upload', 'error') }
+              try { 
+                await warrantyApi.uploadDocument(d.id, pendingFile) 
               }
+              catch { toast('Warranty saved, but the document failed to upload', 'error') }
             }
             setAddOpen(false)
             toast('Warranty added')
+
+            await reloadWarranties()
           }}
           onClose={() => setAddOpen(false)}
         />

@@ -115,8 +115,16 @@ public class AppMappingProfile : Profile
                         src.DocumentSize ?? 0
                     )
             ));
-        CreateMap<CreateWarrantyItemDto, WarrantyItem>();
-        CreateMap<UpdateWarrantyItemDto, WarrantyItem>();
+        CreateMap<CreateWarrantyItemDto, WarrantyItem>()
+            .ForMember(
+                dest => dest.Id,
+                opt => opt.MapFrom(src => Guid.Parse(src.Id))
+            );
+        CreateMap<UpdateWarrantyItemDto, WarrantyItem>()
+            .ForMember(
+                dest => dest.Id,
+                opt => opt.MapFrom(src => Guid.Parse(src.Id))
+            );
 
         CreateMap<DiagramNode, DiagramNodeDto>();
         CreateMap<DiagramNodeDto, DiagramNode>();

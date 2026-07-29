@@ -64,12 +64,17 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
     public async Task<ActionResult<WarrantyItemDto>> Create([FromQuery] Guid organizationId, CreateWarrantyItemDto dto)
     {
         var check = await CheckWriteAccessAsync(organizationId);
-        if (check is not null) return check;
-
+        if (check is not null) 
+            return check;
+        
+        if (await Db.WarrantyItems.AnyAsync(w => w.Id == Guid.Parse(dto.Id)))
+            return Conflict("An item with this id already exists.");
+        
         var item = mapper.Map<WarrantyItem>(dto);
         item.OrganizationId = organizationId;
         item.Status = CalcStatus(item.WarrantyEndDate);
         Db.WarrantyItems.Add(item);
+        
         await Db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, mapper.Map<WarrantyItemDto>(item));
     }
@@ -93,12 +98,19 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
     public async Task<IActionResult> Delete(Guid id)
     {
         var item = await Db.WarrantyItems.FirstOrDefaultAsync(w => w.Id == id);
-        if (item is null) return NotFound();
+        if (item is null) 
+            return NotFound();
 
         var check = await CheckWriteAccessAsync(item.OrganizationId);
-        if (check is not null) return check;
+        if (check is not null) 
+            return check;
 
-        if (item.DocumentBlobPath is not null) await storage.DeleteAsync(item.DocumentBlobPath);
+        if (item.DocumentBlobPath is not null)
+        {
+            try { await storage.DeleteAsync(item.DocumentBlobPath); }
+            catch {  }
+        }
+        
         Db.WarrantyItems.Remove(item);
         await Db.SaveChangesAsync();
         return NoContent();
@@ -123,19 +135,27 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
     public async Task<IActionResult> UploadDocument(Guid id, IFormFile file)
     {
         var item = await Db.WarrantyItems.FirstOrDefaultAsync(w => w.Id == id);
-        if (item is null) return NotFound();
+        if (item is null)
+            return NotFound();
 
         var check = await CheckWriteAccessAsync(item.OrganizationId);
-        if (check is not null) return check;
+        if (check is not null)
+            return check;
 
-        if (item.DocumentBlobPath is not null) await storage.DeleteAsync(item.DocumentBlobPath);
+        if (item.DocumentBlobPath is not null)
+        {
+            try { await storage.DeleteAsync(item.DocumentBlobPath); }
+            catch {  }
+        }
 
         var path = await storage.SaveAsync(file.OpenReadStream(), file.FileName, file.ContentType);
         item.DocumentName = file.FileName;
         item.DocumentMimeType = file.ContentType;
         item.DocumentSize = file.Length;
         item.DocumentBlobPath = path;
+        
         await Db.SaveChangesAsync();
+        
         return Ok(mapper.Map<WarrantyItemDto>(item));
     }
 

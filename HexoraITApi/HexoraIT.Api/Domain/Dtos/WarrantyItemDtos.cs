@@ -26,10 +26,10 @@ public record WarrantyItemDto(
     WarrantyDocumentDto? Document
 );
 
-public record CreateWarrantyItemDto(string Name, string Vendor, string SerialNumber, DateOnly PurchaseDate,
+public record CreateWarrantyItemDto(string Id, string Name, string Vendor, string SerialNumber, DateOnly PurchaseDate,
     DateOnly WarrantyEndDate, WarrantyType WarrantyType, string ContactName, string ContactPhone, string ContactEmail,
-    string Notes, Guid? AssetId);
+    string Notes, Guid? AssetId, bool Starred);
 
-public record UpdateWarrantyItemDto(string Name, string Vendor, string SerialNumber, DateOnly PurchaseDate,
+public record UpdateWarrantyItemDto(string Id, string Name, string Vendor, string SerialNumber, DateOnly PurchaseDate,
     DateOnly WarrantyEndDate, WarrantyType WarrantyType, string ContactName, string ContactPhone, string ContactEmail,
-    string Notes, Guid? AssetId);
+    string Notes, Guid? AssetId, bool Starred);

@@ -82,7 +82,8 @@ export interface AppContextValue {
   updateGroup: (g: Group) => Promise<void>
   deleteGroup: (id: string) => Promise<void>
 
-  addWarranty: (w: Omit<WarrantyItem, 'id' | 'status'>) => Promise<void>
+  reloadWarranties: () => Promise<void>
+  addWarranty: (w: Omit<WarrantyItem, 'status'>) => Promise<void>
   updateWarranty: (w: WarrantyItem) => Promise<void>
   deleteWarranty: (id: string) => Promise<void>
   toggleStarWarranty: (id: string) => Promise<void>

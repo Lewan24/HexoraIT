@@ -151,7 +151,7 @@ export const groupsApi = {
 
 export const warrantyApi = {
   getAll: (organizationId: string) => http.get<WarrantyItem[]>(`/warranties${qs({ organizationId })}`),
-  create: (organizationId: string, data: Omit<WarrantyItem, 'id' | 'status'>) =>
+  create: (organizationId: string, data: Omit<WarrantyItem, 'status'>) =>
     http.post<WarrantyItem>(`/warranties${qs({ organizationId })}`, data),
   update: (id: string, data: Omit<WarrantyItem, 'id' | 'status'>) => http.put<void>(`/warranties/${id}`, data),
   delete: (id: string) => http.delete<void>(`/warranties/${id}`),

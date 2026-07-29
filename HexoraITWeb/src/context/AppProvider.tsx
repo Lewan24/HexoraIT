@@ -315,6 +315,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [guarded])
 
   // ── Contracts ──
+  const reloadContracts = useCallback(async () => {
+    const contracts = await guarded(() => contractsApi.getAll(currentOrgId), 'Failed to reload contracts data')
+    setData(d => ({ ...d, contracts: contracts}))
+    toast(`Contracts loaded`, 'info')
+  }, [guarded, toast, currentOrgId])
+
   const addContract = useCallback(async (c: Omit<Contract, 'id' | 'status'>) => {
     const created = await guarded(() => contractsApi.create(currentOrgId, c), 'Failed to add contract')
     setData(d => ({ ...d, contracts: [created, ...d.contracts] }))
@@ -471,7 +477,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [data.groups, guarded, toast])
 
   // ── Warranties ──
-  const addWarranty = useCallback(async (w: Omit<WarrantyItem, 'id' | 'status'>) => {
+  const reloadWarranties = useCallback(async () => {
+    const warranties = await guarded(() => warrantyApi.getAll(currentOrgId), 'Failed to reload warranties data')
+    setData(d => ({ ...d, warrantyItems: warranties}))
+    toast(`Warranties loaded`, 'info')
+  }, [guarded, toast, currentOrgId])
+
+  const addWarranty = useCallback(async (w: Omit<WarrantyItem, 'status'>) => {
     const created = await guarded(() => warrantyApi.create(currentOrgId, w), 'Failed to add warranty')
     setData(d => ({ ...d, warrantyItems: [created, ...d.warrantyItems] }))
     toast(`Warranty "${w.name}" added`)
@@ -520,14 +532,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry,
     addLicense, updateLicense, deleteLicense, toggleStarLicense,
     addContact, updateContact, deleteContact, toggleStarContact,
-    addContract, updateContract, deleteContract, toggleStarContract,
+    reloadContracts, addContract, updateContract, deleteContract, toggleStarContract,
     addPlan, updatePlan, deletePlan,
     addIncident, updateIncident, deleteIncident,
     addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge,
     addTask, updateTask, deleteTask,
     addProject, updateProject, deleteProject,
     addGroup, updateGroup, deleteGroup,
-    addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, uploadWarrantyDocument,
+    reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, uploadWarrantyDocument,
     saveDiagram,
   }
 

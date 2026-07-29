@@ -12,8 +12,6 @@ function getToken(): string | null {
   return localStorage.getItem('auth_token')
 }
 
-// Fired when the API returns 401 (token missing/expired/invalid) so the app
-// can drop back to the login screen from anywhere without prop-drilling.
 type UnauthorizedHandler = () => void
 let onUnauthorized: UnauthorizedHandler | null = null
 export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
@@ -57,7 +55,6 @@ async function request<T>(path: string, options: RequestInit = {}, getString: bo
   return res.text() as Promise<T>
 }
 
-// Builds a query string from an object, skipping undefined/null values.
 export function qs(params: Record<string, string | undefined | null>): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null) as [string, string][]
   if (entries.length === 0) return ''

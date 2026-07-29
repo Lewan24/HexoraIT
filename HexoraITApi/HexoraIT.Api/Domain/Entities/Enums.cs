@@ -99,7 +99,16 @@ public enum GroupType
     [JsonStringEnumMemberName("Project Team")] ProjectTeam,
     [JsonStringEnumMemberName("Other")] Other
 }
-public enum WarrantyType { Standard, Extended, OnSiteNbd, CarryIn, MailIn, Other }
+
+public enum WarrantyType
+{
+    Standard,
+    Extended,
+    [JsonStringEnumMemberName("On-Site NBD")] OnSiteNbd,
+    [JsonStringEnumMemberName("Carry-In")] CarryIn,
+    [JsonStringEnumMemberName("Mail-In")] MailIn,
+    Other
+}
 
 public enum WarrantyStatus
 {
