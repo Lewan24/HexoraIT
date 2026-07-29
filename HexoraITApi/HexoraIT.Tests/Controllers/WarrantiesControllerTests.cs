@@ -29,6 +29,7 @@ public class WarrantiesControllerTests : IDisposable
         var created = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Firewall license",
                 "Fortinet",
                 "SN123",
@@ -39,7 +40,8 @@ public class WarrantiesControllerTests : IDisposable
                 "123456789",
                 "john@test.local",
                 "Notes",
-                null));
+                null, 
+                false));
 
         created.Result.Should().BeOfType<CreatedAtActionResult>();
 
@@ -79,6 +81,7 @@ public class WarrantiesControllerTests : IDisposable
         var result = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Denied",
                 "",
                 "",
@@ -89,7 +92,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null, 
+                false));
 
         result.Result.Should().BeOfType<ForbidResult>();
     }
@@ -103,6 +107,7 @@ public class WarrantiesControllerTests : IDisposable
         var result = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Expired item",
                 "Vendor",
                 "001",
@@ -113,7 +118,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var dto = result.Result
             .As<CreatedAtActionResult>()
@@ -132,6 +138,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Old",
                 "",
                 "",
@@ -142,7 +149,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -152,6 +160,7 @@ public class WarrantiesControllerTests : IDisposable
         var update = await sut.Update(
             item.Id,
             new UpdateWarrantyItemDto(
+                item.Id.ToString(),
                 "Updated",
                 "Vendor",
                 "SN",
@@ -162,7 +171,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         update.Should().BeOfType<NoContentResult>();
 
@@ -186,6 +196,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Star item",
                 "",
                 "",
@@ -196,7 +207,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -228,6 +240,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Document test",
                 "",
                 "",
@@ -238,7 +251,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -282,6 +296,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Download",
                 "",
                 "",
@@ -292,7 +307,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -337,6 +353,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Delete",
                 "",
                 "",
@@ -347,7 +364,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -373,6 +391,7 @@ public class WarrantiesControllerTests : IDisposable
         var create = await sut.Create(
             org.Id,
             new CreateWarrantyItemDto(
+                $"{Guid.CreateVersion7()}",
                 "Readonly",
                 "",
                 "",
@@ -383,7 +402,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null,
+                false));
 
         var item = create.Result
             .As<CreatedAtActionResult>()
@@ -418,6 +438,7 @@ public class WarrantiesControllerTests : IDisposable
         var update = await sut.Update(
             item.Id,
             new UpdateWarrantyItemDto(
+                item.Id.ToString(),
                 "Blocked",
                 "",
                 "",
@@ -428,7 +449,8 @@ public class WarrantiesControllerTests : IDisposable
                 "",
                 "",
                 "",
-                null));
+                null, 
+                false));
 
         update.Should().BeOfType<ForbidResult>();
     }

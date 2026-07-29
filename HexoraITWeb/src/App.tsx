@@ -22,9 +22,10 @@ import Settings from './components/Settings'
 import ToastContainer from './components/ui/Toast'
 import { useAuth } from './context/useAuth'
 import AdminPanel from './components/AdminPanel'
+import FileExplorer from './components/FileExplorer'
 
 export type View =
-  | 'dashboard' | 'assets' | 'asset-detail' | 'passwords'
+  | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
   | 'networks' | 'licenses' | 'contacts' | 'contracts'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
   | 'groups' | 'warranty' | 'diagram' | 'adminpanel'
@@ -45,6 +46,7 @@ function AuthenticatedApp() {
       case 'assets':       return <AssetInventory navigate={navigate} />
       case 'asset-detail': return <AssetDetails assetId={selectedAssetId} navigate={navigate} />
       case 'passwords':    return <PasswordVault />
+      case 'files': return <FileExplorer />
       case 'networks':     return <Networks />
       case 'licenses':     return <Licenses />
       case 'contacts':     return <Contacts />

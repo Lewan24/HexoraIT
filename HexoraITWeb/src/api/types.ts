@@ -115,4 +115,7 @@ export interface DiagramEdge {
   label?: string; connectionType: DiagramConnectionType
 }
 
+export interface FileFolder { id: string; name: string; parentFolderId?: string; createdAt: string }
+export interface StoredFile { id: string; name: string; mimeType: string; size: number; folderId?: string; uploadedAt: string }
+
 export interface Toast { id: string; message: string; type: 'success' | 'error' | 'info' }

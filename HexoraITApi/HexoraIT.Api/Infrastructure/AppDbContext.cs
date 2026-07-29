@@ -71,6 +71,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     public DbSet<WarrantyItem> WarrantyItems => Set<WarrantyItem>();
     public DbSet<DiagramNode> DiagramNodes => Set<DiagramNode>();
     public DbSet<DiagramEdge> DiagramEdges => Set<DiagramEdge>();
+    
+    public DbSet<FileFolder> FileFolders => Set<FileFolder>();
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -205,6 +208,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
             e.HasKey(uo => new { uo.UserId, uo.OrganizationId });
             e.HasOne(uo => uo.User).WithMany(u => u.Memberships).HasForeignKey(uo => uo.UserId);
             e.HasOne(uo => uo.Organization).WithMany(o => o.Memberships).HasForeignKey(uo => uo.OrganizationId);
+        });
+        
+        b.Entity<FileFolder>(e =>
+        {
+            e.Property(f => f.Name).HasMaxLength(200).IsRequired();
+            e.HasOne<FileFolder>()
+                .WithMany()
+                .HasForeignKey(f => f.ParentFolderId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<StoredFile>(e =>
+        {
+            e.Property(f => f.Name).HasMaxLength(260).IsRequired();
+            e.HasOne<FileFolder>()
+                .WithMany()
+                .HasForeignKey(f => f.FolderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         b.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);

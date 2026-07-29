@@ -141,5 +141,8 @@ public class AppMappingProfile : Profile
                 Label = s.Label,
                 ConnectionType = s.ConnectionType,
             });
+        
+        CreateMap<FileFolder, FileFolderDto>();
+        CreateMap<StoredFile, StoredFileDto>();
     }
 }

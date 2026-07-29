@@ -9,6 +9,8 @@ import type {
   SystemRole,
   Project,
   DashboardLayout,
+  FileFolder,
+  StoredFile,
 } from './types'
 
 export const adminApi = {
@@ -164,4 +166,20 @@ export const diagramApi = {
   get: (organizationId: string) => http.get<{ nodes: DiagramNode[]; edges: DiagramEdge[] }>(`/diagram${qs({ organizationId })}`),
   save: (organizationId: string, nodes: DiagramNode[], edges: DiagramEdge[]) =>
     http.put<void>(`/diagram${qs({ organizationId })}`, { nodes, edges }),
+}
+
+export const filesApi = {
+  getFolders: (organizationId: string, parentFolderId?: string) =>
+    http.get<FileFolder[]>(`/files/folders${qs({ organizationId, parentFolderId })}`),
+  createFolder: (organizationId: string, name: string, parentFolderId?: string) =>
+    http.post<FileFolder>(`/files/folders${qs({ organizationId })}`, { name, parentFolderId }),
+  deleteFolder: (id: string) => http.delete<void>(`/files/folders/${id}`),
+
+  getFiles: (organizationId: string, folderId?: string) =>
+    http.get<StoredFile[]>(`/files${qs({ organizationId, folderId })}`),
+  upload: (organizationId: string, file: File, folderId?: string) =>
+    http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId })}`, file),
+  deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
+  getContentBlob: (id: string) => http.getBlob(`/files/${id}/content`),
+  downloadFile: (id: string) => http.getBlob(`/files/${id}/download`),
 }

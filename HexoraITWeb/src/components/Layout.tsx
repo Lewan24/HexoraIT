@@ -5,6 +5,7 @@ import {
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
   ShieldCheck, Layers, Share2, Sun, Moon,
+  FolderOpen,
 } from 'lucide-react'
 import type { View } from '../App'
 import { useApp } from '../context/useApp'
@@ -26,6 +27,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'assets',    label: 'Assets',     icon: <Server size={15} /> },
       { id: 'networks',  label: 'Networks',   icon: <Network size={15} /> },
       { id: 'licenses',  label: 'Licenses',   icon: <CreditCard size={15} /> },
+      { id: 'files', label: 'Files', icon: <FolderOpen size={15} /> },
     ],
   },
   {

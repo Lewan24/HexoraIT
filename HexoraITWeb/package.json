@@ -17,12 +17,14 @@
     "@xyflow/react": "^12.11.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
+    "mammoth": "^1.12.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router": "^7.18.1",
     "sonner": "2.0.3",
     "tailwindcss": "^4.2.4",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
