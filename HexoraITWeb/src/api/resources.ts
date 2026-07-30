@@ -187,3 +187,10 @@ export const filesApi = {
   renameFile: (id: string, name: string) => http.patch<void>(`/files/${id}`, { name }),
   moveFile: (id: string, newFolderId?: string) => http.patch<void>(`/files/${id}/move`, { newFolderId }),
 }
+
+export const versionApi = {
+  getCurrentVersion: () => 
+    http.getString(`/version`),
+  getLatestVersion: () => 
+    http.getString(`/version/latest`)
+}

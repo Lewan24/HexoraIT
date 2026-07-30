@@ -7,4 +7,5 @@ public sealed class AppSettings
     public bool AllowRegister { get; init; }
 
     public string[] AllowOrigins { get; init; } = [];
+    public string? CurrentVersion { get; set; }
 }

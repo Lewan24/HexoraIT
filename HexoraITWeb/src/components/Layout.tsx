@@ -16,6 +16,8 @@ import { buildSearchResults, type SearchResult } from '../lib/search'
 import logo from '../../public/logo/HexoraIT_LogoNoBg.png'
 import logoWhite from '../../public/logo/HexoraIT_LogoGray.png'
 import logoHex from '../../public/logo/HexoraIT_HexLogoNoBg.png'
+import UpdateDialog from './updateDialog'
+import { useVersionCheck } from '../context/useVersionCheck'
 
 type NavSection = { label: string; items: { id: View; label: string; icon: React.ReactNode }[] }
 
@@ -370,6 +372,13 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
   const [theme, setThemeState] = useState(getTheme)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  const {
+    currentVersion,
+    latestVersion,
+    updateAvailable,
+    closeUpdateDialog
+  } = useVersionCheck();
+
   const expiring = licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
 
   const results = buildSearchResults(
@@ -431,6 +440,12 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
 
   return (
     <div className="flex h-screen bg-navy-950 overflow-hidden font-sans">
+      <UpdateDialog
+                open={updateAvailable}
+                currentVersion={currentVersion}
+                latestVersion={latestVersion}
+                onClose={closeUpdateDialog}
+            />
 
       {/* Desktop sidebar */}
       <aside

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using HexoraITApi.Api.App;
 using HexoraITApi.Api.Interfaces;
 using HexoraITApi.Application;
 using HexoraITApi.Domain;
@@ -28,6 +29,14 @@ builder.Services.AddScoped<ICurrentUserContext, DbCurrentUserContext>();
 
 builder.Services.Configure<AppSettings>(
     builder.Configuration.GetSection("AppSettings"));
+
+builder.Services.AddScoped<GitHubVersionService>();
+builder.Services.AddHttpClient<GitHubVersionService>(client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("HexoraIT");
+});
+
+builder.Services.AddMemoryCache();
 
 var jwt = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
