@@ -132,7 +132,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
 
         <div className="flex-1 min-h-0 bg-navy-950 overflow-auto relative">
           {kind === 'docx' && (
-            <div ref={docxContainerRef} className="docx-preview-host bg-white p-4 h-full overflow-auto"/>
+            <div ref={docxContainerRef} className="docx-preview-host md:flex md:flex-col md:items-center bg-white p-4 h-full overflow-auto"/>
           )}
 
           {loading && (

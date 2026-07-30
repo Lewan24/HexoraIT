@@ -181,7 +181,12 @@ html, body, #root {
   background: transparent;
   padding: 0;
 }
+
 .docx-preview-host .docx-wrapper > section.docx {
   margin: 0 auto 16px auto;
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.docx-preview-wrapper{
+  width: 661pt;
 }

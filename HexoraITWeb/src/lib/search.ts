@@ -1,7 +1,7 @@
 import type { View } from '../App'
 import type {
   Asset, PasswordEntry, Contact, License, Contract, Plan,
-  Incident, KnowledgeArticle, Task, Group, WarrantyItem, Subnet,
+  Incident, KnowledgeArticle, Task, Group, WarrantyItem, Subnet
 } from '../api/types'
 
 export interface SearchResult {

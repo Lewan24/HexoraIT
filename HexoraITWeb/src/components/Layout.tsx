@@ -359,7 +359,7 @@ function Sidebar({
 export default function Layout({ currentView, navigate, onLogout, children }: Props) {
   const {
     currentOrg, licenses, assets, passwords, contacts, contracts, plans,
-    incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets,
+    incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets
   } = useApp()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
