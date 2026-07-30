@@ -158,3 +158,30 @@ html, body, #root {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.spreadsheet-preview table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.spreadsheet-preview td, .spreadsheet-preview th {
+  border: 1px solid #d1d5db;
+  padding: 4px 8px;
+  white-space: nowrap;
+  color: #111827;
+}
+.spreadsheet-preview tr:first-child td {
+  background: #f3f4f6;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.docx-preview-host .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+.docx-preview-host .docx-wrapper > section.docx {
+  margin: 0 auto 16px auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}

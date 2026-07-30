@@ -182,4 +182,8 @@ export const filesApi = {
   deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
   getContentBlob: (id: string) => http.getBlob(`/files/${id}/content`),
   downloadFile: (id: string) => http.getBlob(`/files/${id}/download`),
+  renameFolder: (id: string, name: string) => http.patch<void>(`/files/folders/${id}`, { name }),
+  moveFolder: (id: string, newParentFolderId?: string) => http.patch<void>(`/files/folders/${id}/move`, { newParentFolderId }),
+  renameFile: (id: string, name: string) => http.patch<void>(`/files/${id}`, { name }),
+  moveFile: (id: string, newFolderId?: string) => http.patch<void>(`/files/${id}/move`, { newFolderId }),
 }

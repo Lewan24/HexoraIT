@@ -11,9 +11,6 @@ using Microsoft.Net.Http.Headers;
 
 namespace HexoraITApi.Api.App;
 
-// TODO: Implement renaming files and folders
-// TODO: Implement moving files from or to folders etc
-// TODO: Find better way of preview office files in frontend app
 [ApiController]
 [Route("api/files")]
 public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage)
@@ -166,6 +163,86 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         catch {  }
 
         Db.StoredFiles.Remove(file);
+        await Db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPatch("folders/{id:guid}")]
+    public async Task<IActionResult> RenameFolder(Guid id, RenameFolderDto dto)
+    {
+        var folder = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == id);
+        if (folder is null) return NotFound();
+
+        var check = await CheckWriteAccessAsync(folder.OrganizationId);
+        if (check is not null) return check;
+
+        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Folder name is required.");
+
+        folder.Name = dto.Name.Trim();
+        await Db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPatch("folders/{id:guid}/move")]
+    public async Task<IActionResult> MoveFolder(Guid id, MoveFolderDto dto)
+    {
+        var folder = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == id);
+        if (folder is null) return NotFound();
+
+        var check = await CheckWriteAccessAsync(folder.OrganizationId);
+        if (check is not null) return check;
+
+        if (dto.NewParentFolderId == id) return BadRequest("A folder cannot be moved into itself.");
+
+        if (dto.NewParentFolderId is { } targetId)
+        {
+            var target = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == targetId && f.OrganizationId == folder.OrganizationId);
+            if (target is null) return BadRequest("Target folder does not exist.");
+
+            var current = target;
+            while (current.ParentFolderId is { } parentId)
+            {
+                if (parentId == id) return BadRequest("Cannot move a folder into its own subfolder.");
+                current = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == parentId);
+                if (current is null) break;
+            }
+        }
+
+        folder.ParentFolderId = dto.NewParentFolderId;
+        await Db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<IActionResult> RenameFile(Guid id, RenameFileDto dto)
+    {
+        var file = await Db.StoredFiles.FirstOrDefaultAsync(f => f.Id == id);
+        if (file is null) return NotFound();
+
+        var check = await CheckWriteAccessAsync(file.OrganizationId);
+        if (check is not null) return check;
+
+        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("File name is required.");
+
+        file.Name = dto.Name.Trim();
+        await Db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/move")]
+    public async Task<IActionResult> MoveFile(Guid id, MoveFileDto dto)
+    {
+        var file = await Db.StoredFiles.FirstOrDefaultAsync(f => f.Id == id);
+        if (file is null) return NotFound();
+
+        var check = await CheckWriteAccessAsync(file.OrganizationId);
+        if (check is not null) return check;
+
+        if (dto.NewFolderId is { } targetId &&
+            !await Db.FileFolders.AnyAsync(f => f.Id == targetId && f.OrganizationId == file.OrganizationId))
+            return BadRequest("Target folder does not exist.");
+
+        file.FolderId = dto.NewFolderId;
         await Db.SaveChangesAsync();
         return NoContent();
     }

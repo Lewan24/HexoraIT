@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Folder, FolderPlus, Upload, MoreVertical, Trash2, Download, Eye,
   ChevronRight, Loader2, FileText, Image as ImageIcon, FileSpreadsheet,
-  FileCode, File as FileIcon, X,
+  FileCode, File as FileIcon, X, FolderInput, Check,
+  Edit2
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import { filesApi } from '../api/resources'
 import { getPreviewKind, formatFileSize } from '../lib/filePreview'
 import FilePreviewModal from './FilePreviewModal'
 import type { FileFolder, StoredFile } from '../api/types'
+import { ApiError } from '../api/http'
 
 function iconFor(file: StoredFile) {
   const kind = getPreviewKind(file.name, file.mimeType)
@@ -38,6 +40,10 @@ export default function FileExplorer() {
   const [previewFile, setPreviewFile] = useState<StoredFile | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [renameTarget, setRenameTarget] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [moveTarget, setMoveTarget] = useState<{ type: 'file' | 'folder'; id: string; name: string; currentFolderId?: string } | null>(null)
 
   const currentFolderId = breadcrumbs[breadcrumbs.length - 1]?.id
 
@@ -136,6 +142,21 @@ export default function FileExplorer() {
     URL.revokeObjectURL(url)
   }
 
+  const handleRename = async () => {
+    if (!renameTarget || !renameValue.trim() || renaming) return
+    setRenaming(true)
+    try {
+      if (renameTarget.type === 'folder') await filesApi.renameFolder(renameTarget.id, renameValue.trim())
+      else await filesApi.renameFile(renameTarget.id, renameValue.trim())
+      setRenameTarget(null)
+      await load()
+    } catch {
+      toast('Failed to rename', 'error')
+    } finally {
+      setRenaming(false)
+    }
+  }
+
   return (
     <div className="p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); void handleUpload(e.dataTransfer.files) }}>
@@ -203,6 +224,14 @@ export default function FileExplorer() {
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setMenuOpenId(null)} />
                   <div className="absolute top-8 right-2 z-40 w-36 bg-navy-750 border border-edge-default rounded-lg shadow-2xl overflow-hidden">
+                    <button onClick={() => { setRenameTarget({ type: 'folder', id: folder.id, name: folder.name }); setRenameValue(folder.name); setMenuOpenId(null) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700 transition-colors">
+                      <Edit2 size={12} /> Rename
+                    </button>
+                    <button onClick={() => { setMoveTarget({ type: 'folder', id: folder.id, name: folder.name, currentFolderId: folder.parentFolderId }); setMenuOpenId(null) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700 transition-colors">
+                      <FolderInput size={12} /> Move
+                    </button>
                     <button onClick={() => { setDeleteTarget({ type: 'folder', id: folder.id, name: folder.name }); setMenuOpenId(null) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-navy-700 transition-colors">
                       <Trash2 size={12} /> Delete
@@ -216,26 +245,40 @@ export default function FileExplorer() {
           {files.map(file => {
             const previewable = getPreviewKind(file.name, file.mimeType) !== 'none'
             return (
-              <div key={file.id} className="relative group">
-                <button onClick={() => previewable && setPreviewFile(file)}
-                  className={`w-full flex flex-col items-center gap-2 p-4 rounded-xl bg-navy-800 border border-edge-subtle transition-colors ${previewable ? 'hover:border-edge-strong hover:bg-navy-750 cursor-pointer' : 'cursor-default'}`}>
-                  {iconFor(file)}
-                  <p className="text-xs text-ink-primary truncate w-full text-center">{file.name}</p>
-                  <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>
-                </button>
-                <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {previewable && (
-                    <button onClick={() => setPreviewFile(file)} title="Preview" className="p-1 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700">
-                      <Eye size={13} />
+              <div key={file.id} className="relative group transition transition-all hover:scale-[1.05] border-blue-500 rounded-xl hover:border-1">
+                <button title={file.name}
+                  className={`w-full flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-navy-800 border border-edge-subtle transition-colors ${previewable ? 'hover:border-edge-strong hover:bg-navy-750' : 'cursor-default'}`}>
+                  <div className="flex justify-center order-1">
+                    {previewable && (
+                      <button onClick={() => setPreviewFile(file)} title="Preview" 
+                      className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
+                        <Eye size={13} className='text-green-500' />
+                      </button>
+                    )}
+                    <button onClick={() => void download(file)} title="Download" 
+                    className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
+                      <Download size={13} className='text-indigo-500' />
                     </button>
-                  )}
-                  <button onClick={() => void download(file)} title="Download" className="p-1 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700">
-                    <Download size={13} />
-                  </button>
-                  <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title="Delete" className="p-1 rounded-md text-ink-muted hover:text-red-400 hover:bg-navy-700">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                    <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title="Delete" 
+                    className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
+                      <Trash2 size={13} className='text-red-500' />
+                    </button>
+                    <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title="Rename" 
+                    className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
+                      <Edit2 size={13} className='text-orange-500' />
+                    </button>
+                    <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title="Move" 
+                    className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
+                      <FolderInput size={13} className='text-gray-400' />
+                    </button>
+                  </div>
+
+                  <div onClick={() => previewable && setPreviewFile(file)} className='cursor-pointer flex flex-col justify-center items-center gap-2 w-full'>
+                    {iconFor(file)}
+                    <p className="text-xs text-ink-primary truncate w-full text-center px-1">{file.name}</p>
+                    <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>                
+                  </div>
+                </button>
               </div>
             )
           })}
@@ -284,7 +327,132 @@ export default function FileExplorer() {
         </div>
       )}
 
+      {renameTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !renaming && setRenameTarget(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-ink-primary">Rename {renameTarget.type === 'folder' ? 'Folder' : 'File'}</h2>
+              <button onClick={() => setRenameTarget(null)} disabled={renaming} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
+            </div>
+            <input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus disabled={renaming}
+              onKeyDown={e => { if (e.key === 'Enter') handleRename() }}
+              className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setRenameTarget(null)} disabled={renaming} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+              <button onClick={handleRename} disabled={renaming || !renameValue.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                {renaming && <Loader2 size={11} className="animate-spin" />} Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {moveTarget && currentOrg && (
+        <MoveModal
+          target={moveTarget}
+          organizationId={currentOrg.id}
+          onClose={() => setMoveTarget(null)}
+          onMoved={load}
+        />
+      )}
+
       {previewFile && <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
+    </div>
+  )
+}
+
+function MoveModal({ target, organizationId, onClose, onMoved }: {
+  target: { type: 'file' | 'folder'; id: string; name: string; currentFolderId?: string }
+  organizationId: string
+  onClose: () => void
+  onMoved: () => Promise<void>
+}) {
+  const [allFolders, setAllFolders] = useState<FileFolder[] | null>(null)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(target.currentFolderId)
+  const [moving, setMoving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadAll() {
+      const collected: FileFolder[] = []
+      const queue: (string | undefined)[] = [undefined]
+      while (queue.length > 0) {
+        const parentId = queue.shift()
+        const children = await filesApi.getFolders(organizationId, parentId)
+        collected.push(...children)
+        queue.push(...children.map(c => c.id))
+      }
+      setAllFolders(collected)
+    }
+    void loadAll()
+  }, [organizationId])
+
+  const isDescendantOfTarget = (folderId: string): boolean => {
+    if (target.type !== 'folder' || !allFolders) return false
+    if (folderId === target.id) return true
+    let current = allFolders.find(f => f.id === folderId)
+    while (current?.parentFolderId) {
+      if (current.parentFolderId === target.id) return true
+      current = allFolders.find(f => f.id === current!.parentFolderId)
+    }
+    return false
+  }
+
+  const submit = async () => {
+    if (moving) return
+    setMoving(true)
+    setError(null)
+    try {
+      if (target.type === 'folder') await filesApi.moveFolder(target.id, selectedFolderId)
+      else await filesApi.moveFile(target.id, selectedFolderId)
+      await onMoved()
+      onClose()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to move')
+    } finally {
+      setMoving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !moving && onClose()}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle flex-shrink-0">
+          <h2 className="text-sm font-semibold text-ink-primary">Move "{target.name}"</h2>
+          <button onClick={onClose} disabled={moving} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          {allFolders === null ? (
+            <div className="flex items-center justify-center py-8"><Loader2 size={18} className="animate-spin text-ink-muted" /></div>
+          ) : (
+            <>
+              <button onClick={() => setSelectedFolderId(undefined)}
+                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-xs hover:bg-navy-700 transition-colors ${selectedFolderId === undefined ? 'text-blue-400 bg-navy-700/60' : 'text-ink-secondary'}`}>
+                <Folder size={13} /> Root
+                {selectedFolderId === undefined && <Check size={11} className="ml-auto" />}
+              </button>
+              {allFolders.filter(f => !isDescendantOfTarget(f.id)).map(f => (
+                <button key={f.id} onClick={() => setSelectedFolderId(f.id)}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-xs hover:bg-navy-700 transition-colors ${selectedFolderId === f.id ? 'text-blue-400 bg-navy-700/60' : 'text-ink-secondary'}`}>
+                  <Folder size={13} /> {f.name}
+                  {selectedFolderId === f.id && <Check size={11} className="ml-auto" />}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+        {error && <p className="px-5 pt-2 text-[11px] text-red-400 flex-shrink-0">{error}</p>}
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40 flex-shrink-0">
+          <button onClick={onClose} disabled={moving} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+          <button onClick={submit} disabled={moving || allFolders === null}
+            className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            {moving && <Loader2 size={11} className="animate-spin" />} Move Here
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
