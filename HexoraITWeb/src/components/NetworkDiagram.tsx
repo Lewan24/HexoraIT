@@ -46,7 +46,7 @@ import type {
   DiagramDeviceType,
   DiagramConnectionType,
 } from '../api/types'
-
+import { v7 as uuidv7 } from 'uuid';
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEVICE_COLORS: Record<DiagramDeviceType, string> = {
@@ -994,7 +994,7 @@ function NetworkDiagramInner() {
     const color = CONNECTION_COLORS[connectionType]
     const newEdge: Edge = {
       ...pendingConnection,
-      id: crypto.randomUUID(),
+      id: uuidv7(),
       label: label || undefined,
       data: { connectionType },
       style: edgeStyleForType(connectionType),
@@ -1015,7 +1015,7 @@ function NetworkDiagramInner() {
   const handleAddDevice = useCallback((deviceType: DiagramDeviceType, label: string, ip: string) => {
     const jitter = () => 200 + Math.random() * 200
     const newNode: Node = {
-      id: crypto.randomUUID(),
+      id: uuidv7(),
       type: 'device',
       position: { x: jitter(), y: jitter() },
       data: { deviceType, label, ip: ip || undefined, color: undefined },
@@ -1047,7 +1047,7 @@ function NetworkDiagramInner() {
         const col = i % cols
         const row = Math.floor(i / cols)
         next.push({
-          id: crypto.randomUUID(),
+          id: uuidv7(),
           type: 'device',
           position: { x: 80 + col * 160, y: 80 + row * 140 + (nds.length > 0 ? 300 : 0) },
           data: {

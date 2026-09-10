@@ -16,6 +16,7 @@ import {
   projectsApi,
 } from '../api/resources'
 import { ApiError } from '../api/http'
+import { v7 as uuidv7 } from 'uuid';
 
 function emptyOrgState() {
   return {
@@ -41,7 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((message: string, type: Toast['type'] = 'success') => {
     if (!message) return
-    const id = crypto.randomUUID()
+    const id = uuidv7()
     setToasts(t => [...t, { id, message, type }])
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200)
   }, [])
