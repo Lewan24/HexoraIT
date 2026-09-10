@@ -7,6 +7,7 @@ using HexoraITApi.Domain;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -19,8 +20,14 @@ builder.Services.AddAutoMapper(cfg => cfg.AddProfile<AppMappingProfile>());
 
 builder.Services.AddScoped<AppInitializer>();
 builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddSingleton<IPasswordCipher, DataProtectionPasswordCipher>();
-builder.Services.AddDataProtection(); // required by the cipher above
+var dataProtectionKeysPath = builder.Configuration["FileStorage:DataProtectionKeysPath"] ?? 
+                             throw new InvalidOperationException("FileStorage:DataProtectionKeysPath is not configured.");
+builder.Services.AddDataProtection()
+    .SetApplicationName("HexoraITApi")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();

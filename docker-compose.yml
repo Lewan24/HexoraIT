@@ -65,12 +65,17 @@ services:
 
       # you can create a volume and bind to it to store documents somewhere like on another server or something
       FileStorage__RootPath: /app/storage
+      FileStorage__DataProtectionKeysPath: /app/data-protection-keys
 
       AppSettings__ITDocsAdmin: admin@HexoraIT.pl
       AppSettings__AllowRegister: false
       # Make sure there is provided your domain (frontend) url, this is required for CORS settings and security
       AppSettings__AllowOrigins__0: "http://localhost:80"
       AppSettings__AllowOrigins__1: "http://localhost"
+      
+    volumes:
+      - hexorait-storage:/app/storage
+      - hexorait-dataprotectionkeys-storage:/app/data-protection-keys
 
   frontend:
     image: lewan24/hexorait-web:latest
@@ -90,3 +95,5 @@ services:
 
 volumes:
   postgres-data:
+  hexorait-storage:
+  hexorait-dataprotectionkeys-storage:
