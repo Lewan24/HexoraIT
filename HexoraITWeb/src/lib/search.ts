@@ -36,7 +36,7 @@ function matches(query: string, ...fields: (string | undefined)[]): boolean {
 const MAX_PER_TYPE = 5
 const MAX_TOTAL = 24
 
-export function buildSearchResults(data: SearchableData, query: string): SearchResult[] {
+export function buildSearchResults(data: SearchableData, query: string, translate: (key: string) => string = key => key): SearchResult[] {
   const q = query.trim()
   if (q.length < 2) return []
 
@@ -49,7 +49,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(a => matches(q, a.name, a.ip, a.location, a.owner, a.serial))
       .map(a => ({
         id: `asset-${a.id}`, type: 'Asset', label: a.name,
-        sub: `${a.type} · ${a.location}`, view: 'asset-detail' as View, targetId: a.id,
+        sub: `${translate(a.type)} · ${a.location}`, view: 'asset-detail' as View, targetId: a.id,
       }))
   )
 
@@ -87,7 +87,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(l => matches(q, l.name, l.vendor, l.category))
       .map(l => ({
         id: `license-${l.id}`, type: 'License', label: l.name,
-        sub: `${l.vendor} · ${l.category}`, view: 'licenses' as View,
+        sub: `${l.vendor} · ${translate(l.category)}`, view: 'licenses' as View,
       }))
   )
 
@@ -96,7 +96,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(c => matches(q, c.name, c.vendor, c.category))
       .map(c => ({
         id: `contract-${c.id}`, type: 'Contract', label: c.name,
-        sub: `${c.vendor} · ${c.category}`, view: 'contracts' as View,
+        sub: `${c.vendor} · ${translate(c.category)}`, view: 'contracts' as View,
       }))
   )
 
@@ -105,7 +105,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(p => matches(q, p.title, p.description, ...p.tags))
       .map(p => ({
         id: `plan-${p.id}`, type: 'Plan', label: p.title,
-        sub: p.status, view: 'plans' as View,
+        sub: translate(p.status), view: 'plans' as View,
       }))
   )
 
@@ -114,7 +114,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(i => matches(q, i.title, i.description, ...i.affectedSystems, ...i.tags))
       .map(i => ({
         id: `incident-${i.id}`, type: 'Incident', label: i.title,
-        sub: `${i.severity} · ${i.status}`, view: 'incidents' as View,
+        sub: `${translate(i.severity)} · ${translate(i.status)}`, view: 'incidents' as View,
       }))
   )
 
@@ -123,7 +123,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(t => matches(q, t.title, t.description, t.assignee, ...t.tags))
       .map(t => ({
         id: `task-${t.id}`, type: 'Task', label: t.title,
-        sub: `${t.status} · ${t.assignee || 'Unassigned'}`, view: 'tasks' as View,
+        sub: `${translate(t.status)} · ${t.assignee || translate('Unassigned')}`, view: 'tasks' as View,
       }))
   )
 
@@ -132,7 +132,7 @@ export function buildSearchResults(data: SearchableData, query: string): SearchR
       .filter(g => matches(q, g.name, g.description, g.purpose))
       .map(g => ({
         id: `group-${g.id}`, type: 'Group', label: g.name,
-        sub: g.type, view: 'groups' as View,
+        sub: translate(g.type), view: 'groups' as View,
       }))
   )
 

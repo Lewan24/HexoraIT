@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Folder, FolderPlus, Upload, MoreVertical, Trash2, Download, Eye,
@@ -25,6 +26,7 @@ function iconFor(file: StoredFile) {
 interface Crumb { id?: string; name: string }
 
 export default function FileExplorer() {
+  useLocale()
   const { currentOrg, toast } = useApp()
   const [breadcrumbs, setBreadcrumbs] = useState<Crumb[]>([{ id: undefined, name: 'Files' }])
   const [folders, setFolders] = useState<FileFolder[]>([])
@@ -58,7 +60,7 @@ export default function FileExplorer() {
       setFolders(f)
       setFiles(fl)
     } catch {
-      toast('Failed to load files', 'error')
+      toast(tr("Failed to load files"), 'error')
     } finally {
       setLoading(false)
     }
@@ -71,7 +73,7 @@ export default function FileExplorer() {
   const jumpTo = (index: number) => setBreadcrumbs(prev => prev.slice(0, index + 1))
 
   const handleUpload = useCallback(async (fileList: FileList | File[]) => {
-    if (!currentOrg) 
+    if (!currentOrg)
         return
 
     if (previewFile)
@@ -82,7 +84,7 @@ export default function FileExplorer() {
         return
 
     setUploading(true)
-    
+
     let failed = 0
     for (const f of filesArr) {
       try {
@@ -93,10 +95,10 @@ export default function FileExplorer() {
     }
     setUploading(false)
 
-    if (failed > 0) 
-        toast(`${failed} file(s) failed to upload`, 'error')
-    else 
-        toast(filesArr.length === 1 ? 'File uploaded' : `${filesArr.length} files uploaded`)
+    if (failed > 0)
+        toast(tr("{{value1}} file(s) failed to upload", { value1: failed }), 'error')
+    else
+        toast(filesArr.length === 1 ? tr("File uploaded") : tr("{{value1}} files uploaded", { value1: filesArr.length }))
 
     await load()
   }, [currentOrg, previewFile, toast, load, currentFolderId])
@@ -110,7 +112,7 @@ export default function FileExplorer() {
       setNewFolderOpen(false)
       await load()
     } catch {
-      toast('Failed to create folder', 'error')
+      toast(tr("Failed to create folder"), 'error')
     } finally {
       setCreatingFolder(false)
     }
@@ -124,9 +126,9 @@ export default function FileExplorer() {
       else await filesApi.deleteFile(deleteTarget.id)
       setDeleteTarget(null)
       await load()
-      toast(`${deleteTarget.type === 'folder' ? 'Folder' : 'File'} deleted`, 'info')
+      toast(tr("{{value1}} deleted", { value1: tr(deleteTarget.type === 'folder' ? 'Folder' : 'File') }), 'info')
     } catch {
-      toast('Failed to delete', 'error')
+      toast(tr("Failed to delete"), 'error')
     } finally {
       setDeleting(false)
     }
@@ -151,7 +153,7 @@ export default function FileExplorer() {
       setRenameTarget(null)
       await load()
     } catch {
-      toast('Failed to rename', 'error')
+      toast(tr("Failed to rename"), 'error')
     } finally {
       setRenaming(false)
     }
@@ -164,14 +166,14 @@ export default function FileExplorer() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Files</h1>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Files")}</h1>
           <div className="flex items-center gap-1 mt-1 flex-wrap">
             {breadcrumbs.map((crumb, i) => (
               <span key={crumb.id ?? 'root'} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight size={12} className="text-ink-muted" />}
                 <button onClick={() => jumpTo(i)}
                   className={`text-xs font-mono transition-colors ${i === breadcrumbs.length - 1 ? 'text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-                  {crumb.name}
+                  {crumb.id === undefined ? tr('Files') : crumb.name}
                 </button>
               </span>
             ))}
@@ -180,22 +182,21 @@ export default function FileExplorer() {
         <div className="flex items-center gap-2">
           <button onClick={() => setNewFolderOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:text-ink-primary hover:border-edge-strong transition-colors">
-            <FolderPlus size={14} /> New Folder
-          </button>
+            <FolderPlus size={14} />  {tr("New Folder")} </button>
           <input ref={fileInputRef} type="file" multiple className="hidden"
             onChange={e => { if (e.target.files) void handleUpload(e.target.files); e.target.value = '' }} />
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium transition-all disabled:opacity-50"
             style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {uploading ? 'Uploading…' : 'Upload'}
+            {uploading ? tr("Uploading…") : tr("Upload")}
           </button>
         </div>
       </div>
 
       {dragOver && (
         <div className="fixed inset-0 z-40 bg-blue-500/10 border-4 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
-          <p className="text-blue-300 text-lg font-medium">Drop files to upload</p>
+          <p className="text-blue-300 text-lg font-medium">{tr("Drop files to upload")}</p>
         </div>
       )}
 
@@ -204,8 +205,8 @@ export default function FileExplorer() {
       ) : folders.length === 0 && files.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 border-2 border-dashed border-edge-subtle rounded-xl">
           <Folder size={28} className="text-ink-muted opacity-40" />
-          <p className="text-sm text-ink-muted">This folder is empty</p>
-          <p className="text-xs text-ink-muted">Drag files here, or use the Upload button above</p>
+          <p className="text-sm text-ink-muted">{tr("This folder is empty")}</p>
+          <p className="text-xs text-ink-muted">{tr("Drag files here, or use the Upload button above")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -226,16 +227,13 @@ export default function FileExplorer() {
                   <div className="absolute top-8 right-2 z-40 w-36 bg-navy-750 border border-edge-default rounded-lg shadow-2xl overflow-hidden">
                     <button onClick={() => { setRenameTarget({ type: 'folder', id: folder.id, name: folder.name }); setRenameValue(folder.name); setMenuOpenId(null) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700 transition-colors">
-                      <Edit2 size={12} /> Rename
-                    </button>
+                      <Edit2 size={12} />  {tr("Rename")} </button>
                     <button onClick={() => { setMoveTarget({ type: 'folder', id: folder.id, name: folder.name, currentFolderId: folder.parentFolderId }); setMenuOpenId(null) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700 transition-colors">
-                      <FolderInput size={12} /> Move
-                    </button>
+                      <FolderInput size={12} />  {tr("Move")} </button>
                     <button onClick={() => { setDeleteTarget({ type: 'folder', id: folder.id, name: folder.name }); setMenuOpenId(null) }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-navy-700 transition-colors">
-                      <Trash2 size={12} /> Delete
-                    </button>
+                      <Trash2 size={12} />  {tr("Delete")} </button>
                   </div>
                 </>
               )}
@@ -250,24 +248,24 @@ export default function FileExplorer() {
                   className={`w-full flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-navy-800 border border-edge-subtle transition-colors ${previewable ? 'hover:border-edge-strong hover:bg-navy-750' : 'cursor-default'}`}>
                   <div className="flex justify-center order-1">
                     {previewable && (
-                      <button onClick={() => setPreviewFile(file)} title="Preview" 
+                      <button onClick={() => setPreviewFile(file)} title={tr("Preview")}
                       className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                         <Eye size={13} className='text-green-500' />
                       </button>
                     )}
-                    <button onClick={() => void download(file)} title="Download" 
+                    <button onClick={() => void download(file)} title={tr("Download")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Download size={13} className='text-indigo-500' />
                     </button>
-                    <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title="Delete" 
+                    <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Trash2 size={13} className='text-red-500' />
                     </button>
-                    <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title="Rename" 
+                    <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Edit2 size={13} className='text-orange-500' />
                     </button>
-                    <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title="Move" 
+                    <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <FolderInput size={13} className='text-gray-400' />
                     </button>
@@ -276,7 +274,7 @@ export default function FileExplorer() {
                   <div onClick={() => previewable && setPreviewFile(file)} className='cursor-pointer flex flex-col justify-center items-center gap-2 w-full'>
                     {iconFor(file)}
                     <p className="text-xs text-ink-primary truncate w-full text-center px-1">{file.name}</p>
-                    <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>                
+                    <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>
                   </div>
                 </button>
               </div>
@@ -290,18 +288,17 @@ export default function FileExplorer() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-ink-primary">New Folder</h2>
+              <h2 className="text-sm font-semibold text-ink-primary">{tr("New Folder")}</h2>
               <button onClick={() => setNewFolderOpen(false)} disabled={creatingFolder} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
             </div>
-            <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Folder name" autoFocus disabled={creatingFolder}
+            <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder={tr("Folder name")} autoFocus disabled={creatingFolder}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder() }}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setNewFolderOpen(false)} disabled={creatingFolder} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+              <button onClick={() => setNewFolderOpen(false)} disabled={creatingFolder} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleCreateFolder} disabled={creatingFolder || !newFolderName.trim()}
                 className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
-                {creatingFolder && <Loader2 size={11} className="animate-spin" />} Create
-              </button>
+                {creatingFolder && <Loader2 size={11} className="animate-spin" />}  {tr("Create")} </button>
             </div>
           </div>
         </div>
@@ -312,15 +309,14 @@ export default function FileExplorer() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative bg-navy-800 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"><Trash2 size={18} className="text-red-400" /></div>
-            <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">Delete {deleteTarget.type === 'folder' ? 'Folder' : 'File'}</h3>
+            <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">{tr("Delete")} {deleteTarget.type === 'folder' ? tr("Folder") : tr("File")}</h3>
             <p className="text-xs text-ink-muted text-center mb-5">
-              Delete <span className="text-ink-primary font-mono">{deleteTarget.name}</span>?
-              {deleteTarget.type === 'folder' && ' Everything inside it will be deleted too.'} This cannot be undone.
-            </p>
+               {tr("Delete")} <span className="text-ink-primary font-mono">{deleteTarget.name}</span>?
+              {deleteTarget.type === 'folder' && tr(' Everything inside it will be deleted too.')}  {tr("This cannot be undone.")} </p>
             <div className="flex gap-2">
-              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">Cancel</button>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
-                {deleting && <Loader2 size={12} className="animate-spin" />} {deleting ? 'Deleting…' : 'Delete'}
+                {deleting && <Loader2 size={12} className="animate-spin" />} {deleting ? tr("Deleting…") : tr("Delete")}
               </button>
             </div>
           </div>
@@ -332,18 +328,17 @@ export default function FileExplorer() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-ink-primary">Rename {renameTarget.type === 'folder' ? 'Folder' : 'File'}</h2>
+              <h2 className="text-sm font-semibold text-ink-primary">{tr("Rename")} {renameTarget.type === 'folder' ? tr("Folder") : tr("File")}</h2>
               <button onClick={() => setRenameTarget(null)} disabled={renaming} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
             </div>
             <input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus disabled={renaming}
               onKeyDown={e => { if (e.key === 'Enter') handleRename() }}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setRenameTarget(null)} disabled={renaming} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+              <button onClick={() => setRenameTarget(null)} disabled={renaming} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleRename} disabled={renaming || !renameValue.trim()}
                 className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
-                {renaming && <Loader2 size={11} className="animate-spin" />} Save
-              </button>
+                {renaming && <Loader2 size={11} className="animate-spin" />}  {tr("Save")} </button>
             </div>
           </div>
         </div>
@@ -369,6 +364,7 @@ function MoveModal({ target, organizationId, onClose, onMoved }: {
   onClose: () => void
   onMoved: () => Promise<void>
 }) {
+  useLocale()
   const [allFolders, setAllFolders] = useState<FileFolder[] | null>(null)
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(target.currentFolderId)
   const [moving, setMoving] = useState(false)
@@ -410,7 +406,7 @@ function MoveModal({ target, organizationId, onClose, onMoved }: {
       await onMoved()
       onClose()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to move')
+      setError(err instanceof ApiError ? err.message : tr("Failed to move"))
     } finally {
       setMoving(false)
     }
@@ -421,7 +417,7 @@ function MoveModal({ target, organizationId, onClose, onMoved }: {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle flex-shrink-0">
-          <h2 className="text-sm font-semibold text-ink-primary">Move "{target.name}"</h2>
+          <h2 className="text-sm font-semibold text-ink-primary">{tr("Move \"")}{target.name}"</h2>
           <button onClick={onClose} disabled={moving} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="flex-1 overflow-y-auto py-1">
@@ -431,8 +427,7 @@ function MoveModal({ target, organizationId, onClose, onMoved }: {
             <>
               <button onClick={() => setSelectedFolderId(undefined)}
                 className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-xs hover:bg-navy-700 transition-colors ${selectedFolderId === undefined ? 'text-blue-400 bg-navy-700/60' : 'text-ink-secondary'}`}>
-                <Folder size={13} /> Root
-                {selectedFolderId === undefined && <Check size={11} className="ml-auto" />}
+                <Folder size={13} />  {tr("Root")} {selectedFolderId === undefined && <Check size={11} className="ml-auto" />}
               </button>
               {allFolders.filter(f => !isDescendantOfTarget(f.id)).map(f => (
                 <button key={f.id} onClick={() => setSelectedFolderId(f.id)}
@@ -446,11 +441,10 @@ function MoveModal({ target, organizationId, onClose, onMoved }: {
         </div>
         {error && <p className="px-5 pt-2 text-[11px] text-red-400 flex-shrink-0">{error}</p>}
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40 flex-shrink-0">
-          <button onClick={onClose} disabled={moving} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+          <button onClick={onClose} disabled={moving} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
           <button onClick={submit} disabled={moving || allFolders === null}
             className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
-            {moving && <Loader2 size={11} className="animate-spin" />} Move Here
-          </button>
+            {moving && <Loader2 size={11} className="animate-spin" />}  {tr("Move Here")} </button>
         </div>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import LanguageSwitcher from './LanguageSwitcher'
+import { tr, useLocale } from '../i18n'
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Moon, Sun } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
@@ -7,6 +9,7 @@ import logoDark from '../../public/logo/HexoraIT_LogoNoBg.png'
 import { getTheme, toggleTheme } from '../lib/theme'
 
 export default function Login() {
+  useLocale()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,7 +26,7 @@ export default function Login() {
     try {
       await login(email, password)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Unable to sign in. Please try again.')
+      setError(err instanceof ApiError ? err.message : tr("Unable to sign in. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -47,10 +50,11 @@ export default function Login() {
       <div className="relative z-10 w-full max-w-[380px] px-5">
 
         <div className='flex flex-col items-center'>
+          <LanguageSwitcher />
           <button
             onClick={() => { const t = toggleTheme(); setThemeState(t) }}
             className="size-12 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? tr("Switch to light mode") : tr("Switch to dark mode")}
           >
             {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
           </button>
@@ -68,25 +72,23 @@ export default function Login() {
             )}
           </div>
           <h1 className="text-xl font-semibold text-ink-primary leading-tight">
-            Sign in to HexoraIT
-            <span className="cursor-blink ml-0.5 text-blue-400">_</span>
+             {tr("Sign in to HexoraIT")} <span className="cursor-blink ml-0.5 text-blue-400">_</span>
           </h1>
-          <p className="text-sm text-ink-muted mt-1">Your IT documentation workspace</p>
+          <p className="text-sm text-ink-muted mt-1">{tr("Your IT documentation workspace")}</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-              Email
-            </label>
+               {tr("Email")} </label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               onFocus={() => setFocused('email')}
               onBlur={() => setFocused(null)}
-              placeholder="you@corp.local"
+              placeholder={tr("you@corp.local")}
               autoComplete="email"
               required
               className="w-full px-3 py-2.5 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
@@ -96,8 +98,7 @@ export default function Login() {
 
           <div>
             <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-              Password
-            </label>
+               {tr("Password")} </label>
             <div className="relative">
               <input
                 type={showPass ? 'text' : 'password'}
@@ -105,7 +106,7 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 onFocus={() => setFocused('pass')}
                 onBlur={() => setFocused(null)}
-                placeholder="••••••••••••"
+                placeholder={"••••••••••••"}
                 autoComplete="current-password"
                 required
                 minLength={8}
@@ -137,20 +138,20 @@ export default function Login() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                authenticating...
+                {tr("Authenticating…")}
               </span>
-            ) : '→ sign_in()'}
+            ) : tr("→ sign_in()")}
           </button>
         </form>
 
         <div className='text-center mt-5'>
-          <p className='text-xs'>If you need an <b>Account</b> or <b>forgot</b> the password <br/> Contact with the application <b>Administrator</b></p>
+          <p className="text-xs">{tr("For a new account or a forgotten password, contact the application administrator.")}</p>
         </div>
 
         {/* Footer */}
         <div className="mt-1 pt-5 border-t border-edge-subtle flex items-center justify-between">
-          <span className="text-[11px] font-mono text-ink-muted">v1.0.0 · self-hosted</span>
-          <span className="text-[11px] font-mono text-ink-muted">corp.local</span>
+          <span className="text-[11px] font-mono text-ink-muted">{tr("v1.0.0 · self-hosted")}</span>
+          <span className="text-[11px] font-mono text-ink-muted">{tr("corp.local")}</span>
         </div>
 
       </div>

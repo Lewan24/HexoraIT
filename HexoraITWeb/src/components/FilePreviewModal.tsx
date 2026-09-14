@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
 import { renderAsync } from 'docx-preview'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function FilePreviewModal({ file, onClose }: Props) {
+  useLocale()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
@@ -112,7 +114,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-edge-subtle flex-shrink-0">
           <p className="text-sm font-medium text-ink-primary truncate font-mono">{file.name}</p>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button onClick={download} className="p-1.5 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition-colors" title="Download">
+            <button onClick={download} className="p-1.5 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition-colors" title={tr("Download")}>
               <Download size={14} />
             </button>
             <button onClick={onClose} className="p-1.5 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors"><X size={16} /></button>
@@ -145,13 +147,11 @@ export default function FilePreviewModal({ file, onClose }: Props) {
             <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-6">
               <AlertTriangle size={22} className="text-red-400" />
               <p className="text-sm text-ink-secondary">
-                Couldn't load a preview for this file.
-              </p>
+                 {tr("Couldn't load a preview for this file.")} </p>
 
               <button onClick={download} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium">
                 <Download size={12} />
-                Download instead
-              </button>
+                 {tr("Download instead")} </button>
             </div>
           )}
 

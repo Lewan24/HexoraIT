@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Calendar,
@@ -41,6 +42,7 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
   onSave: (p: Omit<Project, 'id' | 'createdAt' | 'taskCount'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  useLocale()
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [color, setColor] = useState(initial?.color ?? PROJECT_COLORS[0]!)
@@ -50,7 +52,7 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const submit = async () => {
-    if (!name.trim()) { setError('Name is required'); return }
+    if (!name.trim()) { setError(tr("Name is required")); return }
     setSubmitting(true)
     try {
       await onSave({ name: name.trim(), description, color })
@@ -77,21 +79,21 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle">
-          <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Project' : 'New Project'}</h2>
+          <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Project") : tr("New Project")}</h2>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-5 py-4 space-y-3.5">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Name *</label>
-            <input value={name} onChange={e => { setName(e.target.value); setError('') }} placeholder="e.g. Network Overhaul Q3" className={inp(error)} autoFocus disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
+            <input value={name} onChange={e => { setName(e.target.value); setError('') }} placeholder={tr("e.g. Network Overhaul Q3")} className={inp(error)} autoFocus disabled={busy} />
             {error && <p className="text-[10px] text-red-400 mt-1">{error}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Optional" className={inp() + ' resize-none'} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder={tr("Optional")} className={inp() + ' resize-none'} disabled={busy} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-2">Color</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-2">{tr("Color")}</label>
             <div className="flex gap-2 flex-wrap">
               {PROJECT_COLORS.map(c => (
                 <button key={c} onClick={() => !busy && setColor(c)} className="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all"
@@ -106,21 +108,20 @@ function ProjectModal({ initial, onClose, onSave, onDelete }: {
           {initial && onDelete ? (
             confirmDelete ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-ink-muted">Delete project? Tasks stay, unassigned.</span>
-                <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50">Yes</button>
-                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">No</button>
+                <span className="text-[11px] text-ink-muted">{tr("Delete project? Tasks stay, unassigned.")}</span>
+                <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50">{tr("Yes")}</button>
+                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">{tr("No")}</button>
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)} disabled={busy} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40">
-                <Trash2 size={12} /> Delete
-              </button>
+                <Trash2 size={12} />  {tr("Delete")} </button>
             )
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={() => !busy && onClose()} disabled={busy} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !busy && onClose()} disabled={busy} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={busy} className="px-3.5 py-1.5 rounded-lg text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5" style={{ backgroundColor: color }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Create Project'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Create Project")}
             </button>
           </div>
         </div>
@@ -137,6 +138,7 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
   onSave: (t: Omit<Task, 'id' | 'createdAt'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     title: initial?.title ?? '',
     description: initial?.description ?? '',
@@ -157,7 +159,7 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.title.trim()) e.title = 'Required'
+    if (!form.title.trim()) e.title = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -196,36 +198,34 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Task' : 'Add Task'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">IT task or action item</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Task") : tr("Add Task")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("IT task or action item")}</p>
           </div>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Title *</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Replace firewall firmware" className={inp(errors.title)} autoFocus disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Replace firewall firmware")} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Project</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Project")}</label>
             <select value={form.projectId} onChange={e => set('projectId', e.target.value)} className={inp()} disabled={busy}>
-              <option value="">No Project</option>
+              <option value="">{tr("No Project")}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-medium text-ink-secondary">Description</label>
+              <label className="text-[11px] font-medium text-ink-secondary">{tr("Description")}</label>
               <div className="flex items-center gap-1 bg-navy-900 border border-edge-default rounded-md p-0.5">
                 <button type="button" onClick={() => setDescPreview(false)} disabled={busy}
                   className={`px-2 py-0.5 rounded text-[10px] transition-colors ${!descPreview ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-                  Edit
-                </button>
+                   {tr("Edit")} </button>
                 <button type="button" onClick={() => setDescPreview(true)} disabled={busy}
                   className={`px-2 py-0.5 rounded text-[10px] transition-colors ${descPreview ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-                  Preview
-                </button>
+                   {tr("Preview")} </button>
               </div>
             </div>
             {descPreview ? (
@@ -233,67 +233,66 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
                 {form.description.trim() ? (
                   <div className="space-y-0.5">{renderMarkdown(form.description)}</div>
                 ) : (
-                  <p className="text-xs text-ink-muted italic">Nothing to preview yet.</p>
+                  <p className="text-xs text-ink-muted italic">{tr("Nothing to preview yet.")}</p>
                 )}
               </div>
             ) : (
               <>
                 <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
-                  placeholder={`Optional details about this task…\n\n- [ ] Checklist item\n- Bullet point\n**bold** and \`code\``}
+                  placeholder={tr("Optional details about this task…\n\n- [ ] Checklist item\n- Bullet point\n**bold** and `code`")}
                   className={inp() + ' resize-none font-mono leading-relaxed'} disabled={busy} />
-                <p className="text-[10px] text-ink-muted mt-1">Supports **bold**, `code`, # headers, - lists, - [ ] checkboxes</p>
+                <p className="text-[10px] text-ink-muted mt-1">{tr("Supports **bold**, `code`, # headers, - lists, - [ ] checkboxes")}</p>
               </>
             )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Priority</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Priority")}</label>
               <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inp()} disabled={busy}>
-                {PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>)}
+                {PRIORITIES.map(p => <option key={p} value={p}>{tr(PRIORITY_CONFIG[p].label)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Status</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Status")}</label>
               <select value={form.status} onChange={e => set('status', e.target.value)} className={inp()} disabled={busy}>
-                {STATUSES.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{tr(STATUS_CONFIG[s].label)}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Assignee</label>
-              <input value={form.assignee} onChange={e => set('assignee', e.target.value)} placeholder="John Doe" className={inp()} disabled={busy} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Assignee")}</label>
+              <input value={form.assignee} onChange={e => set('assignee', e.target.value)} placeholder={tr("John Doe")} className={inp()} disabled={busy} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Due Date</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Due Date")}</label>
               <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} className={inp()} disabled={busy} />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Tags (comma-separated)</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="network, security, maintenance" className={inp()} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, security, maintenance")} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           {initial && onDelete ? (
             confirmDelete ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-ink-muted">Delete this task?</span>
-                <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50">Yes</button>
-                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">No</button>
+                <span className="text-[11px] text-ink-muted">{tr("Delete this task?")}</span>
+                <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50">{tr("Yes")}</button>
+                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">{tr("No")}</button>
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)} disabled={busy} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40">
-                <Trash2 size={12} /> Delete
-              </button>
+                <Trash2 size={12} />  {tr("Delete")} </button>
             )
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add Task'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Task")}
             </button>
           </div>
         </div>
@@ -308,6 +307,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
   onMove: (dir: 'prev' | 'next') => void
   onPreview: () => void
 }) {
+  useLocale()
   const pc = PRIORITY_CONFIG[task.priority]
   const overdue = isOverdue(task.dueDate)
   const statusIdx = STATUSES.indexOf(task.status)
@@ -332,7 +332,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
 
         <div className="flex items-center gap-1.5 flex-wrap mb-2">
           <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${pc.cls}`}>
-            <span className={`w-1 h-1 rounded-full ${pc.dot}`} />{pc.label}
+            <span className={`w-1 h-1 rounded-full ${pc.dot}`} />{tr(pc.label)}
           </span>
           {task.assignee && (
             <span className="inline-flex items-center gap-1 text-[10px] text-ink-muted">
@@ -345,7 +345,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
             {task.dueDate && (
               <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${overdue && task.status !== 'done' ? 'text-red-400' : 'text-ink-muted'}`}>
                 <Calendar size={9} /> {task.dueDate}
-                {overdue && task.status !== 'done' && <span className="text-[9px]">· overdue</span>}
+                {overdue && task.status !== 'done' && <span className="text-[9px]">{tr("· overdue")}</span>}
               </span>
             )}
             {task.tags.slice(0, 2).map(t => (
@@ -360,14 +360,14 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
           onClick={() => onMove('prev')}
           disabled={statusIdx === 0}
           className="cursor-pointer bg-transparent border border-cyan-600 flex hover:scale-[1.1] hover:border-cyan-300 items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
-          <ChevronLeft size={10} /> {statusIdx > 0 ? STATUS_CONFIG[STATUSES[statusIdx - 1]!].label : ''}
+          <ChevronLeft size={10} /> {statusIdx > 0 ? tr(STATUS_CONFIG[STATUSES[statusIdx - 1]!].label) : ''}
         </button>
         <div className="flex-1" />
         <button
           onClick={() => onMove('next')}
           disabled={statusIdx === STATUSES.length - 1}
           className="cursor-pointer bg-transparent border border-cyan-600 hover:scale-[1.1] hover:border-cyan-300 flex items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
-          {statusIdx < STATUSES.length - 1 ? STATUS_CONFIG[STATUSES[statusIdx + 1]!].label : ''} <ChevronRight size={10} />
+          {statusIdx < STATUSES.length - 1 ? tr(STATUS_CONFIG[STATUSES[statusIdx + 1]!].label) : ''} <ChevronRight size={10} />
         </button>
       </div>
     </div>
@@ -385,6 +385,7 @@ function TaskPreviewModal({
     onClose: () => void
     onEdit: () => void
 }) {
+  useLocale()
     const pc = PRIORITY_CONFIG[task.priority]
     const overdue = isOverdue(task.dueDate)
 
@@ -402,11 +403,11 @@ function TaskPreviewModal({
 
                         <div className="mt-3 flex flex-wrap gap-2">
                             <span className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${pc.cls}`}>
-                                {pc.label}
+                                {tr(pc.label)}
                             </span>
 
                             <span className="px-2.5 py-1 rounded-lg border border-edge-default bg-navy-700 text-xs text-ink-secondary">
-                                {STATUS_CONFIG[task.status].label}
+                                {tr(STATUS_CONFIG[task.status].label)}
                             </span>
 
                             {project && (
@@ -460,20 +461,17 @@ function TaskPreviewModal({
                         </div>
                     ) : (
                         <div className="py-10 text-center text-sm italic text-ink-muted">
-                            No description.
-                        </div>
+                             {tr("No description.")} </div>
                     )}
                 </div>
 
                 <div className="flex justify-end gap-2 border-t border-edge-subtle bg-navy-900/40 px-6 py-4">
                     <button onClick={onClose} className="rounded-lg border border-edge-default bg-navy-700 px-4 py-2 text-xs text-ink-secondary transition hover:bg-navy-600">
-                        Close
-                    </button>
+                         {tr("Close")} </button>
 
                     <button onClick={onEdit} className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-400">
                         <Edit2 size={13} />
-                        Edit Task
-                    </button>
+                         {tr("Edit Task")} </button>
                 </div>
             </div>
         </div>
@@ -488,9 +486,10 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
   onNew: () => void
   onEdit: (p: Project) => void
 }) {
+  useLocale()
   const [open, setOpen] = useState(false)
   const active = projects.find(p => p.id === activeId)
-  const label = activeId === 'all' ? 'All Tasks' : activeId === NO_PROJECT ? 'No Project' : active?.name ?? 'All Tasks'
+  const label = activeId === 'all' ? tr('All Tasks') : activeId === NO_PROJECT ? tr('No Project') : active?.name ?? tr('All Tasks')
   const color = active?.color
 
   return (
@@ -507,13 +506,11 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
           <div className="absolute left-0 top-full mt-1 w-64 bg-navy-750 border border-edge-default rounded-xl shadow-2xl z-40 overflow-hidden">
             <button onClick={() => { onSelect('all'); setOpen(false) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-xs hover:bg-navy-700 transition-colors ${activeId === 'all' ? 'text-blue-400' : 'text-ink-secondary'}`}>
-              <Layers size={13} className="flex-shrink-0" /> All Tasks
-              {activeId === 'all' && <Check size={11} className="ml-auto flex-shrink-0" />}
+              <Layers size={13} className="flex-shrink-0" />  {tr("All Tasks")} {activeId === 'all' && <Check size={11} className="ml-auto flex-shrink-0" />}
             </button>
             <button onClick={() => { onSelect(NO_PROJECT); setOpen(false) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-xs hover:bg-navy-700 transition-colors border-t border-edge-subtle ${activeId === NO_PROJECT ? 'text-blue-400' : 'text-ink-secondary'}`}>
-              <span className="w-2.5 h-2.5 rounded-full border border-edge-strong flex-shrink-0" /> No Project
-              {activeId === NO_PROJECT && <Check size={11} className="ml-auto flex-shrink-0" />}
+              <span className="w-2.5 h-2.5 rounded-full border border-edge-strong flex-shrink-0" />  {tr("No Project")} {activeId === NO_PROJECT && <Check size={11} className="ml-auto flex-shrink-0" />}
             </button>
             {projects.length > 0 && <div className="border-t border-edge-subtle" />}
             {projects.map(p => (
@@ -530,8 +527,7 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
             <div className="border-t border-edge-subtle">
               <button onClick={() => { onNew(); setOpen(false) }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors">
-                <Plus size={12} /> New Project
-              </button>
+                <Plus size={12} />  {tr("New Project")} </button>
             </div>
           </div>
         </>
@@ -541,6 +537,7 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
 }
 
 export default function Tasks() {
+  useLocale()
   const { tasks, projects, isLoading, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject } = useApp()
   const [modal, setModal] = useState<{ open: boolean; initial?: Task }>({ open: false })
   const [projectModal, setProjectModal] = useState<{ open: boolean; initial?: Project } | null>(null)
@@ -602,7 +599,7 @@ export default function Tasks() {
     return (
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <p className={`text-xs font-semibold ${colCls[s]}`}>{STATUS_CONFIG[s].label}</p>
+          <p className={`text-xs font-semibold ${colCls[s]}`}>{tr(STATUS_CONFIG[s].label)}</p>
           <span className="text-[10px] font-mono text-ink-muted bg-navy-700 border border-edge-subtle px-1.5 py-0.5 rounded-full">{count}</span>
         </div>
       </div>
@@ -624,14 +621,13 @@ export default function Tasks() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary flex items-center gap-2"><FolderKanban size={18} className="text-blue-400" /> Tasks</h1>
-          <p className="text-xs text-ink-muted mt-0.5">{filteredTasks.length} tasks · {byStatus('in-progress').length} in progress</p>
+          <h1 className="text-xl font-semibold text-ink-primary flex items-center gap-2"><FolderKanban size={18} className="text-blue-400" />  {tr("Tasks")}</h1>
+          <p className="text-xs text-ink-muted mt-0.5">{filteredTasks.length}  {tr("tasks ·")} {byStatus('in-progress').length}  {tr("in progress")}</p>
         </div>
         <button onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> Add Task
-        </button>
+          <Plus size={14} />  {tr("Add Task")} </button>
       </div>
 
       {/* Project switcher */}
@@ -650,7 +646,7 @@ export default function Tasks() {
         {STATUSES.map(s => (
           <button key={s} onClick={() => setMobileStatus(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mobileStatus === s ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-            {STATUS_CONFIG[s].label}
+            {tr(STATUS_CONFIG[s].label)}
             <span className="ml-1.5 text-[10px] text-ink-muted">{byStatus(s).length}</span>
           </button>
         ))}
@@ -664,7 +660,7 @@ export default function Tasks() {
             {byStatus(s).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <CheckSquare size={20} className="text-ink-muted opacity-30" />
-                <p className="text-xs text-ink-muted">No tasks</p>
+                <p className="text-xs text-ink-muted">{tr("No tasks")}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -684,7 +680,7 @@ export default function Tasks() {
           {byStatus(mobileStatus).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2">
               <CheckSquare size={20} className="text-ink-muted opacity-30" />
-              <p className="text-xs text-ink-muted">No tasks</p>
+              <p className="text-xs text-ink-muted">{tr("No tasks")}</p>
             </div>
           ) : (
             <div className="space-y-2">

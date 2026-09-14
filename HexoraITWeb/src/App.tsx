@@ -1,3 +1,4 @@
+import { tr, useLocale } from './i18n'
 import { useState } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { AppProvider } from './context/AppProvider'
@@ -33,6 +34,7 @@ export type View =
   | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes'
 
 function AuthenticatedApp() {
+  useLocale()
   const { logout } = useAuth()
   const [view, setView] = useState<View>('dashboard')
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
@@ -78,12 +80,13 @@ function AuthenticatedApp() {
 }
 
 function Gate() {
+  useLocale()
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-navy-950">
-        <span className="text-xs font-mono text-ink-muted">loading...</span>
+        <span className="text-xs font-mono text-ink-muted">{tr("loading...")}</span>
       </div>
     )
   }
@@ -94,6 +97,7 @@ function Gate() {
 }
 
 export default function App() {
+  useLocale()
   return (
     <AuthProvider>
       <Gate />

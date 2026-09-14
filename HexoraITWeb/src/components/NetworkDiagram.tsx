@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import '@xyflow/react/dist/style.css'
 
 import {
@@ -103,6 +104,7 @@ const CONNECTION_TYPES: DiagramConnectionType[] = ['ethernet', 'fiber', 'wireles
 // ─── Icon Component ──────────────────────────────────────────────────────────
 
 function DeviceIcon({ type, size = 18 }: { type: DiagramDeviceType; size?: number }) {
+  useLocale()
   const props = { size, strokeWidth: 1.8 }
   switch (type) {
     case 'server':     return <Server {...props} />
@@ -165,6 +167,7 @@ function rfNodeFromDiagram(n: DiagramNode): Node {
 // ─── Custom Device Node ───────────────────────────────────────────────────────
 
 function DeviceNode({ data, selected }: NodeProps) {
+  useLocale()
   const deviceType = (data.deviceType as DiagramDeviceType) ?? 'custom'
   const baseColor = (data.color as string) ?? DEVICE_COLORS[deviceType]
   const label = (data.label as string) ?? 'Device'
@@ -240,6 +243,7 @@ interface AddNodeModalProps {
 }
 
 function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalProps) {
+  useLocale()
   const [deviceType, setDeviceType] = useState<DiagramDeviceType>(initialType)
   const [label, setLabel] = useState('')
   const [ip, setIp] = useState('')
@@ -248,7 +252,7 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
     <ModalOverlay onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>Add Device</h3>
+          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>{tr("Add Device")}</h3>
           <button onClick={onClose} style={{ color: '#5c7080' }} className="hover:text-white">
             <X size={16} />
           </button>
@@ -257,8 +261,7 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
         {/* Device type grid */}
         <div>
           <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Device Type
-          </label>
+             {tr("Device Type")} </label>
           <div className="grid grid-cols-3 gap-1.5 mt-2">
             {DEVICE_TYPES.map(t => (
               <button
@@ -282,7 +285,7 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
                 }}
               >
                 <DeviceIcon type={t} size={14} />
-                <span style={{ fontSize: 9, fontWeight: 500, lineHeight: 1 }}>{DEVICE_LABELS[t]}</span>
+                <span style={{ fontSize: 9, fontWeight: 500, lineHeight: 1 }}>{tr(DEVICE_LABELS[t])}</span>
               </button>
             ))}
           </div>
@@ -291,7 +294,7 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
         {/* Label & IP */}
         <div className="flex flex-col gap-2">
           <div>
-            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Label</label>
+            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tr("Label")}</label>
             <input
               value={label}
               onChange={e => setLabel(e.target.value)}
@@ -312,11 +315,11 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
             />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>IP Address</label>
+            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tr("IP Address")}</label>
             <input
               value={ip}
               onChange={e => setIp(e.target.value)}
-              placeholder="e.g. 10.0.1.1"
+              placeholder={tr("e.g. 10.0.1.1")}
               style={{
                 marginTop: 4,
                 width: '100%',
@@ -342,14 +345,12 @@ function AddNodeModal({ onClose, onAdd, initialType = 'server' }: AddNodeModalPr
             onClick={onClose}
             style={{ background: '#131920', border: '1px solid #1e2a3a', borderRadius: 6, padding: '7px 14px', color: '#8d9eb5', fontSize: 12, cursor: 'pointer' }}
           >
-            Cancel
-          </button>
+             {tr("Cancel")} </button>
           <button
             onClick={() => { onAdd(deviceType, label || DEVICE_LABELS[deviceType], ip); onClose() }}
             style={{ background: '#2563eb', border: 'none', borderRadius: 6, padding: '7px 14px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
-            Add Device
-          </button>
+             {tr("Add Device")} </button>
         </div>
       </div>
     </ModalOverlay>
@@ -362,6 +363,7 @@ interface ConnectEdgeModalProps {
 }
 
 function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
+  useLocale()
   const [connectionType, setConnectionType] = useState<DiagramConnectionType>('ethernet')
   const [label, setLabel] = useState('')
 
@@ -369,7 +371,7 @@ function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
     <ModalOverlay onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>New Connection</h3>
+          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>{tr("New Connection")}</h3>
           <button onClick={onClose} style={{ color: '#5c7080' }} className="hover:text-white">
             <X size={16} />
           </button>
@@ -378,8 +380,7 @@ function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
         {/* Connection type */}
         <div>
           <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Connection Type
-          </label>
+             {tr("Connection Type")} </label>
           <div className="flex flex-col gap-1 mt-2">
             {CONNECTION_TYPES.map(ct => (
               <button
@@ -412,7 +413,7 @@ function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
                     opacity: 0.9,
                   }}
                 />
-                {CONNECTION_LABELS[ct]}
+                {tr(CONNECTION_LABELS[ct])}
               </button>
             ))}
           </div>
@@ -421,12 +422,12 @@ function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
         {/* Label */}
         <div>
           <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Label <span style={{ opacity: 0.5 }}>(optional)</span>
+             {tr("Label")} <span style={{ opacity: 0.5 }}>{tr("(optional)")}</span>
           </label>
           <input
             value={label}
             onChange={e => setLabel(e.target.value)}
-            placeholder="e.g. 1Gbps, VLAN 10"
+            placeholder={tr("e.g. 1Gbps, VLAN 10")}
             style={{
               marginTop: 4,
               width: '100%',
@@ -450,14 +451,12 @@ function ConnectEdgeModal({ onClose, onConfirm }: ConnectEdgeModalProps) {
             onClick={onClose}
             style={{ background: '#131920', border: '1px solid #1e2a3a', borderRadius: 6, padding: '7px 14px', color: '#8d9eb5', fontSize: 12, cursor: 'pointer' }}
           >
-            Cancel
-          </button>
+             {tr("Cancel")} </button>
           <button
             onClick={() => { onConfirm(connectionType, label); onClose() }}
             style={{ background: '#2563eb', border: 'none', borderRadius: 6, padding: '7px 14px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
-            Connect
-          </button>
+             {tr("Connect")} </button>
         </div>
       </div>
     </ModalOverlay>
@@ -471,6 +470,7 @@ interface EditNodeModalProps {
 }
 
 function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
+  useLocale()
   const [deviceType, setDeviceType] = useState<DiagramDeviceType>((node.data.deviceType as DiagramDeviceType) ?? 'custom')
   const [label, setLabel] = useState((node.data.label as string) ?? '')
   const [ip, setIp] = useState((node.data.ip as string) ?? '')
@@ -482,7 +482,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
     <ModalOverlay onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>Edit Device</h3>
+          <h3 style={{ color: '#e6edf5', fontSize: 14, fontWeight: 600 }}>{tr("Edit Device")}</h3>
           <button onClick={onClose} style={{ color: '#5c7080' }} className="hover:text-white">
             <X size={16} />
           </button>
@@ -491,8 +491,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
         {/* Device type grid */}
         <div>
           <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Device Type
-          </label>
+             {tr("Device Type")} </label>
           <div className="grid grid-cols-3 gap-1.5 mt-2">
             {DEVICE_TYPES.map(t => (
               <button
@@ -519,7 +518,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
                 }}
               >
                 <DeviceIcon type={t} size={14} />
-                <span style={{ fontSize: 9, fontWeight: 500, lineHeight: 1 }}>{DEVICE_LABELS[t]}</span>
+                <span style={{ fontSize: 9, fontWeight: 500, lineHeight: 1 }}>{tr(DEVICE_LABELS[t])}</span>
               </button>
             ))}
           </div>
@@ -527,7 +526,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
 
         <div className="flex flex-col gap-2">
           <div>
-            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Label</label>
+            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tr("Label")}</label>
             <input
               value={label}
               onChange={e => setLabel(e.target.value)}
@@ -540,11 +539,11 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
             />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>IP Address</label>
+            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tr("IP Address")}</label>
             <input
               value={ip}
               onChange={e => setIp(e.target.value)}
-              placeholder="e.g. 10.0.1.1"
+              placeholder={tr("e.g. 10.0.1.1")}
               style={{
                 marginTop: 4, width: '100%', background: '#070b10', border: '1px solid #1e2a3a',
                 borderRadius: 6, padding: '7px 10px', color: '#e6edf5', fontSize: 13, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box',
@@ -554,7 +553,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
             />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Color Override</label>
+            <label style={{ fontSize: 11, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tr("Color Override")}</label>
             <div className="flex items-center gap-2 mt-1">
               <input
                 type="color"
@@ -570,8 +569,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
                 onClick={() => setColor(DEVICE_COLORS[deviceType])}
                 style={{ marginLeft: 'auto', fontSize: 10, color: '#5c7080', background: 'none', border: 'none', cursor: 'pointer' }}
               >
-                Reset
-              </button>
+                 {tr("Reset")} </button>
             </div>
           </div>
         </div>
@@ -581,14 +579,12 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
             onClick={onClose}
             style={{ background: '#131920', border: '1px solid #1e2a3a', borderRadius: 6, padding: '7px 14px', color: '#8d9eb5', fontSize: 12, cursor: 'pointer' }}
           >
-            Cancel
-          </button>
+             {tr("Cancel")} </button>
           <button
             onClick={() => { onSave(node.id, deviceType, label, ip, color); onClose() }}
             style={{ background: '#2563eb', border: 'none', borderRadius: 6, padding: '7px 14px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
-            Save Changes
-          </button>
+             {tr("Save Changes")} </button>
         </div>
       </div>
     </ModalOverlay>
@@ -596,6 +592,7 @@ function EditNodeModal({ node, onClose, onSave }: EditNodeModalProps) {
 }
 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  useLocale()
   return (
     <div
       style={{
@@ -642,6 +639,7 @@ function Toolbar({
   isMobile,
   saving,
 }: ToolbarProps) {
+  useLocale()
   const [showDevices, setShowDevices] = useState(true)
   const [showConnections, setShowConnections] = useState(true)
 
@@ -650,11 +648,9 @@ function Toolbar({
       {/* Header */}
       <div style={{ padding: isMobile ? '8px 12px' : '14px 16px', borderBottom: '1px solid #1e2a3a', flexShrink: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#e6edf5', letterSpacing: '0.04em' }}>
-          Network Diagram
-        </div>
+           {tr("Network Diagram")} </div>
         <div style={{ fontSize: 10, color: '#5c7080', marginTop: 2 }}>
-          Drag to pan · Scroll to zoom · Drag node handles to connect
-        </div>
+           {tr("Drag to pan · Scroll to zoom · Drag node handles to connect")} </div>
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1, padding: isMobile ? '6px 10px' : '10px 14px', display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: isMobile ? 16 : 10, flexWrap: isMobile ? 'nowrap' : 'wrap' }}>
@@ -672,8 +668,7 @@ function Toolbar({
               style={{ color: '#5c7080', transform: showDevices ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s', flexShrink: 0 }}
             />
             <span style={{ fontSize: 10, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-              Add Device
-            </span>
+               {tr("Add Device")} </span>
           </button>
           {showDevices && (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(11, 44px)' : 'repeat(2, 1fr)', gap: 4 }}>
@@ -681,7 +676,7 @@ function Toolbar({
                 <button
                   key={t}
                   onClick={() => onAddDevice(t)}
-                  title={DEVICE_LABELS[t]}
+                  title={tr(DEVICE_LABELS[t])}
                   style={{
                     background: '#131920',
                     border: '1px solid #1e2a3a',
@@ -709,7 +704,7 @@ function Toolbar({
                 >
                   <DeviceIcon type={t} size={13} />
                   <span style={{ fontSize: 9, color: '#8d9eb5', lineHeight: 1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                    {DEVICE_LABELS[t]}
+                    {tr(DEVICE_LABELS[t])}
                   </span>
                 </button>
               ))}
@@ -720,8 +715,7 @@ function Toolbar({
         {/* Import */}
         <div style={{ flexShrink: 0 }}>
           <span style={{ fontSize: 10, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-            Inventory
-          </span>
+             {tr("Inventory")} </span>
           <button
             onClick={onImportAssets}
             style={{
@@ -742,8 +736,7 @@ function Toolbar({
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#1e2a3a'; (e.currentTarget as HTMLButtonElement).style.color = '#8d9eb5' }}
           >
             <Download size={13} />
-            Import from Assets
-          </button>
+             {tr("Import from Assets")} </button>
         </div>
 
         {/* Connection Type */}
@@ -760,8 +753,7 @@ function Toolbar({
               style={{ color: '#5c7080', transform: showConnections ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s', flexShrink: 0 }}
             />
             <span style={{ fontSize: 10, color: '#5c7080', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-              Connection Type
-            </span>
+               {tr("Connection Type")} </span>
           </button>
           {showConnections && (
             <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: 3 }}>
@@ -794,7 +786,7 @@ function Toolbar({
                       flexShrink: 0,
                     }}
                   />
-                  {CONNECTION_LABELS[ct]}
+                  {tr(CONNECTION_LABELS[ct])}
                 </button>
               ))}
             </div>
@@ -815,7 +807,7 @@ function Toolbar({
           }}
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? tr("Saving…") : tr("Save")}
         </button>
         <button
           onClick={onClear}
@@ -826,7 +818,7 @@ function Toolbar({
             cursor: saving ? 'default' : 'pointer', color: '#ef4444', fontSize: 11,
             opacity: saving ? 0.6 : 1,
           }}
-          title="Clear all"
+          title={tr("Clear all")}
         >
           <Trash2 size={13} />
         </button>
@@ -891,6 +883,7 @@ function assetTypeToDeviceType(assetType: string): DiagramDeviceType {
 // useMemo() seed below is safe and won't freeze on an empty diagram.
 
 function NetworkDiagramInner() {
+  useLocale()
   const { diagramNodes, diagramEdges, saveDiagram, assets, toast } = useApp()
 
   // Convert context → RF format (safe: component only mounts after data has loaded)
@@ -968,7 +961,7 @@ function NetworkDiagramInner() {
   const manualSave = useCallback(async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     await doSave(nodes, edges)
-    toast('Diagram saved', 'success')
+    toast(tr("Diagram saved"), 'success')
   }, [nodes, edges, doSave, toast])
 
   // Handle node changes with auto-save trigger
@@ -1037,7 +1030,7 @@ function NetworkDiagramInner() {
     const existingAssetIds = new Set(nodes.map(n => n.data.assetId as string).filter(Boolean))
     const toAdd = assets.filter(a => !existingAssetIds.has(a.id))
     if (toAdd.length === 0) {
-      toast('All assets are already on the diagram', 'info')
+      toast(tr("All assets are already on the diagram"), 'info')
       return
     }
     const cols = 4
@@ -1061,7 +1054,7 @@ function NetworkDiagramInner() {
       triggerSave(next, edges)
       return next
     })
-    toast(`Imported ${toAdd.length} asset(s) to diagram`, 'success')
+    toast(tr("Imported {{value1}} asset(s) to diagram", { value1: toAdd.length }), 'success')
   }, [assets, nodes, setNodes, edges, triggerSave, toast])
 
   // Double-click node to edit
@@ -1115,14 +1108,14 @@ function NetworkDiagramInner() {
 
   // Clear all
   const handleClear = useCallback(async () => {
-    if (!window.confirm('Clear all nodes and edges from the diagram?')) return
+    if (!window.confirm(tr("Clear all nodes and edges from the diagram?"))) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setNodes([])
     setEdges([])
     setSaving(true)
     try {
       await saveDiagram([], [])
-      toast('Diagram cleared', 'info')
+      toast(tr("Diagram cleared"), 'info')
     } catch {
       // error toast already fired by AppProvider — canvas is already cleared
       // locally, which matches user intent even if the persist failed
@@ -1172,7 +1165,7 @@ function NetworkDiagramInner() {
               boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
             }}
           >
-            <span style={{ fontSize: 11, color: '#8d9eb5' }}>Edge selected</span>
+            <span style={{ fontSize: 11, color: '#8d9eb5' }}>{tr("Edge selected")}</span>
             <button
               onClick={deleteSelectedEdge}
               style={{
@@ -1182,8 +1175,7 @@ function NetworkDiagramInner() {
               }}
             >
               <Trash2 size={11} />
-              Delete
-            </button>
+               {tr("Delete")} </button>
             <button
               onClick={() => setSelectedEdgeId(null)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5c7080', padding: '2px 4px' }}
@@ -1194,6 +1186,13 @@ function NetworkDiagramInner() {
         )}
 
         <ReactFlow
+          ariaLabelConfig={{
+            'controls.zoomIn.ariaLabel': tr('Zoom in'),
+            'controls.zoomOut.ariaLabel': tr('Zoom out'),
+            'controls.fitView.ariaLabel': tr('Fit view'),
+            'controls.interactive.ariaLabel': tr('Toggle interactivity'),
+            'minimap.ariaLabel': tr('Mini map'),
+          }}
           nodes={nodes}
           edges={displayEdges}
           onNodesChange={handleNodesChange}
@@ -1271,6 +1270,7 @@ function NetworkDiagramInner() {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default function NetworkDiagram() {
+  useLocale()
   const { isLoading } = useApp()
 
   // NetworkDiagramInner seeds its React Flow state from diagramNodes/diagramEdges

@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { AppContext } from './useApp'
 import { useAuth } from './useAuth'
@@ -34,6 +35,7 @@ function emptyOrgState() {
 const CURRENT_ORG_KEY = 'current_org_id'
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  useLocale()
   const { isAuthenticated } = useAuth()
 
   const [orgs, setOrgs] = useState<OrgMembership[]>([])
@@ -61,7 +63,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       return await fn()
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : failMessage
+      const message = err instanceof ApiError ? err.message : tr(failMessage)
       toast(message, 'error')
       throw err
     }
@@ -100,7 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return next
         })
       })
-      .catch(() => toast('Failed to load organizations', 'error'))
+      .catch(() => toast(tr("Failed to load organizations"), 'error'))
 
   }, [isAuthenticated, toast])
 
@@ -119,7 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch {
         if (!cancelled) {
           setAccessState(undefined)
-          setAccessError('Organization access is unavailable. Check your connection or contact an organization administrator.')
+          setAccessError(tr('Organization access is unavailable. Check your connection or contact an organization administrator.'))
           setData(emptyOrgState())
         }
       }
@@ -181,7 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => {
       if (!cancelled) {
         setData(emptyOrgState())
-        toast('Failed to load organization data', 'error')
+        toast(tr("Failed to load organization data"), 'error')
       }
     }).finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
@@ -200,13 +202,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addOrg = useCallback(async (o: Omit<Organization, 'id'>) => {
     const created = await guarded(() => organizationsApi.create(o), 'Failed to create organization')
     setOrgs(prev => [...prev, { ...created, role: 'Owner' }])
-    toast(`Organization "${o.name}" created`)
+    toast(tr("Organization \"{{value1}}\" created", { value1: o.name }))
   }, [guarded, toast])
 
   const updateOrg = useCallback(async (id: string, o: Omit<Organization, 'id'>) => {
     await guarded(() => organizationsApi.update(id, o), 'Failed to update organization')
     setOrgs(prev => prev.map(x => x.id === id ? { ...x, ...o } : x))
-    toast(`Organization "${o.name}" updated`)
+    toast(tr("Organization \"{{value1}}\" updated", { value1: o.name }))
   }, [guarded, toast])
 
   const inviteMember = useCallback(async (orgId: string, email: string, role: OrgRole) => {
@@ -231,7 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = orgs.find(o => o.id !== orgId)
       switchOrg(next?.id ?? '')
     }
-    toast('Organization deleted', 'info')
+    toast(tr("Organization deleted"), 'info')
   }, [guarded, currentOrgId, orgs, switchOrg, toast])
 
   const restoreOrg = useCallback(async (orgId: string) => {
@@ -239,27 +241,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const summaries = await organizationsApi.getAll()
     const full = await Promise.all(summaries.map(async s => ({ ...(await organizationsApi.getById(s.id)), role: s.role })))
     setOrgs(full)
-    toast('Organization restored')
+    toast(tr("Organization restored"))
   }, [guarded, toast])
 
   // ── Assets ──
   const addAsset = useCallback(async (a: Omit<Asset, 'id' | 'updated'>) => {
     const created = await guarded(() => assetsApi.create(currentOrgId, a), 'Failed to create asset')
     setData(d => ({ ...d, assets: [created, ...d.assets] }))
-    toast(`Asset "${a.name}" created`)
+    toast(tr("Asset \"{{value1}}\" created", { value1: a.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateAsset = useCallback(async (a: Asset) => {
     await guarded(() => assetsApi.update(a.id, a), 'Failed to update asset')
     setData(d => ({ ...d, assets: d.assets.map(x => x.id === a.id ? { ...a, updated: 'just now' } : x) }))
-    toast(`Asset "${a.name}" updated`)
+    toast(tr("Asset \"{{value1}}\" updated", { value1: a.name }))
   }, [guarded, toast])
 
   const deleteAsset = useCallback(async (id: string) => {
     const name = data.assets.find(a => a.id === id)?.name
     await guarded(() => assetsApi.delete(id), 'Failed to delete asset')
     setData(d => ({ ...d, assets: d.assets.filter(a => a.id !== id) }))
-    toast(`Asset "${name}" deleted`, 'info')
+    toast(tr("Asset \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.assets, guarded, toast])
 
   const toggleStarAsset = useCallback(async (id: string) => {
@@ -271,20 +273,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addPassword = useCallback(async (p: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }) => {
     const created = await guarded(() => passwordsApi.create(currentOrgId, p), 'Failed to save password')
     setData(d => ({ ...d, passwords: [created, ...d.passwords] }))
-    toast(`Password "${p.name}" saved`)
+    toast(tr("Password \"{{value1}}\" saved", { value1: p.name }))
   }, [currentOrgId, guarded, toast])
 
   const updatePassword = useCallback(async (p: PasswordEntry & { password?: string }) => {
     await guarded(() => passwordsApi.update(p.id, p), 'Failed to update password')
     setData(d => ({ ...d, passwords: d.passwords.map(x => x.id === p.id ? { ...x, ...p } : x) }))
-    toast(`Password "${p.name}" updated`)
+    toast(tr("Password \"{{value1}}\" updated", { value1: p.name }))
   }, [guarded, toast])
 
   const deletePassword = useCallback(async (id: string) => {
     const name = data.passwords.find(p => p.id === id)?.name
     await guarded(() => passwordsApi.delete(id), 'Failed to delete password')
     setData(d => ({ ...d, passwords: d.passwords.filter(p => p.id !== id) }))
-    toast(`Password "${name}" deleted`, 'info')
+    toast(tr("Password \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.passwords, guarded, toast])
 
   const toggleStarPassword = useCallback(async (id: string) => {
@@ -300,26 +302,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addSubnet = useCallback(async (s: Omit<Subnet, 'id' | 'ips'>) => {
     const created = await guarded(() => subnetsApi.create(currentOrgId, s), 'Failed to add subnet')
     setData(d => ({ ...d, subnets: [created, ...d.subnets] }))
-    toast(`Subnet "${s.name}" added`)
+    toast(tr("Subnet \"{{value1}}\" added", { value1: s.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateSubnet = useCallback(async (s: Subnet) => {
     await guarded(() => subnetsApi.update(s.id, s), 'Failed to update subnet')
     setData(d => ({ ...d, subnets: d.subnets.map(x => x.id === s.id ? s : x) }))
-    toast(`Subnet "${s.name}" updated`)
+    toast(tr("Subnet \"{{value1}}\" updated", { value1: s.name }))
   }, [guarded, toast])
 
   const deleteSubnet = useCallback(async (id: string) => {
     const name = data.subnets.find(s => s.id === id)?.name
     await guarded(() => subnetsApi.delete(id), 'Failed to delete subnet')
     setData(d => ({ ...d, subnets: d.subnets.filter(s => s.id !== id) }))
-    toast(`Subnet "${name}" deleted`, 'info')
+    toast(tr("Subnet \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.subnets, guarded, toast])
 
   const addIPEntry = useCallback(async (subnetId: string, e: Omit<IPEntry, 'id'>) => {
     const created = await guarded(() => subnetsApi.addIp(subnetId, e), 'Failed to add IP entry')
     setData(d => ({ ...d, subnets: d.subnets.map(s => s.id === subnetId ? { ...s, ips: [...s.ips, created] } : s) }))
-    toast(`IP ${e.ip} added`)
+    toast(tr("IP {{value1}} added", { value1: e.ip }))
   }, [guarded, toast])
 
   const updateIPEntry = useCallback(async (subnetId: string, e: IPEntry) => {
@@ -330,27 +332,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteIPEntry = useCallback(async (subnetId: string, entryId: string) => {
     await guarded(() => subnetsApi.deleteIp(subnetId, entryId), 'Failed to delete IP entry')
     setData(d => ({ ...d, subnets: d.subnets.map(s => s.id === subnetId ? { ...s, ips: s.ips.filter(ip => ip.id !== entryId) } : s) }))
-    toast('IP entry deleted', 'info')
+    toast(tr("IP entry deleted"), 'info')
   }, [guarded, toast])
 
   // ── Licenses ──
   const addLicense = useCallback(async (l: Omit<License, 'id' | 'status'>) => {
     const created = await guarded(() => licensesApi.create(currentOrgId, l), 'Failed to add license')
     setData(d => ({ ...d, licenses: [created, ...d.licenses] }))
-    toast(`License "${l.name}" added`)
+    toast(tr("License \"{{value1}}\" added", { value1: l.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateLicense = useCallback(async (l: License) => {
     await guarded(() => licensesApi.update(l.id, l), 'Failed to update license')
     setData(d => ({ ...d, licenses: d.licenses.map(x => x.id === l.id ? l : x) }))
-    toast(`License "${l.name}" updated`)
+    toast(tr("License \"{{value1}}\" updated", { value1: l.name }))
   }, [guarded, toast])
 
   const deleteLicense = useCallback(async (id: string) => {
     const name = data.licenses.find(l => l.id === id)?.name
     await guarded(() => licensesApi.delete(id), 'Failed to delete license')
     setData(d => ({ ...d, licenses: d.licenses.filter(l => l.id !== id) }))
-    toast(`License "${name}" deleted`, 'info')
+    toast(tr("License \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.licenses, guarded, toast])
 
   const toggleStarLicense = useCallback(async (id: string) => {
@@ -362,20 +364,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addContact = useCallback(async (c: Omit<Contact, 'id'>) => {
     const created = await guarded(() => contactsApi.create(currentOrgId, c), 'Failed to add contact')
     setData(d => ({ ...d, contacts: [created, ...d.contacts] }))
-    toast(`Contact "${c.name}" added`)
+    toast(tr("Contact \"{{value1}}\" added", { value1: c.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateContact = useCallback(async (c: Contact) => {
     await guarded(() => contactsApi.update(c.id, c), 'Failed to update contact')
     setData(d => ({ ...d, contacts: d.contacts.map(x => x.id === c.id ? c : x) }))
-    toast(`Contact "${c.name}" updated`)
+    toast(tr("Contact \"{{value1}}\" updated", { value1: c.name }))
   }, [guarded, toast])
 
   const deleteContact = useCallback(async (id: string) => {
     const name = data.contacts.find(c => c.id === id)?.name
     await guarded(() => contactsApi.delete(id), 'Failed to delete contact')
     setData(d => ({ ...d, contacts: d.contacts.filter(c => c.id !== id) }))
-    toast(`Contact "${name}" deleted`, 'info')
+    toast(tr("Contact \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.contacts, guarded, toast])
 
   const toggleStarContact = useCallback(async (id: string) => {
@@ -387,26 +389,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reloadContracts = useCallback(async () => {
     const contracts = await guarded(() => contractsApi.getAll(currentOrgId), 'Failed to reload contracts data')
     setData(d => ({ ...d, contracts: contracts}))
-    toast(`Contracts loaded`, 'info')
+    toast(tr("Contracts loaded"), 'info')
   }, [guarded, toast, currentOrgId])
 
   const addContract = useCallback(async (c: Omit<Contract, 'id' | 'status'>) => {
     const created = await guarded(() => contractsApi.create(currentOrgId, c), 'Failed to add contract')
     setData(d => ({ ...d, contracts: [created, ...d.contracts] }))
-    toast(`Contract "${c.name}" added`)
+    toast(tr("Contract \"{{value1}}\" added", { value1: c.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateContract = useCallback(async (c: Contract) => {
     await guarded(() => contractsApi.update(c.id, c), 'Failed to update contract')
     setData(d => ({ ...d, contracts: d.contracts.map(x => x.id === c.id ? c : x) }))
-    toast(`Contract "${c.name}" updated`)
+    toast(tr("Contract \"{{value1}}\" updated", { value1: c.name }))
   }, [guarded, toast])
 
   const deleteContract = useCallback(async (id: string) => {
     const name = data.contracts.find(c => c.id === id)?.name
     await guarded(() => contractsApi.delete(id), 'Failed to delete contract')
     setData(d => ({ ...d, contracts: d.contracts.filter(c => c.id !== id) }))
-    toast(`Contract "${name}" deleted`, 'info')
+    toast(tr("Contract \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.contracts, guarded, toast])
 
   const toggleStarContract = useCallback(async (id: string) => {
@@ -418,60 +420,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addPlan = useCallback(async (p: Omit<Plan, 'id' | 'createdAt'>) => {
     const created = await guarded(() => plansApi.create(currentOrgId, p), 'Failed to add plan')
     setData(d => ({ ...d, plans: [created, ...d.plans] }))
-    toast(`Plan "${p.title}" added`)
+    toast(tr("Plan \"{{value1}}\" added", { value1: p.title }))
   }, [currentOrgId, guarded, toast])
 
   const updatePlan = useCallback(async (p: Plan) => {
     await guarded(() => plansApi.update(p.id, p), 'Failed to update plan')
     setData(d => ({ ...d, plans: d.plans.map(x => x.id === p.id ? p : x) }))
-    toast(`Plan "${p.title}" updated`)
+    toast(tr("Plan \"{{value1}}\" updated", { value1: p.title }))
   }, [guarded, toast])
 
   const deletePlan = useCallback(async (id: string) => {
     const title = data.plans.find(p => p.id === id)?.title
     await guarded(() => plansApi.delete(id), 'Failed to delete plan')
     setData(d => ({ ...d, plans: d.plans.filter(p => p.id !== id) }))
-    toast(`Plan "${title}" deleted`, 'info')
+    toast(tr("Plan \"{{value1}}\" deleted", { value1: title }), 'info')
   }, [data.plans, guarded, toast])
 
   // ── Incidents ──
   const addIncident = useCallback(async (i: Omit<Incident, 'id'>) => {
     const created = await guarded(() => incidentsApi.create(currentOrgId, i), 'Failed to log incident')
     setData(d => ({ ...d, incidents: [created, ...d.incidents] }))
-    toast(`Incident "${i.title}" logged`)
+    toast(tr("Incident \"{{value1}}\" logged", { value1: i.title }))
   }, [currentOrgId, guarded, toast])
 
   const updateIncident = useCallback(async (i: Incident) => {
     await guarded(() => incidentsApi.update(i.id, i), 'Failed to update incident')
     setData(d => ({ ...d, incidents: d.incidents.map(x => x.id === i.id ? i : x) }))
-    toast(`Incident "${i.title}" updated`)
+    toast(tr("Incident \"{{value1}}\" updated", { value1: i.title }))
   }, [guarded, toast])
 
   const deleteIncident = useCallback(async (id: string) => {
     const title = data.incidents.find(i => i.id === id)?.title
     await guarded(() => incidentsApi.delete(id), 'Failed to delete incident')
     setData(d => ({ ...d, incidents: d.incidents.filter(i => i.id !== id) }))
-    toast(`Incident "${title}" deleted`, 'info')
+    toast(tr("Incident \"{{value1}}\" deleted", { value1: title }), 'info')
   }, [data.incidents, guarded, toast])
 
   // ── Knowledge ──
   const addKnowledge = useCallback(async (a: Omit<KnowledgeArticle, 'id' | 'updatedAt'>) => {
     const created = await guarded(() => knowledgeApi.create(currentOrgId, a), 'Failed to save article')
     setData(d => ({ ...d, knowledgeArticles: [created, ...d.knowledgeArticles] }))
-    toast(`Article "${a.title}" saved`)
+    toast(tr("Article \"{{value1}}\" saved", { value1: a.title }))
   }, [currentOrgId, guarded, toast])
 
   const updateKnowledge = useCallback(async (a: KnowledgeArticle) => {
     await guarded(() => knowledgeApi.update(a.id, a), 'Failed to update article')
     setData(d => ({ ...d, knowledgeArticles: d.knowledgeArticles.map(x => x.id === a.id ? a : x) }))
-    toast(`Article "${a.title}" updated`)
+    toast(tr("Article \"{{value1}}\" updated", { value1: a.title }))
   }, [guarded, toast])
 
   const deleteKnowledge = useCallback(async (id: string) => {
     const title = data.knowledgeArticles.find(a => a.id === id)?.title
     await guarded(() => knowledgeApi.delete(id), 'Failed to delete article')
     setData(d => ({ ...d, knowledgeArticles: d.knowledgeArticles.filter(a => a.id !== id) }))
-    toast(`Article "${title}" deleted`, 'info')
+    toast(tr("Article \"{{value1}}\" deleted", { value1: title }), 'info')
   }, [data.knowledgeArticles, guarded, toast])
 
   const toggleStarKnowledge = useCallback(async (id: string) => {
@@ -484,14 +486,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addProject = useCallback(async (p: Omit<Project, 'id' | 'createdAt' | 'taskCount'>) => {
   const created = await guarded(() => projectsApi.create(currentOrgId, p), 'Failed to add project')
     setData(d => ({ ...d, projects: [created, ...d.projects] }))
-    toast(`Project "${p.name}" created`)
+    toast(tr("Project \"{{value1}}\" created", { value1: p.name }))
     return created
   }, [currentOrgId, guarded, toast])
 
   const updateProject = useCallback(async (p: Project) => {
     await guarded(() => projectsApi.update(p.id, p), 'Failed to update project')
     setData(d => ({ ...d, projects: d.projects.map(x => x.id === p.id ? p : x) }))
-    toast(`Project "${p.name}" updated`)
+    toast(tr("Project \"{{value1}}\" updated", { value1: p.name }))
   }, [guarded, toast])
 
   const deleteProject = useCallback(async (id: string) => {
@@ -502,73 +504,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
       projects: d.projects.filter(p => p.id !== id),
       tasks: d.tasks.map(t => t.projectId === id ? { ...t, projectId: undefined } : t), // matches SetNull server-side
     }))
-    toast(`Project "${name}" deleted`, 'info')
+    toast(tr("Project \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.projects, guarded, toast])
 
   // ── Tasks ──
   const addTask = useCallback(async (t: Omit<Task, 'id' | 'createdAt'>) => {
     const created = await guarded(() => tasksApi.create(currentOrgId, t), 'Failed to add task')
     setData(d => ({ ...d, tasks: [created, ...d.tasks] }))
-    toast(`Task "${t.title}" added`)
+    toast(tr("Task \"{{value1}}\" added", { value1: t.title }))
   }, [currentOrgId, guarded, toast])
 
   const updateTask = useCallback(async (t: Task) => {
     await guarded(() => tasksApi.update(t.id, t), 'Failed to update task')
     setData(d => ({ ...d, tasks: d.tasks.map(x => x.id === t.id ? t : x) }))
-    toast(`Task "${t.title}" updated`)
+    toast(tr("Task \"{{value1}}\" updated", { value1: t.title }))
   }, [guarded, toast])
 
   const deleteTask = useCallback(async (id: string) => {
     const title = data.tasks.find(t => t.id === id)?.title
     await guarded(() => tasksApi.delete(id), 'Failed to delete task')
     setData(d => ({ ...d, tasks: d.tasks.filter(t => t.id !== id) }))
-    toast(`Task "${title}" deleted`, 'info')
+    toast(tr("Task \"{{value1}}\" deleted", { value1: title }), 'info')
   }, [data.tasks, guarded, toast])
 
   // ── Groups ──
   const addGroup = useCallback(async (g: Omit<Group, 'id' | 'createdAt'>) => {
     const created = await guarded(() => groupsApi.create(currentOrgId, g), 'Failed to add group')
     setData(d => ({ ...d, groups: [created, ...d.groups] }))
-    toast(`Group "${g.name}" added`)
+    toast(tr("Group \"{{value1}}\" added", { value1: g.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateGroup = useCallback(async (g: Group) => {
     await guarded(() => groupsApi.update(g.id, g), 'Failed to update group')
     setData(d => ({ ...d, groups: d.groups.map(x => x.id === g.id ? g : x) }))
-    toast(`Group "${g.name}" updated`)
+    toast(tr("Group \"{{value1}}\" updated", { value1: g.name }))
   }, [guarded, toast])
 
   const deleteGroup = useCallback(async (id: string) => {
     const name = data.groups.find(g => g.id === id)?.name
     await guarded(() => groupsApi.delete(id), 'Failed to delete group')
     setData(d => ({ ...d, groups: d.groups.filter(g => g.id !== id) }))
-    toast(`Group "${name}" deleted`, 'info')
+    toast(tr("Group \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.groups, guarded, toast])
 
   // ── Warranties ──
   const reloadWarranties = useCallback(async () => {
     const warranties = await guarded(() => warrantyApi.getAll(currentOrgId), 'Failed to reload warranties data')
     setData(d => ({ ...d, warrantyItems: warranties}))
-    toast(`Warranties loaded`, 'info')
+    toast(tr("Warranties loaded"), 'info')
   }, [guarded, toast, currentOrgId])
 
   const addWarranty = useCallback(async (w: Omit<WarrantyItem, 'status'>) => {
     const created = await guarded(() => warrantyApi.create(currentOrgId, w), 'Failed to add warranty')
     setData(d => ({ ...d, warrantyItems: [created, ...d.warrantyItems] }))
-    toast(`Warranty "${w.name}" added`)
+    toast(tr("Warranty \"{{value1}}\" added", { value1: w.name }))
   }, [currentOrgId, guarded, toast])
 
   const updateWarranty = useCallback(async (w: WarrantyItem) => {
     await guarded(() => warrantyApi.update(w.id, w), 'Failed to update warranty')
     setData(d => ({ ...d, warrantyItems: d.warrantyItems.map(x => x.id === w.id ? w : x) }))
-    toast(`Warranty "${w.name}" updated`)
+    toast(tr("Warranty \"{{value1}}\" updated", { value1: w.name }))
   }, [guarded, toast])
 
   const deleteWarranty = useCallback(async (id: string) => {
     const name = data.warrantyItems.find(w => w.id === id)?.name
     await guarded(() => warrantyApi.delete(id), 'Failed to delete warranty')
     setData(d => ({ ...d, warrantyItems: d.warrantyItems.filter(w => w.id !== id) }))
-    toast(`Warranty "${name}" deleted`, 'info')
+    toast(tr("Warranty \"{{value1}}\" deleted", { value1: name }), 'info')
   }, [data.warrantyItems, guarded, toast])
 
   const toggleStarWarranty = useCallback(async (id: string) => {
@@ -579,7 +581,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const uploadWarrantyDocument = useCallback(async (id: string, file: File) => {
     const updated = await guarded(() => warrantyApi.uploadDocument(id, file), 'Failed to upload document')
     setData(d => ({ ...d, warrantyItems: d.warrantyItems.map(w => w.id === id ? updated : w) }))
-    toast('Document uploaded')
+    toast(tr("Document uploaded"))
   }, [guarded, toast])
 
   // ── Diagram ──

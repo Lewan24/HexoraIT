@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import { Plus, Search, Network, Globe, Wifi, Server, Shield, Lock, Edit2, Trash2, X, ChevronDown, Dot, Loader2 } from 'lucide-react'
 import { useApp } from '../context/useApp'
@@ -31,6 +32,7 @@ function SubnetModal({ initial, onClose, onSave }: {
   onClose: () => void
   onSave: (s: Omit<Subnet, 'id' | 'ips'>) => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     cidr: initial?.cidr ?? '',
@@ -47,8 +49,8 @@ function SubnetModal({ initial, onClose, onSave }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Required'
-    if (!form.cidr.trim()) e.cidr = 'Required'
+    if (!form.name.trim()) e.name = tr("Required")
+    if (!form.cidr.trim()) e.cidr = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -65,56 +67,56 @@ function SubnetModal({ initial, onClose, onSave }: {
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-md" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Subnet' : 'Add Subnet'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Define a network segment or VLAN</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Subnet") : tr("Add Subnet")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Define a network segment or VLAN")}</p>
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Name *</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Server Farm" className={inp(errors.name)} autoFocus disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
+              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("Server Farm")} className={inp(errors.name)} autoFocus disabled={submitting} />
               {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">CIDR *</label>
-              <input value={form.cidr} onChange={e => set('cidr', e.target.value)} placeholder="10.0.1.0/24" className={inp(errors.cidr) + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("CIDR *")}</label>
+              <input value={form.cidr} onChange={e => set('cidr', e.target.value)} placeholder={"10.0.1.0/24"} className={inp(errors.cidr) + ' font-mono'} disabled={submitting} />
               {errors.cidr && <p className="text-[10px] text-red-400 mt-1">{errors.cidr}</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Type</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Type")}</label>
               <select value={form.type} onChange={e => set('type', e.target.value)} className={inp()} disabled={submitting}>
-                {(Object.keys(TYPE_CONFIG) as SubnetType[]).map(t => <option key={t} value={t}>{TYPE_CONFIG[t].label}</option>)}
+                {(Object.keys(TYPE_CONFIG) as SubnetType[]).map(t => <option key={t} value={t}>{tr(TYPE_CONFIG[t].label)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">VLAN ID</label>
-              <input value={form.vlan} onChange={e => set('vlan', e.target.value)} placeholder="10" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("VLAN ID")}</label>
+              <input value={form.vlan} onChange={e => set('vlan', e.target.value)} placeholder={"10"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Gateway</label>
-              <input value={form.gateway} onChange={e => set('gateway', e.target.value)} placeholder="10.0.1.1" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Gateway")}</label>
+              <input value={form.gateway} onChange={e => set('gateway', e.target.value)} placeholder={"10.0.1.1"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">DNS</label>
-              <input value={form.dns} onChange={e => set('dns', e.target.value)} placeholder="8.8.8.8" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("DNS")}</label>
+              <input value={form.dns} onChange={e => set('dns', e.target.value)} placeholder={"8.8.8.8"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className={inp() + ' resize-none'} disabled={submitting} />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
-          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
           <button onClick={submit} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5" style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
             {submitting && <Loader2 size={11} className="animate-spin" />}
-            {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add Subnet'}
+            {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Subnet")}
           </button>
         </div>
       </div>
@@ -130,6 +132,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
   onClose: () => void
   onSave: (e: Omit<IPEntry, 'id'>) => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState<{
     ip: string; label: string; status: IPEntryStatus; assetId: string; notes: string
   }>({
@@ -146,7 +149,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.ip.trim()) e.ip = 'Required'
+    if (!form.ip.trim()) e.ip = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -163,50 +166,50 @@ function IPModal({ initial, assets, onClose, onSave }: {
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit IP Entry' : 'Add IP Entry'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Assign and document an IP address</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit IP Entry") : tr("Add IP Entry")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Assign and document an IP address")}</p>
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">IP Address *</label>
-              <input value={form.ip} onChange={e => set('ip', e.target.value)} placeholder="10.0.1.10" className={inp(errors.ip) + ' font-mono'} autoFocus disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("IP Address *")}</label>
+              <input value={form.ip} onChange={e => set('ip', e.target.value)} placeholder={"10.0.1.10"} className={inp(errors.ip) + ' font-mono'} autoFocus disabled={submitting} />
               {errors.ip && <p className="text-[10px] text-red-400 mt-1">{errors.ip}</p>}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Status</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Status")}</label>
               <select value={form.status} onChange={e => set('status', e.target.value)} className={inp()} disabled={submitting}>
-                <option value="free">Free</option>
-                <option value="used">Used</option>
-                <option value="reserved">Reserved</option>
+                <option value="free">{tr("Free")}</option>
+                <option value="used">{tr("Used")}</option>
+                <option value="reserved">{tr("Reserved")}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Label / Hostname</label>
-            <input value={form.label} onChange={e => set('label', e.target.value)} placeholder="hostname or plain text" className={inp() + ' font-mono'} disabled={submitting} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Label / Hostname")}</label>
+            <input value={form.label} onChange={e => set('label', e.target.value)} placeholder={tr("hostname or plain text")} className={inp() + ' font-mono'} disabled={submitting} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Assign to Asset</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Assign to Asset")}</label>
             <select value={form.assetId} onChange={e => set('assetId', e.target.value)} className={inp()} disabled={submitting}>
-              <option value="">— None —</option>
+              <option value="">{tr("— None —")}</option>
               {assets.map(a => (
                 <option key={a.id} value={a.id}>{a.name} ({a.ip})</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Notes</label>
-            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes" className={inp()} disabled={submitting} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
+            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tr("Optional notes")} className={inp()} disabled={submitting} />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40">
-          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
           <button onClick={submit} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5" style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
             {submitting && <Loader2 size={11} className="animate-spin" />}
-            {submitting ? 'Saving…' : initial ? 'Save' : 'Add IP'}
+            {submitting ? tr("Saving…") : initial ? tr("Save") : tr("Add IP")}
           </button>
         </div>
       </div>
@@ -225,6 +228,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
   onEditIP: (e: IPEntry) => Promise<void>
   onDeleteIP: (entryId: string) => Promise<void>
 }) {
+  useLocale()
   const [expanded, setExpanded] = useState(false)
   const [ipModal, setIPModal] = useState<{ open: boolean; initial?: IPEntry }>({ open: false })
   const [deletingIpId, setDeletingIpId] = useState<string | null>(null)
@@ -252,14 +256,14 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-ink-primary">{subnet.name}</span>
             <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md border font-semibold ${tc.bg} ${tc.color}`}>{subnet.type}</span>
-            {subnet.vlan != null && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-navy-700 text-ink-muted border border-edge-subtle">VLAN {subnet.vlan}</span>}
+            {subnet.vlan != null && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-navy-700 text-ink-muted border border-edge-subtle">{tr("VLAN")} {subnet.vlan}</span>}
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className="text-[11px] font-mono text-ink-muted">{subnet.cidr}</span>
             <span className="text-[10px] text-ink-muted">·</span>
-            <span className="text-[10px] text-ink-muted font-mono">{subnet.ips.length} IPs</span>
-            {usedCount > 0 && <span className="text-[10px] text-green-400 font-mono">{usedCount} used</span>}
-            {reservedCount > 0 && <span className="text-[10px] text-yellow-400 font-mono">{reservedCount} reserved</span>}
+            <span className="text-[10px] text-ink-muted font-mono">{subnet.ips.length}  {tr("IPs")}</span>
+            {usedCount > 0 && <span className="text-[10px] text-green-400 font-mono">{usedCount}  {tr("used")}</span>}
+            {reservedCount > 0 && <span className="text-[10px] text-yellow-400 font-mono">{reservedCount}  {tr("reserved")}</span>}
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -276,8 +280,8 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
         <div className="border-t border-edge-subtle">
           {(subnet.gateway || subnet.dns || subnet.description) && (
             <div className="flex items-center gap-4 px-4 py-2.5 bg-navy-900/40 border-b border-edge-subtle flex-wrap">
-              {subnet.gateway && <span className="text-[10px] text-ink-muted font-mono">GW: <span className="text-ink-secondary">{subnet.gateway}</span></span>}
-              {subnet.dns && <span className="text-[10px] text-ink-muted font-mono">DNS: <span className="text-ink-secondary">{subnet.dns}</span></span>}
+              {subnet.gateway && <span className="text-[10px] text-ink-muted font-mono">{tr("GW:")} <span className="text-ink-secondary">{subnet.gateway}</span></span>}
+              {subnet.dns && <span className="text-[10px] text-ink-muted font-mono">{tr("DNS:")} <span className="text-ink-secondary">{subnet.dns}</span></span>}
               {subnet.description && <span className="text-[10px] text-ink-muted">{subnet.description}</span>}
             </div>
           )}
@@ -285,18 +289,18 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
           {subnet.ips.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
               <Dot size={24} className="text-ink-muted opacity-30" />
-              <p className="text-xs text-ink-muted">No IP entries yet</p>
+              <p className="text-xs text-ink-muted">{tr("No IP entries yet")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-edge-subtle bg-navy-900/30">
-                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">IP Address</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">Label / Hostname</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">Status</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">Asset</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">Notes</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">{tr("IP Address")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">{tr("Label / Hostname")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">{tr("Status")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">{tr("Asset")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-ink-muted">{tr("Notes")}</th>
                     <th className="px-4 py-2.5 w-16" />
                   </tr>
                 </thead>
@@ -315,7 +319,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
                         <td className="px-4 py-2.5">
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border ${sc.badge}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                            {sc.label}
+                            {tr(sc.label)}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
@@ -347,8 +351,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
           <div className="px-4 py-3 border-t border-edge-subtle bg-navy-900/30">
             <button onClick={() => setIPModal({ open: true })}
               className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">
-              <Plus size={12} /> Add IP Entry
-            </button>
+              <Plus size={12} />  {tr("Add IP Entry")} </button>
           </div>
         </div>
       )}
@@ -372,6 +375,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
 // ─── Networks ─────────────────────────────────────────────────────────────────
 
 export default function Networks() {
+  useLocale()
   const { assets, subnets, isLoading, addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry, currentOrg } = useApp()
   const [query, setQuery] = useState('')
   const [subnetModal, setSubnetModal] = useState<{ open: boolean; initial?: Subnet }>({ open: false })
@@ -415,31 +419,29 @@ export default function Networks() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Networks</h1>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Networks")}</h1>
           <p className="text-xs text-ink-muted mt-0.5 font-mono">
-            {currentOrg ? `${currentOrg.name} · ` : ''}{subnets.length} subnet{subnets.length !== 1 ? 's' : ''} · {totalIPs} IPs tracked · {usedIPs} in use
-          </p>
+            {currentOrg ? tr("{{value1}} · ", { value1: currentOrg.name }) : ''}{subnets.length}  {tr("subnet")}{subnets.length !== 1 ? tr("s") : ''} · {totalIPs}  {tr("IPs tracked ·")} {usedIPs}  {tr("in use")} </p>
         </div>
         <button onClick={() => setSubnetModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> Add Subnet
-        </button>
+          <Plus size={14} />  {tr("Add Subnet")} </button>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div className="bg-navy-800 border border-edge-subtle rounded-xl px-4 py-3">
           <p className="text-xl font-semibold font-mono text-ink-primary">{subnets.length}</p>
-          <p className="text-xs text-ink-secondary mt-0.5">Subnets</p>
+          <p className="text-xs text-ink-secondary mt-0.5">{tr("Subnets")}</p>
         </div>
         <div className="bg-navy-800 border border-edge-subtle rounded-xl px-4 py-3">
           <p className="text-xl font-semibold font-mono text-ink-primary">{totalIPs}</p>
-          <p className="text-xs text-ink-secondary mt-0.5">Total IPs</p>
+          <p className="text-xs text-ink-secondary mt-0.5">{tr("Total IPs")}</p>
         </div>
         <div className="bg-navy-800 border border-edge-subtle rounded-xl px-4 py-3">
           <p className="text-xl font-semibold font-mono text-green-400">{usedIPs}</p>
-          <p className="text-xs text-ink-secondary mt-0.5">In Use</p>
+          <p className="text-xs text-ink-secondary mt-0.5">{tr("In Use")}</p>
         </div>
         <div className="bg-navy-800 border border-edge-subtle rounded-xl px-4 py-3">
           <div className="flex flex-wrap gap-1.5 mt-0.5">
@@ -451,9 +453,9 @@ export default function Networks() {
                 </span>
               )
             })}
-            {typeBreakdown.length === 0 && <p className="text-xs text-ink-muted">No subnets</p>}
+            {typeBreakdown.length === 0 && <p className="text-xs text-ink-muted">{tr("No subnets")}</p>}
           </div>
-          <p className="text-xs text-ink-secondary mt-1">Subnet types</p>
+          <p className="text-xs text-ink-secondary mt-1">{tr("Subnet types")}</p>
         </div>
       </div>
 
@@ -461,7 +463,7 @@ export default function Networks() {
       <div className="relative mb-4">
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
         <input value={query} onChange={e => setQuery(e.target.value)}
-          placeholder="Search subnets, CIDRs, types…"
+          placeholder={tr("Search subnets, CIDRs, types…")}
           className="w-full pl-8 pr-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:border-blue-500 focus:outline-none transition-colors" />
       </div>
 
@@ -472,12 +474,11 @@ export default function Networks() {
             <Network size={20} className="text-ink-muted opacity-50" />
           </div>
           <p className="text-sm text-ink-secondary">
-            {query ? 'No subnets match your search' : 'No subnets yet'}
+            {query ? tr("No subnets match your search") : tr("No subnets yet")}
           </p>
           {!query && (
             <button onClick={() => setSubnetModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-              Add your first subnet
-            </button>
+               {tr("Add your first subnet")} </button>
           )}
         </div>
       ) : (

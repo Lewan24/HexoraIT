@@ -1,3 +1,4 @@
+import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, Search, X, Edit2, Trash2, Star, ArrowLeft,
@@ -44,6 +45,7 @@ function ContractModal({ initial, onClose, onSave }: {
   onClose: () => void
   onSave: (c: Omit<Contract, 'id' | 'status' | 'document'>, pendingFile?: File) => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     vendor: initial?.vendor ?? '',
@@ -67,9 +69,9 @@ function ContractModal({ initial, onClose, onSave }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Required'
-    if (!form.vendor.trim()) e.vendor = 'Required'
-    if (!form.endDate) e.endDate = 'Required'
+    if (!form.name.trim()) e.name = tr("Required")
+    if (!form.vendor.trim()) e.vendor = tr("Required")
+    if (!form.endDate) e.endDate = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -98,60 +100,60 @@ function ContractModal({ initial, onClose, onSave }: {
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Contract' : 'Add Contract'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Vendor agreements, SLAs, leases</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Contract") : tr("Add Contract")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Vendor agreements, SLAs, leases")}</p>
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Contract Name *</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Annual Support Agreement" className={inp(errors.name)} autoFocus disabled={submitting} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contract Name *")}</label>
+            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Annual Support Agreement")} className={inp(errors.name)} autoFocus disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Vendor *</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder="Acme Corp" className={inp(errors.vendor)} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor *")}</label>
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Acme Corp")} className={inp(errors.vendor)} disabled={submitting} />
               {errors.vendor && <p className="text-[10px] text-red-400 mt-1">{errors.vendor}</p>}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Category</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Category")}</label>
               <select value={form.category} onChange={e => set('category', e.target.value)} className={inp()} disabled={submitting}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {CATEGORIES.map(c => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Start Date</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Start Date")}</label>
               <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">End Date *</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("End Date *")}</label>
               <input type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} className={inp(errors.endDate)} disabled={submitting} />
               {errors.endDate && <p className="text-[10px] text-red-400 mt-1">{errors.endDate}</p>}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Contract Value</label>
-              <input value={form.value} onChange={e => set('value', e.target.value)} placeholder="0.00" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contract Value")}</label>
+              <input value={form.value} onChange={e => set('value', e.target.value)} placeholder={"0.00"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Currency</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Currency")}</label>
               <select value={form.currency} onChange={e => set('currency', e.target.value)} className={inp()} disabled={submitting}>
-                {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+                {CURRENCIES.map(c => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Notes</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2}
-              placeholder="Key terms, contact persons, renewal conditions…" className={inp() + ' resize-none'} disabled={submitting} />
+              placeholder={tr("Key terms, contact persons, renewal conditions…")} className={inp() + ' resize-none'} disabled={submitting} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Document</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Document")}</label>
             <DocumentAttachment
               doc={initial?.document}
               entityId={initial?.id}
@@ -163,8 +165,8 @@ function ContractModal({ initial, onClose, onSave }: {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-medium text-ink-secondary">Auto-Renew</p>
-              <p className="text-[10px] text-ink-muted">Contract renews automatically</p>
+              <p className="text-[11px] font-medium text-ink-secondary">{tr("Auto-Renew")}</p>
+              <p className="text-[10px] text-ink-muted">{tr("Contract renews automatically")}</p>
             </div>
             <button onClick={() => !submitting && set('autoRenew', !form.autoRenew)} disabled={submitting}
               className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-50 ${form.autoRenew ? 'bg-blue-500' : 'bg-navy-600 border border-edge-default'}`}>
@@ -175,14 +177,13 @@ function ContractModal({ initial, onClose, onSave }: {
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           <button onClick={() => !submitting && set('starred', !form.starred)} disabled={submitting}
             className={`flex items-center gap-1.5 text-xs transition-colors disabled:opacity-40 ${form.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-ink-secondary'}`}>
-            <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} /> Starred
-          </button>
+            <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} />  {tr("Starred")} </button>
           <div className="flex gap-2">
-            <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add Contract'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Contract")}
             </button>
           </div>
         </div>
@@ -199,6 +200,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
   onDelete: () => void
   onToggleStar: () => void
 }) {
+  useLocale()
   const sc = STATUS_CONFIG[contract.status]
   const days = daysUntil(contract.endDate)
 
@@ -210,15 +212,14 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
             <p className="text-sm font-semibold text-ink-primary leading-snug">{contract.name}</p>
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>
-                {sc.icon} {sc.label}
+                {sc.icon} {tr(sc.label)}
               </span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md border font-semibold ${CAT_COLORS[contract.category]}`}>
-                {contract.category}
+                {tr(contract.category)}
               </span>
               {contract.autoRenew && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
-                  <RefreshCw size={9} /> Auto-Renew
-                </span>
+                  <RefreshCw size={9} />  {tr("Auto-Renew")} </span>
               )}
             </div>
           </div>
@@ -236,7 +237,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
       {Math.abs(days) < 365 && (
         <div className={`px-5 py-2.5 border-b border-edge-subtle ${days < 0 ? 'bg-red-500/5' : days <= 60 ? 'bg-orange-500/5' : ''}`}>
           <p className={`text-xs font-semibold font-mono ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-secondary'}`}>
-            {days < 0 ? `Expired ${Math.abs(days)} days ago` : `Expires in ${days} days`}
+            {days < 0 ? tr('Expired {{count}} days ago', { count: Math.abs(days) }) : tr('Expires in {{count}} days', { count: days })}
           </p>
         </div>
       )}
@@ -246,11 +247,11 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
           { label: 'Vendor', value: contract.vendor, icon: <Building2 size={11} /> },
           { label: 'Start', value: contract.startDate || '—', icon: <Calendar size={11} />, mono: true },
           { label: 'End', value: contract.endDate, icon: <Calendar size={11} />, mono: true },
-          { label: 'Value', value: contract.value > 0 ? `${contract.value.toLocaleString()} ${contract.currency}` : '—', icon: <DollarSign size={11} />, mono: true },
+          { label: 'Value', value: contract.value > 0 ? `${contract.value.toLocaleString(locale())} ${contract.currency}` : '—', icon: <DollarSign size={11} />, mono: true },
         ].map((r, i) => (
           <div key={i} className="flex items-center gap-2 py-2.5">
             <span className="text-ink-muted flex-shrink-0">{r.icon}</span>
-            <span className="text-xs text-ink-muted w-16 flex-shrink-0">{r.label}</span>
+            <span className="text-xs text-ink-muted w-16 flex-shrink-0">{tr(r.label)}</span>
             <span className={`text-xs text-ink-secondary ${r.mono ? 'font-mono' : ''}`}>{r.value}</span>
           </div>
         ))}
@@ -258,13 +259,13 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
 
       {contract.notes && (
         <div className="px-5 py-4 border-t border-edge-subtle">
-          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">Notes</p>
+          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">{tr("Notes")}</p>
           <p className="text-xs text-ink-secondary leading-relaxed">{contract.notes}</p>
         </div>
       )}
 
       <div className="px-5 py-4 border-t border-edge-subtle">
-        <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">Document</p>
+        <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">{tr("Document")}</p>
         <DocumentAttachment
           doc={contract.document}
           entityId={contract.id}
@@ -279,6 +280,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
 // ─── Contracts ────────────────────────────────────────────────────────────────
 
 export default function Contracts() {
+  useLocale()
   const { contracts, isLoading, addContract, updateContract, deleteContract, toggleStarContract, toast } = useApp()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ContractStatus | 'All'>('All')
@@ -316,7 +318,7 @@ export default function Contracts() {
           try {
             await contractsApi.uploadDocument(latest.id, pendingFile)
           } catch {
-            toast('Contract saved, but the document failed to upload', 'error')
+            toast(tr("Contract saved, but the document failed to upload"), 'error')
           }
         }
       }
@@ -343,14 +345,13 @@ export default function Contracts() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Contracts</h1>
-          <p className="text-xs text-ink-muted mt-0.5">{contracts.length} contracts · {totalValue.toLocaleString()} total value</p>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Contracts")}</h1>
+          <p className="text-xs text-ink-muted mt-0.5">{contracts.length}  {tr("contracts ·")} {totalValue.toLocaleString(locale())}  {tr("total value")}</p>
         </div>
         <button onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> Add Contract
-        </button>
+          <Plus size={14} />  {tr("Add Contract")} </button>
       </div>
 
       {/* Stats */}
@@ -365,7 +366,7 @@ export default function Contracts() {
             onClick={() => card.status && setStatusFilter(statusFilter === card.status ? 'All' : card.status)}
             className={`bg-navy-800 border rounded-xl p-4 transition-all ${card.status ? 'cursor-pointer hover:-translate-y-0.5' : ''} ${statusFilter === card.status ? 'border-blue-500/40 bg-navy-750' : 'border-edge-subtle'}`}>
             <p className={`text-2xl font-semibold font-mono ${card.color}`}>{card.value}</p>
-            <p className="text-xs font-medium text-ink-secondary mt-1">{card.label}</p>
+            <p className="text-xs font-medium text-ink-secondary mt-1">{tr(card.label)}</p>
           </div>
         ))}
       </div>
@@ -374,13 +375,13 @@ export default function Contracts() {
       <div className="flex items-center gap-2.5 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search contracts…"
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={tr("Search contracts…")}
             className="w-full pl-8 pr-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
         <div className="relative">
           <button onClick={() => setCatOpen(!catOpen)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition-colors ${catFilter !== 'All' ? 'bg-blue-500/10 border-blue-500/40 text-blue-400' : 'bg-navy-800 border-edge-default text-ink-secondary hover:text-ink-primary'}`}>
-            <FileText size={12} /> {catFilter}
+            <FileText size={12} /> {tr(catFilter)}
             <ChevronDown size={11} className={`transition-transform ${catOpen ? 'rotate-180' : ''}`} />
           </button>
           {catOpen && (
@@ -388,7 +389,7 @@ export default function Contracts() {
               {(['All', ...CATEGORIES] as const).map(c => (
                 <button key={c} onClick={() => { setCatFilter(c as ContractCategory | 'All'); setCatOpen(false) }}
                   className={`w-full text-left px-3 py-2 text-xs transition-colors hover:bg-navy-700 ${catFilter === c ? 'text-blue-400' : 'text-ink-secondary'}`}>
-                  {c}
+                  {tr(c)}
                 </button>
               ))}
             </div>
@@ -397,8 +398,7 @@ export default function Contracts() {
         {(statusFilter !== 'All' || catFilter !== 'All') && (
           <button onClick={() => { setStatusFilter('All'); setCatFilter('All') }}
             className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors px-2 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/5">
-            <X size={11} /> Clear
-          </button>
+            <X size={11} />  {tr("Clear")} </button>
         )}
       </div>
 
@@ -409,16 +409,16 @@ export default function Contracts() {
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <FileText size={24} className="text-ink-muted opacity-30" />
-              <p className="text-sm text-ink-muted">No contracts match your filters</p>
+              <p className="text-sm text-ink-muted">{tr("No contracts match your filters")}</p>
             </div>
           ) : (
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-edge-subtle bg-navy-900/40">
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted">Contract</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden sm:table-cell">Vendor</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden md:table-cell">End Date</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted">{tr("Contract")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden sm:table-cell">{tr("Vendor")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden md:table-cell">{tr("End Date")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted">{tr("Status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-edge-subtle">
@@ -434,7 +434,7 @@ export default function Contracts() {
                           {c.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 mt-0.5 flex-shrink-0" />}
                           <div className="min-w-0">
                             <p className="text-ink-primary font-medium truncate max-w-[160px]">{c.name}</p>
-                            <span className={`text-[9px] font-mono px-1 py-0.5 rounded border font-semibold ${CAT_COLORS[c.category]}`}>{c.category}</span>
+                            <span className={`text-[9px] font-mono px-1 py-0.5 rounded border font-semibold ${CAT_COLORS[c.category]}`}>{tr(c.category)}</span>
                           </div>
                         </div>
                       </td>
@@ -443,13 +443,13 @@ export default function Contracts() {
                         <p className="font-mono text-ink-secondary">{c.endDate}</p>
                         {Math.abs(days) < 365 && (
                           <p className={`text-[10px] font-mono ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-muted'}`}>
-                            {days < 0 ? `${Math.abs(days)}d ago` : `${days}d left`}
+                            {days < 0 ? tr('{{count}}d ago', { count: Math.abs(days) }) : tr('{{count}}d left', { count: days })}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${sc.cls}`}>
-                          {sc.icon} {sc.label}
+                          {sc.icon} {tr(sc.label)}
                         </span>
                       </td>
                     </tr>
@@ -465,8 +465,7 @@ export default function Contracts() {
           {mobileDetailOpen && (
             <button onClick={() => setMobileDetailOpen(false)}
               className="lg:hidden flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mb-3 transition-colors">
-              <ArrowLeft size={14} /> Back to contracts
-            </button>
+              <ArrowLeft size={14} />  {tr("Back to contracts")} </button>
           )}
           {selected ? (
             <div className="sticky top-4">
@@ -481,7 +480,7 @@ export default function Contracts() {
             <div className="bg-navy-800 border border-edge-subtle rounded-xl flex items-center justify-center h-48">
               <div className="text-center">
                 <FileText size={22} className="text-ink-muted mx-auto mb-2 opacity-30" />
-                <p className="text-xs text-ink-muted">Select a contract to view details</p>
+                <p className="text-xs text-ink-muted">{tr("Select a contract to view details")}</p>
               </div>
             </div>
           )}

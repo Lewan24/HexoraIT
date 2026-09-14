@@ -1,3 +1,4 @@
+import { tr, useLocale, locale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
 import {
   Search, Plus, X, Edit2, Trash2, Star, ArrowLeft, Copy, Shield, Calendar, Phone, Mail, Building2,
@@ -25,7 +26,7 @@ function daysUntil(endDate: string): number {
 
 function formatDate(d: string): string {
   if (!d) return '—'
-  try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) }
+  try { return new Date(d).toLocaleDateString(locale(), { year: 'numeric', month: 'short', day: 'numeric' }) }
   catch { return d }
 }
 
@@ -42,6 +43,7 @@ interface FormProps {
 }
 
 function WarrantyForm({ initial, onSave, onClose }: FormProps) {
+  useLocale()
   const { assets } = useApp()
   const [form, setForm] = useState({
     id: initial?.id ?? uuidv7(),
@@ -72,8 +74,8 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Required'
-    if (!form.warrantyEndDate) e.warrantyEndDate = 'Required'
+    if (!form.name.trim()) e.name = tr("Required")
+    if (!form.warrantyEndDate) e.warrantyEndDate = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -90,34 +92,34 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Warranty' : 'Add Warranty'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">{initial ? `Editing ${initial.name}` : 'Track a new warranty record'}</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Warranty") : tr("Add Warranty")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{initial ? tr("Editing {{value1}}", { value1: initial.name }) : tr("Track a new warranty record")}</p>
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={15} /></button>
         </div>
 
         <div className="px-5 py-4 space-y-3.5 max-h-[65vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Item Name *</label>
-            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Dell PowerEdge R750"
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Item Name *")}</label>
+            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Dell PowerEdge R750")}
               className={inp(errors.name)} disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Vendor</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder="e.g. Dell Technologies" className={inp()} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor")}</label>
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("e.g. Dell Technologies")} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Serial Number</label>
-              <input value={form.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder="SN-XXXXX" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Serial Number")}</label>
+              <input value={form.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder={tr("SN-XXXXX")} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Linked Asset (optional)</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Linked Asset (optional)")}</label>
             <div className="relative">
               <select value={form.assetId} onChange={e => set('assetId', e.target.value)} className={inp() + ' appearance-none pr-8'} disabled={submitting}>
-                <option value="">— None —</option>
+                <option value="">{tr("— None —")}</option>
                 {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
@@ -125,45 +127,45 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Purchase Date</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Purchase Date")}</label>
               <input type="date" value={form.purchaseDate} onChange={e => set('purchaseDate', e.target.value)} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Warranty Expires *</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Warranty Expires *")}</label>
               <input type="date" value={form.warrantyEndDate} onChange={e => set('warrantyEndDate', e.target.value)} className={inp(errors.warrantyEndDate)} disabled={submitting} />
               {errors.warrantyEndDate && <p className="text-[10px] text-red-400 mt-1">{errors.warrantyEndDate}</p>}
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Warranty Type</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Warranty Type")}</label>
             <div className="relative">
               <select value={form.warrantyType} onChange={e => set('warrantyType', e.target.value as WarrantyType)} className={inp() + ' appearance-none pr-8'} disabled={submitting}>
-                {WARRANTY_TYPES.map(t => <option key={t}>{t}</option>)}
+                {WARRANTY_TYPES.map(t => <option key={t} value={t}>{tr(t)}</option>)}
               </select>
               <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Contact Name</label>
-              <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Name" className={inp()} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contact Name")}</label>
+              <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder={tr("Name")} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Contact Phone</label>
-              <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="+1-800…" className={inp()} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contact Phone")}</label>
+              <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder={"+1-800…"} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Contact Email</label>
-              <input value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="support@…" className={inp()} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contact Email")}</label>
+              <input value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder={tr("support@…")} className={inp()} disabled={submitting} />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Notes</label>
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Any notes…"
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder={tr("Any notes…")}
               className={inp() + ' resize-none leading-relaxed'} disabled={submitting} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Document</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Document")}</label>
             <DocumentAttachment
               doc={initial?.document}
               entityId={initial?.id}
@@ -176,10 +178,10 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/50">
-          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-3.5 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">Cancel</button>
+          <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-3.5 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">{tr("Cancel")}</button>
           <button onClick={submit} disabled={submitting} className="px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-xs font-medium transition-all disabled:opacity-60 flex items-center gap-1.5" style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.35)' }}>
             {submitting && <Loader2 size={12} className="animate-spin" />}
-            {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add Warranty'}
+            {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Warranty")}
           </button>
         </div>
       </div>
@@ -195,6 +197,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
   onEdit: () => void
   onDelete: () => void
 }) {
+  useLocale()
   const { assets, toggleStarWarranty } = useApp()
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -226,8 +229,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
     <div className="p-4 sm:p-6 max-w-2xl">
       {onBack && (
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink-primary transition-colors mb-4">
-          <ArrowLeft size={13} /> Back to list
-        </button>
+          <ArrowLeft size={13} />  {tr("Back to list")} </button>
       )}
 
       {/* Header */}
@@ -240,7 +242,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
             <h1 className="text-base sm:text-lg font-semibold text-ink-primary truncate">{item.name}</h1>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border flex items-center gap-1 ${statusInfo.badge}`}>
-                <StatusIcon size={9} />{statusInfo.label}
+                <StatusIcon size={9} />{tr(statusInfo.label)}
               </span>
               {linkedAsset && (
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-edge-default bg-navy-700 text-ink-muted">
@@ -256,7 +258,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
             <Star size={13} fill={item.starred ? 'currentColor' : 'none'} />
           </button>
           <button onClick={onEdit} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors">
-            <Edit2 size={12} /><span className="hidden sm:inline">Edit</span>
+            <Edit2 size={12} /><span className="hidden sm:inline">{tr("Edit")}</span>
           </button>
           <button onClick={() => setConfirmDelete(true)} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-red-400 hover:border-red-500/30 transition-all">
             <Trash2 size={13} />
@@ -266,14 +268,14 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
 
       {/* Info grid */}
       <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5 mb-4">
-        <h3 className="text-xs font-semibold text-ink-primary mb-4 flex items-center gap-2"><Calendar size={13} className="text-blue-400" /> Warranty Details</h3>
+        <h3 className="text-xs font-semibold text-ink-primary mb-4 flex items-center gap-2"><Calendar size={13} className="text-blue-400" />  {tr("Warranty Details")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
           <div>
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">Vendor</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">{tr("Vendor")}</p>
             <p className="text-xs text-ink-primary flex items-center gap-1.5"><Building2 size={11} className="text-ink-muted" />{item.vendor || '—'}</p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">Serial Number</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">{tr("Serial Number")}</p>
             <div className="flex items-center gap-1.5">
               <p className="text-xs text-ink-primary font-mono">{item.serialNumber || '—'}</p>
               {item.serialNumber && (
@@ -282,11 +284,11 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">Purchase Date</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">{tr("Purchase Date")}</p>
             <p className="text-xs text-ink-primary">{item.purchaseDate ? formatDate(item.purchaseDate) : '—'}</p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">Warranty Expires</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">{tr("Warranty Expires")}</p>
             <div className="flex items-center gap-2">
               <p className="text-xs text-ink-primary">{formatDate(item.warrantyEndDate)}</p>
               {item.warrantyEndDate && (
@@ -295,21 +297,21 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
                   : days > 0 ? 'text-orange-400 bg-orange-500/10 border-orange-500/25'
                   : 'text-red-400 bg-red-500/10 border-red-500/25'
                 }`}>
-                  {days > 0 ? `${days}d remaining` : `${Math.abs(days)}d ago`}
+                  {days > 0 ? tr('{{count}}d left', { count: days }) : tr('{{count}}d ago', { count: Math.abs(days) })}
                 </span>
               )}
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">Warranty Type</p>
-            <p className="text-xs text-ink-primary">{item.warrantyType}</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">{tr("Warranty Type")}</p>
+            <p className="text-xs text-ink-primary">{tr(item.warrantyType)}</p>
           </div>
         </div>
       </div>
 
       {(item.contactName || item.contactPhone || item.contactEmail) && (
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5 mb-4">
-          <h3 className="text-xs font-semibold text-ink-primary mb-4 flex items-center gap-2"><Phone size={13} className="text-green-400" /> Support Contact</h3>
+          <h3 className="text-xs font-semibold text-ink-primary mb-4 flex items-center gap-2"><Phone size={13} className="text-green-400" />  {tr("Support Contact")}</h3>
           <div className="space-y-2.5">
             {item.contactName && (
               <div className="flex items-center gap-2">
@@ -337,14 +339,14 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
 
       {item.notes && (
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5 mb-4">
-          <h3 className="text-xs font-semibold text-ink-primary mb-2">Notes</h3>
+          <h3 className="text-xs font-semibold text-ink-primary mb-2">{tr("Notes")}</h3>
           <p className="text-xs text-ink-secondary leading-relaxed">{item.notes}</p>
         </div>
       )}
 
       {/* Document */}
       <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5">
-        <h3 className="text-xs font-semibold text-ink-primary mb-3 flex items-center gap-2"><Upload size={13} className="text-purple-400" /> Document</h3>
+        <h3 className="text-xs font-semibold text-ink-primary mb-3 flex items-center gap-2"><Upload size={13} className="text-purple-400" />  {tr("Document")}</h3>
         <DocumentAttachment
           doc={item.document}
           entityId={item.id}
@@ -358,13 +360,13 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative bg-navy-800 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm p-6" style={{ animation: 'modalIn 0.15s ease-out' }} onClick={e => e.stopPropagation()}>
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"><Trash2 size={18} className="text-red-400" /></div>
-            <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">Delete Warranty</h3>
-            <p className="text-xs text-ink-muted text-center mb-5">Delete <span className="text-ink-primary font-mono">{item.name}</span>? This cannot be undone.</p>
+            <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">{tr("Delete Warranty")}</h3>
+            <p className="text-xs text-ink-muted text-center mb-5">{tr("Delete")} <span className="text-ink-primary font-mono">{item.name}</span>{tr("? This cannot be undone.")}</p>
             <div className="flex gap-2">
-              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">Cancel</button>
+              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
                 {deleting && <Loader2 size={12} className="animate-spin" />}
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? tr("Deleting…") : tr("Delete")}
               </button>
             </div>
           </div>
@@ -377,6 +379,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function Warranty() {
+  useLocale()
   const { warrantyItems, isLoading, reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, toast } = useApp()
 
   const [query, setQuery] = useState('')
@@ -409,7 +412,7 @@ export default function Warranty() {
 
     const deletedId = selected.id
     await deleteWarranty(deletedId)
-    toast('Warranty deleted')
+    toast(tr("Warranty deleted"))
     
     setMobileDetailOpen(false)
     setSelectedId(null)
@@ -430,16 +433,16 @@ export default function Warranty() {
         <div className="px-4 pt-4 pb-3 border-b border-edge-subtle flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-ink-primary">Warranty Tracker</h2>
-              <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{warrantyItems.length} items</p>
+              <h2 className="text-sm font-semibold text-ink-primary">{tr("Warranty Tracker")}</h2>
+              <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{warrantyItems.length}  {tr("items")}</p>
             </div>
-            <button onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all" title="Add warranty">
+            <button onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all" title={tr("Add warranty")}>
               <Plus size={14} />
             </button>
           </div>
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search warranties…"
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={tr("Search warranties…")}
               className="w-full pl-7 pr-7 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:border-blue-500 focus:outline-none transition-colors" />
             {query && <button onClick={() => setQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-primary transition-colors"><X size={11} /></button>}
           </div>
@@ -449,7 +452,7 @@ export default function Warranty() {
           {STATUS_FILTERS.map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`px-2 py-0.5 rounded-md text-[10px] font-mono transition-colors ${statusFilter === s ? 'bg-blue-500 text-white' : 'bg-navy-800 text-ink-muted hover:text-ink-secondary border border-edge-subtle'}`}>
-              {s}
+              {tr(s)}
             </button>
           ))}
         </div>
@@ -458,8 +461,8 @@ export default function Warranty() {
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
               <Shield size={22} className="text-ink-muted opacity-40" />
-              <p className="text-xs text-ink-muted">No warranties found</p>
-              <button onClick={() => setAddOpen(true)} className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">+ Add warranty</button>
+              <p className="text-xs text-ink-muted">{tr("No warranties found")}</p>
+              <button onClick={() => setAddOpen(true)} className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">{tr("+ Add warranty")}</button>
             </div>
           )}
           {filtered.map(w => {
@@ -479,10 +482,10 @@ export default function Warranty() {
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[10px] font-mono text-ink-muted truncate">{w.serialNumber || '—'}</span>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${s.badge}`}>{s.label}</span>
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${s.badge}`}>{tr(s.label)}</span>
                     {w.warrantyEndDate && (
                       <span className={`text-[9px] font-mono ${days > 0 ? 'text-ink-muted' : 'text-red-400'}`}>
-                        {days > 0 ? `${days}d` : `${Math.abs(days)}d ago`}
+                        {days > 0 ? tr('{{count}}d', { count: days }) : tr('{{count}}d ago', { count: Math.abs(days) })}
                       </span>
                     )}
                   </div>
@@ -505,8 +508,8 @@ export default function Warranty() {
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="w-14 h-14 rounded-2xl bg-navy-800 border border-edge-subtle flex items-center justify-center"><Shield size={24} className="text-ink-muted" /></div>
-            <p className="text-sm text-ink-secondary font-medium">No warranties tracked</p>
-            <p className="text-xs text-ink-muted">or <button onClick={() => setAddOpen(true)} className="text-blue-400 hover:text-blue-300 transition-colors">add a new warranty</button></p>
+            <p className="text-sm text-ink-secondary font-medium">{tr("No warranties tracked")}</p>
+            <p className="text-xs text-ink-muted">{tr("or")} <button onClick={() => setAddOpen(true)} className="text-blue-400 hover:text-blue-300 transition-colors">{tr("add a new warranty")}</button></p>
           </div>
         )}
       </div>
@@ -520,10 +523,10 @@ export default function Warranty() {
               try { 
                 await warrantyApi.uploadDocument(d.id, pendingFile) 
               }
-              catch { toast('Warranty saved, but the document failed to upload', 'error') }
+              catch { toast(tr("Warranty saved, but the document failed to upload"), 'error') }
             }
             setAddOpen(false)
-            toast('Warranty added')
+            toast(tr("Warranty added"))
 
             await reloadWarranties()
           }}
@@ -536,7 +539,7 @@ export default function Warranty() {
           onSave={async d => {
             await updateWarranty({ ...editItem, ...d, document: editItem.document })
             setEditItem(null)
-            toast('Warranty updated')
+            toast(tr("Warranty updated"))
           }}
           onClose={() => setEditItem(null)}
         />

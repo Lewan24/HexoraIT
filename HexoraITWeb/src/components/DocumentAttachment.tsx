@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState, useRef } from 'react'
 import { Paperclip, FileText, Eye, AlertTriangle, Loader2 } from 'lucide-react'
 import { useApp } from '../context/useApp'
@@ -24,6 +25,7 @@ export default function DocumentAttachment({
   doc, entityId, pendingFileName, onPendingFile, onUploaded, uploadFn, downloadFn,
   accept = '.pdf,.png,.jpg,.jpeg,.webp',
 }: Props) {
+  useLocale()
   const fileRef = useRef<HTMLInputElement>(null)
   const [warning, setWarning] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -33,16 +35,16 @@ export default function DocumentAttachment({
   const handleFile = async (file: File) => {
     setWarning('')
     if (file.size > 5 * 1024 * 1024) {
-      setWarning(`File is large (${formatSize(file.size)}). Large files may affect performance.`)
+      setWarning(tr('File is large ({{size}}). Large files may affect performance.', { size: formatSize(file.size) }))
     }
     if (entityId) {
       setUploading(true)
       try {
         const updated = await uploadFn(entityId, file)
         if (updated.document) onUploaded?.(updated.document)
-        toast('Document uploaded')
+        toast(tr("Document uploaded"))
       } catch {
-        toast('Failed to upload document', 'error')
+        toast(tr("Failed to upload document"), 'error')
       } finally {
         setUploading(false)
       }
@@ -61,7 +63,7 @@ export default function DocumentAttachment({
       {uploading ? (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
           <Loader2 size={14} className="animate-spin text-ink-muted flex-shrink-0" />
-          <span className="text-xs text-ink-muted">Uploading…</span>
+          <span className="text-xs text-ink-muted">{tr("Uploading…")}</span>
         </div>
       ) : doc ? (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
@@ -71,28 +73,27 @@ export default function DocumentAttachment({
           <div className="flex-1 min-w-0">
             <p className="text-xs text-ink-primary truncate font-mono">{doc.name}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${isPdf ? 'text-red-400 bg-red-500/10 border-red-500/25' : 'text-blue-400 bg-blue-500/10 border-blue-500/25'}`}>{isPdf ? 'PDF' : 'Image'}</span>
+              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${isPdf ? 'text-red-400 bg-red-500/10 border-red-500/25' : 'text-blue-400 bg-blue-500/10 border-blue-500/25'}`}>{isPdf ? tr("PDF") : tr("Image")}</span>
               <span className="text-[10px] text-ink-muted">{formatSize(doc.size)}</span>
             </div>
           </div>
           {entityId && (
-            <button onClick={() => setPreviewOpen(true)} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title="View">
+            <button onClick={() => setPreviewOpen(true)} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("View")}>
               <Eye size={12} />
             </button>
           )}
-          <button onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title="Replace"><Paperclip size={12} /></button>
+          <button onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("Replace")}><Paperclip size={12} /></button>
         </div>
       ) : pendingFileName ? (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
           <FileText size={13} className="text-blue-400 flex-shrink-0" />
           <p className="text-xs text-ink-primary truncate font-mono flex-1">{pendingFileName}</p>
-          <span className="text-[9px] text-ink-muted flex-shrink-0">will upload on save</span>
+          <span className="text-[9px] text-ink-muted flex-shrink-0">{tr("will upload on save")}</span>
         </div>
       ) : (
         <button onClick={() => fileRef.current?.click()}
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 hover:border-edge-strong transition-colors w-full">
-          <Paperclip size={12} /> Attach PDF / Image
-        </button>
+          <Paperclip size={12} />  {tr("Attach PDF / Image")} </button>
       )}
       {warning && <p className="text-[10px] text-orange-400 mt-1.5 flex items-center gap-1"><AlertTriangle size={10} /> {warning}</p>}
 

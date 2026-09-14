@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Tag, AlertTriangle,
@@ -34,6 +35,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
   onSave: (i: Omit<Incident, 'id'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     title: initial?.title ?? '',
     severity: initial?.severity ?? 'medium' as IncidentSeverity,
@@ -57,7 +59,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.title.trim()) e.title = 'Required'
+    if (!form.title.trim()) e.title = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -97,82 +99,80 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Incident' : 'Log Incident'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">System outage, security event, or service disruption</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Incident") : tr("Log Incident")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("System outage, security event, or service disruption")}</p>
           </div>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Title *</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Database unreachable" className={inp(errors.title)} autoFocus disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Database unreachable")} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Severity</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Severity")}</label>
               <select value={form.severity} onChange={e => set('severity', e.target.value)} className={inp()} disabled={busy}>
-                {SEVERITIES.map(s => <option key={s} value={s}>{SEV_CONFIG[s].label}</option>)}
+                {SEVERITIES.map(s => <option key={s} value={s}>{tr(SEV_CONFIG[s].label)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Status</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Status")}</label>
               <select value={form.status} onChange={e => set('status', e.target.value)} className={inp()} disabled={busy}>
-                {STATUSES.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{tr(STATUS_CONFIG[s].label)}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Affected Systems (comma-separated)</label>
-            <input value={form.affectedSystems} onChange={e => set('affectedSystems', e.target.value)} placeholder="Database, API Gateway, Auth Service" className={inp()} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Affected Systems (comma-separated)")}</label>
+            <input value={form.affectedSystems} onChange={e => set('affectedSystems', e.target.value)} placeholder={tr("Database, API Gateway, Auth Service")} className={inp()} disabled={busy} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
-              placeholder="Describe the incident, impact, and initial observations…" className={inp() + ' resize-none'} disabled={busy} />
+              placeholder={tr("Describe the incident, impact, and initial observations…")} className={inp() + ' resize-none'} disabled={busy} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Resolution</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Resolution")}</label>
             <textarea value={form.resolution} onChange={e => set('resolution', e.target.value)} rows={2}
-              placeholder="What steps resolved the incident? Root cause?" className={inp() + ' resize-none'} disabled={busy} />
+              placeholder={tr("What steps resolved the incident? Root cause?")} className={inp() + ' resize-none'} disabled={busy} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Occurred At</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Occurred At")}</label>
               <input type="datetime-local" value={form.occurredAt} onChange={e => set('occurredAt', e.target.value)} className={inp()} disabled={busy} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Resolved At</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Resolved At")}</label>
               <input type="datetime-local" value={form.resolvedAt} onChange={e => set('resolvedAt', e.target.value)} className={inp()} disabled={busy} />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Tags (comma-separated)</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="network, database, security" className={inp()} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, database, security")} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           {initial && onDelete ? (
             confirmDelete ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-ink-muted">Delete this incident?</span>
+                <span className="text-[11px] text-ink-muted">{tr("Delete this incident?")}</span>
                 <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50 flex items-center gap-1">
-                  {deleting && <Loader2 size={10} className="animate-spin" />} Yes
-                </button>
-                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted hover:text-ink-secondary disabled:opacity-50">No</button>
+                  {deleting && <Loader2 size={10} className="animate-spin" />}  {tr("Yes")} </button>
+                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted hover:text-ink-secondary disabled:opacity-50">{tr("No")}</button>
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)} disabled={busy} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40">
-                <Trash2 size={12} /> Delete
-              </button>
+                <Trash2 size={12} />  {tr("Delete")} </button>
             )
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Log Incident'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Log Incident")}
             </button>
           </div>
         </div>
@@ -188,6 +188,7 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
   onClose: () => void
   onEdit: () => void
 }) {
+  useLocale()
   const sc = SEV_CONFIG[incident.severity]
   const stc = STATUS_CONFIG[incident.status]
 
@@ -202,8 +203,8 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ink-primary">{incident.title}</p>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>{sc.label}</span>
-                <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${stc.cls}`}>{stc.icon} {stc.label}</span>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>{tr(sc.label)}</span>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${stc.cls}`}>{stc.icon} {tr(stc.label)}</span>
               </div>
             </div>
           </div>
@@ -216,7 +217,7 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {incident.affectedSystems.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">Affected Systems</p>
+              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">{tr("Affected Systems")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {incident.affectedSystems.map(s => (
                   <span key={s} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-navy-700 border border-edge-default text-ink-secondary">
@@ -229,25 +230,25 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
 
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="text-[10px] text-ink-muted mb-0.5">Occurred</p>
+              <p className="text-[10px] text-ink-muted mb-0.5">{tr("Occurred")}</p>
               <p className="font-mono text-ink-secondary">{incident.occurredAt || '—'}</p>
             </div>
             <div>
-              <p className="text-[10px] text-ink-muted mb-0.5">Resolved</p>
+              <p className="text-[10px] text-ink-muted mb-0.5">{tr("Resolved")}</p>
               <p className="font-mono text-ink-secondary">{incident.resolvedAt || '—'}</p>
             </div>
           </div>
 
           {incident.description && (
             <div>
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">Description</p>
+              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-2">{tr("Description")}</p>
               <p className="text-xs text-ink-secondary leading-relaxed whitespace-pre-line">{incident.description}</p>
             </div>
           )}
 
           {incident.resolution && (
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3.5">
-              <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider mb-2">Resolution</p>
+              <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider mb-2">{tr("Resolution")}</p>
               <p className="text-xs text-ink-secondary leading-relaxed whitespace-pre-line">{incident.resolution}</p>
             </div>
           )}
@@ -269,6 +270,7 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
 // ─── Incident Log ─────────────────────────────────────────────────────────────
 
 export default function IncidentLog() {
+  useLocale()
   const { incidents, isLoading, addIncident, updateIncident, deleteIncident } = useApp()
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'all'>('all')
   const [sevFilter, setSevFilter] = useState<IncidentSeverity | 'all'>('all')
@@ -313,14 +315,13 @@ export default function IncidentLog() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Incident Log</h1>
-          <p className="text-xs text-ink-muted mt-0.5">{incidents.length} total incidents recorded</p>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Incident Log")}</h1>
+          <p className="text-xs text-ink-muted mt-0.5">{incidents.length}  {tr("total incidents recorded")}</p>
         </div>
         <button onClick={() => setEditModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> Log Incident
-        </button>
+          <Plus size={14} />  {tr("Log Incident")} </button>
       </div>
 
       {/* Stats */}
@@ -333,7 +334,7 @@ export default function IncidentLog() {
         ].map((card, i) => (
           <div key={i} className="bg-navy-800 border border-edge-subtle rounded-xl p-4">
             <p className={`text-2xl font-semibold font-mono ${card.color}`}>{card.value}</p>
-            <p className="text-xs font-medium text-ink-secondary mt-1">{card.label}</p>
+            <p className="text-xs font-medium text-ink-secondary mt-1">{tr(card.label)}</p>
           </div>
         ))}
       </div>
@@ -345,7 +346,7 @@ export default function IncidentLog() {
           {(['all', ...STATUSES] as const).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-              {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
+              {s === 'all' ? tr("All") : STATUS_CONFIG[s].label}
             </button>
           ))}
         </div>
@@ -359,7 +360,7 @@ export default function IncidentLog() {
                   ? s === 'all' ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' : SEV_CONFIG[s].cls
                   : 'border-edge-default text-ink-muted hover:text-ink-secondary bg-navy-800'
               }`}>
-              {s === 'all' ? 'All Severity' : SEV_CONFIG[s].label}
+              {s === 'all' ? tr("All Severity") : SEV_CONFIG[s].label}
             </button>
           ))}
         </div>
@@ -369,7 +370,7 @@ export default function IncidentLog() {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <AlertTriangle size={28} className="text-ink-muted opacity-30" />
-          <p className="text-sm text-ink-muted">No incidents match your filters</p>
+          <p className="text-sm text-ink-muted">{tr("No incidents match your filters")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -387,8 +388,8 @@ export default function IncidentLog() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-ink-primary group-hover:text-white transition-colors">{incident.title}</p>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>{sc.label}</span>
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${stc.cls}`}>{stc.icon} {stc.label}</span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>{tr(sc.label)}</span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${stc.cls}`}>{stc.icon} {tr(stc.label)}</span>
                       </div>
                     </div>
                     {incident.affectedSystems.length > 0 && (
@@ -398,7 +399,7 @@ export default function IncidentLog() {
                           <span key={s} className="text-[10px] text-ink-muted px-1.5 py-0.5 rounded bg-navy-700 border border-edge-subtle">{s}</span>
                         ))}
                         {incident.affectedSystems.length > 3 && (
-                          <span className="text-[10px] text-ink-muted">+{incident.affectedSystems.length - 3} more</span>
+                          <span className="text-[10px] text-ink-muted">+{incident.affectedSystems.length - 3}  {tr("more")}</span>
                         )}
                       </div>
                     )}

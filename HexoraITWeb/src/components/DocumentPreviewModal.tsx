@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState, useEffect } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
 import type { WarrantyDocument } from '../api/types'
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function DocumentPreviewModal({ doc, entityId, downloadFn, onClose }: Props) {
+  useLocale()
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -50,7 +52,7 @@ export default function DocumentPreviewModal({ doc, entityId, downloadFn, onClos
                 <a href={url}
                 download={doc.name}
                 className="p-1.5 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition-colors"
-                title="Download"
+                title={tr("Download")}
                 >
                 <Download size={14} />
               </a>
@@ -67,7 +69,7 @@ export default function DocumentPreviewModal({ doc, entityId, downloadFn, onClos
           ) : error || !url ? (
             <div className="flex flex-col items-center gap-2 text-center px-6">
               <AlertTriangle size={22} className="text-red-400" />
-              <p className="text-sm text-ink-secondary">Couldn't load this document.</p>
+              <p className="text-sm text-ink-secondary">{tr("Couldn't load this document.")}</p>
             </div>
           ) : isPdf ? (
             <iframe src={url} title={doc.name} className="w-full h-full border-0" />
@@ -75,10 +77,9 @@ export default function DocumentPreviewModal({ doc, entityId, downloadFn, onClos
             <img src={url} alt={doc.name} className="max-w-full max-h-full object-contain" />
           ) : (
             <div className="flex flex-col items-center gap-3 text-center px-6">
-              <p className="text-sm text-ink-secondary">Preview isn't available for this file type.</p>
+              <p className="text-sm text-ink-secondary">{tr("Preview isn't available for this file type.")}</p>
               <a href={url} download={doc.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors">
-                <Download size={12} /> Download instead
-              </a>
+                <Download size={12} />  {tr("Download instead")} </a>
             </div>
           )}
         </div>

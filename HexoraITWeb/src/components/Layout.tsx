@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard, Server, KeyRound, BookOpen,
@@ -75,6 +76,7 @@ interface Props {
 // ─── New Org Modal ────────────────────────────────────────────────────────────
 
 function OrgModal({ onClose, onAdd }: { onClose: () => void; onAdd: (o: Omit<Organization, 'id'>) => void }) {
+  useLocale()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#2563eb')
@@ -83,7 +85,7 @@ function OrgModal({ onClose, onAdd }: { onClose: () => void; onAdd: (o: Omit<Org
   const COLORS = ['#2563eb', '#7c3aed', '#059669', '#dc2626', '#d97706', '#0891b2', '#be185d', '#374151']
 
   const submit = async () => {
-    if (!name.trim()) { setError('Name is required'); return }
+    if (!name.trim()) { setError(tr("Name is required")); return }
     const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
     setSubmitting(true)
     try {
@@ -99,23 +101,23 @@ function OrgModal({ onClose, onAdd }: { onClose: () => void; onAdd: (o: Omit<Org
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle">
-          <h2 className="text-sm font-semibold text-ink-primary">New Organization</h2>
+          <h2 className="text-sm font-semibold text-ink-primary">{tr("New Organization")}</h2>
           <button onClick={onClose} className="p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors"><X size={14} /></button>
         </div>
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Name *</label>
-            <input value={name} onChange={e => { setName(e.target.value); setError('') }} placeholder="e.g. Branch Office" autoFocus
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
+            <input value={name} onChange={e => { setName(e.target.value); setError('') }} placeholder={tr("e.g. Branch Office")} autoFocus
               className={`w-full px-3 py-2 rounded-lg bg-navy-700 border text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none transition-colors ${error ? 'border-red-500/50' : 'border-edge-default focus:border-blue-500'}`} />
             {error && <p className="text-[10px] text-red-400 mt-1">{error}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description"
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder={tr("Optional description")}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none focus:border-blue-500 transition-colors" />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-2">Color</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-2">{tr("Color")}</label>
             <div className="flex gap-2 flex-wrap">
               {COLORS.map(c => (
                 <button key={c} onClick={() => setColor(c)} className="w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center"
@@ -127,9 +129,9 @@ function OrgModal({ onClose, onAdd }: { onClose: () => void; onAdd: (o: Omit<Org
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40">
-          <button onClick={onClose} disabled={submitting} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-50">Cancel</button>
+          <button onClick={onClose} disabled={submitting} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-50">{tr("Cancel")}</button>
           <button onClick={submit} disabled={submitting} className="px-3.5 py-1.5 rounded-lg text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: color, boxShadow: `0 1px 10px ${color}55` }}>
-            {submitting ? 'Creating…' : 'Create'}
+            {submitting ? tr("Creating…") : tr("Create")}
           </button>
         </div>
       </div>
@@ -148,6 +150,7 @@ function Sidebar({
   isMobile: boolean
   onClose?: () => void
 }) {
+  useLocale()
   const { orgs, currentOrg, switchOrg, licenses, addOrg, toast } = useApp()
   const { user } = useAuth()
   const [orgOpen, setOrgOpen] = useState(false)
@@ -214,7 +217,7 @@ function Sidebar({
               style={{ backgroundColor: currentOrg.color }}>{currentOrg.initials}</div>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-ink-primary truncate leading-tight">{currentOrg.name}</p>
-              <p className="text-[9px] text-ink-muted leading-tight">{currentOrg.role}</p>
+              <p className="text-[9px] text-ink-muted leading-tight">{tr(currentOrg.role)}</p>
             </div>
             <ChevronDown size={12} className={`text-ink-muted transition-transform flex-shrink-0 ${orgOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -235,7 +238,7 @@ function Sidebar({
           <div key={section.label}>
             {si > 0 && <div className="mx-3 my-1.5 border-t border-edge-subtle" />}
             {(!collapsed || isMobile) && (
-              <p className="px-4 pt-1.5 pb-0.5 text-[9px] font-semibold text-ink-muted uppercase tracking-widest">{section.label}</p>
+              <p className="px-4 pt-1.5 pb-0.5 text-[9px] font-semibold text-ink-muted uppercase tracking-widest">{tr(section.label)}</p>
             )}
             {section.items.map(item => {
               const active = currentView === item.id
@@ -250,7 +253,7 @@ function Sidebar({
                   <span className={`flex-shrink-0 ${active ? 'text-blue-400' : 'text-ink-muted group-hover:text-ink-secondary'}`}>{item.icon}</span>
                   {(!collapsed || isMobile) && (
                     <>
-                      <span className="flex-1 whitespace-nowrap text-xs">{item.label}</span>
+                      <span className="flex-1 whitespace-nowrap text-xs">{tr(item.label)}</span>
                       {badge != null && <span className="text-[10px] font-mono bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full">{badge}</span>}
                     </>
                   )}
@@ -263,20 +266,20 @@ function Sidebar({
         <div className="my-1.5 mx-3 border-t border-edge-subtle" />
 
         <button onClick={() => handleNav('settings')}
-          title={collapsed && !isMobile ? 'Settings' : undefined}
+          title={collapsed && !isMobile ? tr("Settings") : undefined}
           className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-md text-sm transition-all text-left text-ink-secondary hover:text-ink-primary hover:bg-navy-700 group ${currentView === 'settings' ? 'bg-blue-500/10 text-blue-300' : ''}`}
           style={{ width: collapsed && !isMobile ? 36 : 'calc(100% - 12px)' }}>
           <Settings size={16} className="flex-shrink-0 text-ink-muted group-hover:text-ink-secondary" />
-          {(!collapsed || isMobile) && <span>Settings</span>}
+          {(!collapsed || isMobile) && <span>{tr("Settings")}</span>}
         </button>
         
         {(user?.systemRole === 'Admin') && (
         <button onClick={() => handleNav('adminpanel')}
-          title={collapsed && !isMobile ? 'Admin Panel' : undefined}
+          title={collapsed && !isMobile ? tr("Admin Panel") : undefined}
           className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-md text-sm transition-all text-left text-ink-secondary hover:text-ink-primary hover:bg-navy-700 group ${currentView === 'settings' ? 'bg-blue-500/10 text-blue-300' : ''}`}
           style={{ width: collapsed && !isMobile ? 36 : 'calc(100% - 12px)' }}>
           <Settings size={16} className="flex-shrink-0 text-ink-muted group-hover:text-ink-secondary" />
-          {(!collapsed || isMobile) && <span>Admin Panel</span>}
+          {(!collapsed || isMobile) && <span>{tr("Admin Panel")}</span>}
         </button>)}
       </nav>
 
@@ -288,10 +291,10 @@ function Sidebar({
               {(user?.displayName ?? '?').split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-ink-primary truncate">{user?.displayName ?? 'Unknown user'}</p>
+              <p className="text-xs font-medium text-ink-primary truncate">{user?.displayName ?? tr('Unknown user')}</p>
               <p className="text-[10px] text-ink-muted truncate">{user?.email ?? ''}</p>
             </div>
-            <button onClick={onLogout} className="text-ink-muted hover:text-red-400 transition-colors" title="Sign out">
+            <button onClick={onLogout} className="text-ink-muted hover:text-red-400 transition-colors" title={tr("Sign out")}>
               <LogOut size={13} />
             </button>
           </div>
@@ -299,7 +302,7 @@ function Sidebar({
       )}
       {collapsed && !isMobile && (
         <div className="flex justify-center py-3 border-t border-edge-subtle flex-shrink-0">
-          <button onClick={onLogout} className="text-ink-muted hover:text-red-400 transition-colors" title="Sign out">
+          <button onClick={onLogout} className="text-ink-muted hover:text-red-400 transition-colors" title={tr("Sign out")}>
             <LogOut size={14} />
           </button>
         </div>
@@ -310,7 +313,7 @@ function Sidebar({
         <div className={`border-t border-edge-subtle flex-shrink-0 ${collapsed ? 'flex justify-center py-2' : ''}`}>
           <button onClick={onToggleCollapse}
             className={`flex items-center gap-1.5 text-ink-muted hover:text-ink-primary transition-colors text-xs py-2 px-3 w-full hover:bg-navy-700 ${collapsed ? 'justify-center' : ''}`}>
-            {collapsed ? <ChevronRight size={14} /> : (<><ChevronLeft size={14} /><span>Collapse</span></>)}
+            {collapsed ? <ChevronRight size={14} /> : (<><ChevronLeft size={14} /><span>{tr("Collapse")}</span></>)}
           </button>
         </div>
       )}
@@ -323,7 +326,7 @@ function Sidebar({
             style={{ top: isMobile ? 120 : 112 }}
             onClick={e => e.stopPropagation()}>
             <div className="px-3 py-2 border-b border-edge-subtle">
-              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Switch Organization</p>
+              <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{tr("Switch Organization")}</p>
             </div>
             {orgs.map(org => (
               <button key={org.id}
@@ -331,7 +334,7 @@ function Sidebar({
                   switchOrg(org.id)
                   setOrgOpen(false)
                   navigate('dashboard')
-                  toast(`Switched to ${org.name}`, 'info')
+                  toast(tr("Switched to {{value1}}", { value1: org.name }), 'info')
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-navy-700 transition-colors text-left">
                 <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
@@ -346,8 +349,7 @@ function Sidebar({
             <div className="border-t border-edge-subtle">
               <button onClick={() => { setOrgOpen(false); setOrgModalOpen(true) }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors">
-                <Plus size={12} /> New Organization
-              </button>
+                <Plus size={12} />  {tr("New Organization")} </button>
             </div>
           </div>
         </>
@@ -360,6 +362,7 @@ function Sidebar({
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 export default function Layout({ currentView, navigate, onLogout, children }: Props) {
+  useLocale()
   const {
     currentOrg, licenses, assets, passwords, contacts, contracts, plans,
     incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets
@@ -384,7 +387,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
 
   const results = buildSearchResults(
     { assets, passwords, contacts, licenses, contracts, plans, incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets },
-    searchQuery
+    searchQuery, tr
   )
 
   // ⌘K / Ctrl+K opens search from anywhere; Escape closes it
@@ -492,8 +495,8 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           <button onClick={openSearch}
             className="flex items-center gap-2 flex-1 min-w-0 max-w-sm px-3 py-1.5 rounded-lg bg-navy-700 border border-edge-default hover:border-edge-strong text-ink-muted transition-colors">
             <Search size={13} className="flex-shrink-0" />
-            <span className="text-xs truncate hidden sm:block">Search assets, docs…</span>
-            <span className="ml-auto text-[10px] font-mono bg-navy-600 text-ink-muted px-1.5 py-0.5 rounded border border-edge-default hidden md:block flex-shrink-0">⌘K</span>
+            <span className="text-xs truncate hidden sm:block">{tr("Search assets, docs…")}</span>
+            <span className="ml-auto text-[10px] font-mono bg-navy-600 text-ink-muted px-1.5 py-0.5 rounded border border-edge-default hidden md:block flex-shrink-0">{tr("⌘K")}</span>
           </button>
 
           <div className="flex-1" />
@@ -508,7 +511,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
             {notifOpen && (
               <div className="absolute right-0 top-10 w-72 bg-navy-750 border border-edge-default rounded-xl shadow-2xl z-50 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-edge-subtle">
-                  <span className="text-xs font-semibold text-ink-primary">Notifications</span>
+                  <span className="text-xs font-semibold text-ink-primary">{tr("Notifications")}</span>
                   <button onClick={() => setNotifOpen(false)}><X size={13} className="text-ink-muted" /></button>
                 </div>
                 {expiring > 0 ? (
@@ -516,14 +519,14 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
                     <div className="flex items-start gap-2.5">
                       <div className="w-1.5 h-1.5 rounded-full mt-1.5 bg-orange-500 flex-shrink-0" />
                       <div>
-                        <p className="text-xs text-ink-primary">{expiring} license{expiring > 1 ? 's' : ''} expiring or expired</p>
-                        <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{currentOrg?.name ?? ''} · click to view</p>
+                        <p className="text-xs text-ink-primary">{expiring}  {tr("license")}{expiring > 1 ? tr("s") : ''}  {tr("expiring or expired")}</p>
+                        <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{currentOrg?.name ?? ''}  {tr("· click to view")}</p>
                       </div>
                     </div>
                   </div>
                 ) : null}
                 <div className="px-4 py-4 text-center">
-                  <p className="text-[10px] text-ink-muted">No other notifications</p>
+                  <p className="text-[10px] text-ink-muted">{tr("No other notifications")}</p>
                 </div>
               </div>
             )}
@@ -533,7 +536,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           <button
             onClick={() => { const t = toggleTheme(); setThemeState(t) }}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? tr("Switch to light mode") : tr("Switch to dark mode")}
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -541,7 +544,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           {/* Mobile logout */}
           <button onClick={onLogout}
             className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-ink-muted hover:text-red-400 hover:bg-navy-700 transition-colors flex-shrink-0"
-            title="Sign out">
+            title={tr("Sign out")}>
             <LogOut size={15} />
           </button>
         </header>
@@ -564,15 +567,15 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
                 }}
                 onKeyDown={handleSearchKeyDown}
                 className="flex-1 bg-transparent text-ink-primary text-sm placeholder:text-ink-muted outline-none"
-                placeholder="Search assets, documents, passwords…"
+                placeholder={tr("Search assets, documents, passwords…")}
               />
               <button onClick={() => setSearchOpen(false)}><X size={14} className="text-ink-muted hover:text-ink-primary" /></button>
             </div>
             <div className="p-2 max-h-[60vh] overflow-y-auto">
               {searchQuery.trim().length < 2 ? (
-                <p className="px-3 py-8 text-center text-xs text-ink-muted">Type at least 2 characters to search</p>
+                <p className="px-3 py-8 text-center text-xs text-ink-muted">{tr("Type at least 2 characters to search")}</p>
               ) : results.length === 0 ? (
-                <p className="px-3 py-8 text-center text-xs text-ink-muted">No results for "{searchQuery}"</p>
+                <p className="px-3 py-8 text-center text-xs text-ink-muted">{tr("No results for \"")}{searchQuery}"</p>
               ) : (
                 results.map((r, i) => (
                   <button
@@ -581,7 +584,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
                     onMouseEnter={() => setActiveIndex(i)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${i === activeIndex ? 'bg-navy-700' : 'hover:bg-navy-700/60'}`}
                   >
-                    <span className="text-[10px] font-mono bg-navy-600 text-ink-muted px-1.5 py-0.5 rounded flex-shrink-0">{r.type}</span>
+                    <span className="text-[10px] font-mono bg-navy-600 text-ink-muted px-1.5 py-0.5 rounded flex-shrink-0">{tr(r.type)}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-ink-primary truncate">{r.label}</p>
                       <p className="text-[10px] text-ink-muted truncate">{r.sub}</p>
