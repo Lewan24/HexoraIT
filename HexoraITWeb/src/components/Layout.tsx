@@ -59,6 +59,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Knowledge',
     items: [
       { id: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} /> },
+      { id: 'private-notes', label: 'Private notes', icon: <BookOpen size={15} /> },
       { id: 'contacts',  label: 'Contacts',       icon: <Users size={15} /> },
     ],
   }

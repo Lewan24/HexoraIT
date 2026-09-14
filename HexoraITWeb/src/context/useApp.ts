@@ -10,6 +10,10 @@ import type {
 import type { OrgMembership } from '../api/types'
 
 export interface AppContextValue {
+  access: import('../api/types').OrganizationAccess | undefined
+  accessError: string
+  canRead: (resource: string, id?: string) => boolean
+  canWrite: (resource: string, id?: string) => boolean
   orgs: OrgMembership[]; currentOrg: OrgMembership | undefined
   switchOrg: (id: string) => void; addOrg: (o: Omit<Organization, 'id'>) => Promise<void>
   updateOrg: (id: string, o: Omit<Organization, 'id'>) => Promise<void>

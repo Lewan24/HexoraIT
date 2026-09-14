@@ -17,6 +17,9 @@ import {
 } from '../api/resources'
 import { ApiError } from '../api/http'
 import { v7 as uuidv7 } from 'uuid';
+import { rolesApi } from '../api/roles'
+import { hasPermission } from '../lib/permissions'
+import type { OrganizationAccess } from '../api/types'
 
 function emptyOrgState() {
   return {
@@ -39,6 +42,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
+  const [accessState, setAccessState] = useState<{ orgId: string; access: OrganizationAccess }>()
+  const [loadedAccess, setLoadedAccess] = useState<OrganizationAccess>()
+  const [accessError, setAccessError] = useState('')
+  const access = accessState?.orgId === currentOrgId ? accessState.access : undefined
+  const canRead = (resource: string, id?: string) => hasPermission(access, resource, false, id)
+  const canWrite = (resource: string, id?: string) => hasPermission(access, resource, true, id)
 
   const toast = useCallback((message: string, type: Toast['type'] = 'success') => {
     if (!message) return
@@ -96,35 +105,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, toast])
 
   useEffect(() => {
-    if (!currentOrgId) {
+    if (!isAuthenticated || !currentOrgId) return
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        const next = await rolesApi.access(currentOrgId)
+        if (!cancelled) {
+          setAccessError('')
+          setAccessState(previous =>
+            previous?.orgId === currentOrgId && JSON.stringify(previous.access) === JSON.stringify(next)
+              ? previous : { orgId: currentOrgId, access: next })
+        }
+      } catch {
+        if (!cancelled) {
+          setAccessState(undefined)
+          setAccessError('Organization access is unavailable. Check your connection or contact an organization administrator.')
+          setData(emptyOrgState())
+        }
+      }
+    }
+    void refresh()
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('organization-access-changed', refresh)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('organization-access-changed', refresh)
+    }
+  }, [currentOrgId, isAuthenticated])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!currentOrgId || !access || !isAuthenticated) {
+      queueMicrotask(() => setData(emptyOrgState()))
       queueMicrotask(() => setIsLoading(false))
       return
     }
 
-    queueMicrotask(() => setIsLoading(true))
+    queueMicrotask(() => {
+      setData(emptyOrgState())
+      setIsLoading(true)
+    })
+
+    const load = <T,>(resource: string, fetch: () => Promise<T[]>) =>
+      hasPermission(access, resource) ? fetch() : Promise.resolve([] as T[])
 
     Promise.all([
-      assetsApi.getAll(currentOrgId), passwordsApi.getAll(currentOrgId), subnetsApi.getAll(currentOrgId),
-      licensesApi.getAll(currentOrgId), contactsApi.getAll(currentOrgId), contractsApi.getAll(currentOrgId),
-      plansApi.getAll(currentOrgId), incidentsApi.getAll(currentOrgId), knowledgeApi.getAll(currentOrgId),
-      tasksApi.getAll(currentOrgId), projectsApi.getAll(currentOrgId), groupsApi.getAll(currentOrgId), warrantyApi.getAll(currentOrgId),
-      diagramApi.get(currentOrgId),
+      load('assets', () => assetsApi.getAll(currentOrgId)),
+      load('passwords', () => passwordsApi.getAll(currentOrgId)),
+      load('networks', () => subnetsApi.getAll(currentOrgId)),
+      load('licenses', () => licensesApi.getAll(currentOrgId)),
+      load('contacts', () => contactsApi.getAll(currentOrgId)),
+      load('contracts', () => contractsApi.getAll(currentOrgId)),
+      load('plans', () => plansApi.getAll(currentOrgId)),
+      load('incidents', () => incidentsApi.getAll(currentOrgId)),
+      load('knowledge', () => knowledgeApi.getAll(currentOrgId)),
+      load('tasks', () => tasksApi.getAll(currentOrgId)),
+      load('projects', () => projectsApi.getAll(currentOrgId)),
+      load('groups', () => groupsApi.getAll(currentOrgId)),
+      load('warranty', () => warrantyApi.getAll(currentOrgId)),
+      hasPermission(access, 'diagram') ? diagramApi.get(currentOrgId) : Promise.resolve({ nodes: [], edges: [] }),
     ]).then(([
       assets, passwords, subnets, licenses, contacts, contracts,
       plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems, diagram,
     ]) => {
+      if (cancelled) return
+      setLoadedAccess(access)
       setData({
         assets, passwords, subnets, licenses, contacts, contracts,
         plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems,
         diagramNodes: diagram.nodes, diagramEdges: diagram.edges,
       })
-    }).catch(() => toast('Failed to load organization data', 'error'))
-      .finally(() => setIsLoading(false))
-  }, [currentOrgId, toast])
+    }).catch(() => {
+      if (!cancelled) {
+        setData(emptyOrgState())
+        toast('Failed to load organization data', 'error')
+      }
+    }).finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
+  }, [currentOrgId, access, isAuthenticated, toast])
 
   const currentOrg = orgs.find(o => o.id === currentOrgId)
 
   const switchOrg = useCallback((id: string) => {
+    setData(emptyOrgState())
+    setAccessState(undefined)
+    setAccessError('')
     localStorage.setItem(CURRENT_ORG_KEY, id)
     setCurrentOrgId(id)
   }, [])
@@ -520,13 +588,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(d => ({ ...d, diagramNodes: nodes, diagramEdges: edges }))
   }, [currentOrgId, guarded])
 
+  // Never expose data from the previous organization or permission revision to sidebar/search consumers.
+  const visibleData = isAuthenticated && access && loadedAccess === access ? data : emptyOrgState()
   const value = {
+    access, accessError, canRead, canWrite,
     orgs, currentOrg, switchOrg, addOrg, updateOrg,inviteMember, removeMember, deleteOrg, restoreOrg,
-    assets: data.assets, passwords: data.passwords, subnets: data.subnets, licenses: data.licenses,
-    contacts: data.contacts, contracts: data.contracts, plans: data.plans, incidents: data.incidents,
-    knowledgeArticles: data.knowledgeArticles, tasks: data.tasks, projects: data.projects,
-    groups: data.groups, warrantyItems: data.warrantyItems, diagramNodes: data.diagramNodes, diagramEdges: data.diagramEdges,
-    isLoading,
+    ...visibleData,
+    isLoading: isLoading || (!!access && loadedAccess !== access),
     toasts, dismissToast, toast,
     addAsset, updateAsset, deleteAsset, toggleStarAsset,
     addPassword, updatePassword, deletePassword, toggleStarPassword, revealPassword,

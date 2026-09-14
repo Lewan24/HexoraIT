@@ -55,7 +55,7 @@ public class LicensesController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var license = await Db.Licenses.FirstOrDefaultAsync(l => l.Id == id);
         if (license is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(license.OrganizationId);
+        var check = await CheckWriteAccessAsync(license.OrganizationId, resourceId: license.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, license);
@@ -70,7 +70,7 @@ public class LicensesController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var license = await Db.Licenses.FirstOrDefaultAsync(l => l.Id == id);
         if (license is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(license.OrganizationId);
+        var check = await CheckWriteAccessAsync(license.OrganizationId, resourceId: license.Id);
         if (check is not null) return check;
 
         Db.Licenses.Remove(license);
@@ -84,7 +84,7 @@ public class LicensesController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var license = await Db.Licenses.FirstOrDefaultAsync(l => l.Id == id);
         if (license is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(license.OrganizationId);
+        var check = await CheckWriteAccessAsync(license.OrganizationId, resourceId: license.Id);
         if (check is not null) return check;
 
         license.Starred = !license.Starred;

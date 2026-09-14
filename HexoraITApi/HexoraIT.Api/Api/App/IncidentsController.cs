@@ -54,7 +54,7 @@ public class IncidentsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var incident = await Db.Incidents.FirstOrDefaultAsync(i => i.Id == id);
         if (incident is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(incident.OrganizationId);
+        var check = await CheckWriteAccessAsync(incident.OrganizationId, resourceId: incident.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, incident);
@@ -68,7 +68,7 @@ public class IncidentsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var incident = await Db.Incidents.FirstOrDefaultAsync(i => i.Id == id);
         if (incident is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(incident.OrganizationId);
+        var check = await CheckWriteAccessAsync(incident.OrganizationId, resourceId: incident.Id);
         if (check is not null) return check;
 
         Db.Incidents.Remove(incident);

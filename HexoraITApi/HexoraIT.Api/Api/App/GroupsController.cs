@@ -55,7 +55,7 @@ public class GroupsController(AppDbContext db, IMapper mapper, ICurrentUserConte
         var group = await Db.Groups.FirstOrDefaultAsync(g => g.Id == id);
         if (group is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(group.OrganizationId);
+        var check = await CheckWriteAccessAsync(group.OrganizationId, resourceId: group.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, group);
@@ -69,7 +69,7 @@ public class GroupsController(AppDbContext db, IMapper mapper, ICurrentUserConte
         var group = await Db.Groups.FirstOrDefaultAsync(g => g.Id == id);
         if (group is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(group.OrganizationId);
+        var check = await CheckWriteAccessAsync(group.OrganizationId, resourceId: group.Id);
         if (check is not null) return check;
 
         Db.Groups.Remove(group);

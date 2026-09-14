@@ -73,10 +73,12 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
     {
         var check = await CheckReadAccessAsync(id);
         if (check is not null) return check;
+        if (!await _userContext.HasPermissionAsync(id, "settings")) return Forbid();
 
         var members = await Db.UserOrganizations
             .Where(uo => uo.OrganizationId == id)
-            .Select(uo => new OrgMemberDto(uo.UserId, uo.User.Email, uo.User.DisplayName, uo.Role))
+            .Select(uo => new OrgMemberDto(uo.UserId, uo.User.Email, uo.User.DisplayName, uo.Role,
+                uo.CustomRoleId, uo.CustomRole == null ? null : uo.CustomRole.Name))
             .ToListAsync();
         return Ok(members);
     }
@@ -87,8 +89,17 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
         var check = await CheckWriteAccessAsync(id, OrgRole.Admin);
         if (check is not null) return check;
 
-        if (dto.Role == OrgRole.Owner)
+        if (!Enum.IsDefined(dto.Role) || dto.Role == OrgRole.Owner)
             return BadRequest("An organization can only have one owner. Invite as Admin or another role instead.");
+
+        if (dto.CustomRoleId is null && dto.Role == OrgRole.Admin &&
+            await _userContext.GetRoleAsync(id) != OrgRole.Owner) return Forbid();
+        var customRole = dto.CustomRoleId is { } roleId
+            ? await Db.OrganizationRoles.FirstOrDefaultAsync(r => r.Id == roleId && r.OrganizationId == id)
+            : null;
+        if (dto.CustomRoleId is not null && customRole is null)
+            return BadRequest("Role does not belong to this organization.");
+        var assignedRole = customRole is null ? dto.Role : OrgRole.ReadOnly;
 
         var email = dto.Email.Trim().ToLowerInvariant();
         var user = await Db.Users.FirstOrDefaultAsync(u => u.Email == email);
@@ -99,10 +110,13 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
         if (alreadyMember)
             return Conflict("This user is already a member of the organization.");
 
-        Db.UserOrganizations.Add(new UserOrganization { UserId = user.Id, OrganizationId = id, Role = dto.Role });
+        Db.UserOrganizations.Add(new UserOrganization
+        {
+            UserId = user.Id, OrganizationId = id, Role = assignedRole, CustomRoleId = customRole?.Id
+        });
         await Db.SaveChangesAsync();
 
-        return Ok(new OrgMemberDto(user.Id, user.Email, user.DisplayName, dto.Role));
+        return Ok(new OrgMemberDto(user.Id, user.Email, user.DisplayName, assignedRole, customRole?.Id, customRole?.Name));
     }
 
     [HttpDelete("{id:guid}/members/{userId:guid}")]

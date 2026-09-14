@@ -51,9 +51,13 @@ public interface ICurrentOrgAccessor
 
 public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserIdProvider currentUser) : DbContext(options)
 {
+    private Guid? CurrentUserId => currentUser.UserId;
+    public DbSet<PrivateNote> PrivateNotes => Set<PrivateNote>();
     public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserOrganization> UserOrganizations => Set<UserOrganization>();
+    public DbSet<OrganizationRole> OrganizationRoles => Set<OrganizationRole>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<PasswordEntry> Passwords => Set<PasswordEntry>();
@@ -78,6 +82,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+
+        b.Entity<PrivateNote>(e =>
+        {
+            e.Property(n => n.Title).HasMaxLength(200).IsRequired();
+            e.Property(n => n.Content).HasMaxLength(100000).IsRequired();
+            e.HasIndex(n => new { n.UserId, n.OrganizationId });
+            e.HasOne<User>().WithMany().HasForeignKey(n => n.UserId);
+            e.HasOne<Organization>().WithMany().HasForeignKey(n => n.OrganizationId);
+            e.HasQueryFilter(n => n.UserId == CurrentUserId &&
+                UserOrganizations.Any(m => m.UserId == CurrentUserId && m.OrganizationId == n.OrganizationId) &&
+                Organizations.Any(o => o.Id == n.OrganizationId));
+        });
+
+        b.Entity<OrganizationRole>(e =>
+        {
+            e.HasAlternateKey(r => new { r.Id, r.OrganizationId });
+            e.Property(r => r.Name).HasMaxLength(100).IsRequired();
+            e.HasIndex(r => new { r.OrganizationId, r.Name }).IsUnique();
+            e.HasOne(r => r.Organization).WithMany().HasForeignKey(r => r.OrganizationId);
+        });
+        b.Entity<RolePermission>(e =>
+        {
+            e.Property(p => p.Resource).HasMaxLength(40).IsRequired();
+            e.HasIndex(p => new { p.RoleId, p.Resource, p.ResourceId }).IsUnique();
+            e.HasOne(p => p.Role).WithMany(r => r.Permissions).HasForeignKey(p => p.RoleId);
+        });
 
         b.Entity<DashboardLayout>(e =>
         {
@@ -208,6 +238,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
             e.HasKey(uo => new { uo.UserId, uo.OrganizationId });
             e.HasOne(uo => uo.User).WithMany(u => u.Memberships).HasForeignKey(uo => uo.UserId);
             e.HasOne(uo => uo.Organization).WithMany(o => o.Memberships).HasForeignKey(uo => uo.OrganizationId);
+            e.HasOne(uo => uo.CustomRole).WithMany()
+                .HasForeignKey(uo => new { uo.CustomRoleId, uo.OrganizationId })
+                .HasPrincipalKey(r => new { r.Id, r.OrganizationId })
+                .OnDelete(DeleteBehavior.Restrict);
         });
         
         b.Entity<FileFolder>(e =>
@@ -284,12 +318,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     
     private LambdaExpression BuildOrgFilter<TEntity>() where TEntity : BaseEntity
     {
+        var resource = OrganizationResources.ForEntity(typeof(TEntity));
         Expression<Func<TEntity, bool>> filter = e =>
-            currentUser.UserId != null &&
+            CurrentUserId != null &&
             Set<UserOrganization>()
                 .Any(uo =>
-                    uo.UserId == currentUser.UserId &&
-                    uo.OrganizationId == e.OrganizationId) &&
+                    uo.UserId == CurrentUserId &&
+                    uo.OrganizationId == e.OrganizationId &&
+                    (uo.CustomRoleId == null ||
+                     (Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
+                         p.Resource == resource && p.ResourceId == e.Id && p.CanRead) ||
+                      (Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
+                         p.Resource == resource && p.ResourceId == Guid.Empty && p.CanRead) &&
+                      !Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
+                         p.Resource == resource && p.ResourceId == e.Id))))) &&
             Set<Organization>()
                 .Any(o => o.Id == e.OrganizationId);
 

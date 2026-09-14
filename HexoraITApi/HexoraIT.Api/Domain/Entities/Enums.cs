@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace HexoraITApi.Domain.Entities;
 
-public enum AssetType { Server, Workstation, Network, Storage, AP, Printer, Phone }
+public enum AssetType { Server, Workstation, Network, Storage, AP, Printer, Phone, Camera, Recorder }
 public enum AssetStatus
 {
     [JsonStringEnumMemberName("online")] Online,

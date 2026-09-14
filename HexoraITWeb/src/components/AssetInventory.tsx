@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Plus, Search, Filter, ChevronUp, ChevronDown, ChevronsUpDown,
   Edit2, Trash2, Eye, Server, Monitor, Router, HardDrive, Wifi,
-  ChevronLeft, ChevronRight, Star, X, Printer, Phone, Loader2,
+  ChevronLeft, ChevronRight, Star, X, Printer, Phone, Loader2, Camera, Video,
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { Asset, AssetType, AssetStatus } from '../api/types'
@@ -12,6 +12,7 @@ const TYPE_ICONS: Record<AssetType, React.ReactNode> = {
   Server: <Server size={12} />, Workstation: <Monitor size={12} />,
   Network: <Router size={12} />, Storage: <HardDrive size={12} />,
   AP: <Wifi size={12} />, Printer: <Printer size={12} />, Phone: <Phone size={12} />,
+  Camera: <Camera size={12} />, Recorder: <Video size={12} />,
 }
 
 const STATUS_STYLES: Record<AssetStatus, string> = {
@@ -21,7 +22,7 @@ const STATUS_STYLES: Record<AssetStatus, string> = {
   unknown: 'bg-navy-500/20 text-ink-muted border-edge-default',
 }
 
-const ASSET_TYPES: AssetType[] = ['Server', 'Workstation', 'Network', 'Storage', 'AP', 'Printer', 'Phone']
+const ASSET_TYPES: AssetType[] = ['Server', 'Workstation', 'Network', 'Storage', 'AP', 'Printer', 'Phone', 'Camera', 'Recorder']
 const ASSET_STATUSES: AssetStatus[] = ['online', 'offline', 'maintenance', 'unknown']
 
 function StatusBadge({ status }: { status: AssetStatus }) {
@@ -280,7 +281,7 @@ interface Props { navigate: (v: View, id?: string) => void }
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AssetInventory({ navigate }: Props) {
-  const { assets, isLoading, addAsset, updateAsset, deleteAsset, toggleStarAsset } = useApp()
+  const { assets, isLoading, addAsset, updateAsset, deleteAsset, toggleStarAsset, canWrite } = useApp()
 
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
@@ -321,6 +322,7 @@ export default function AssetInventory({ navigate }: Props) {
   }
   const SortIcon = ({ k }: { k: SortKey }) => sortKey === k ? (sortDir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />) : <ChevronsUpDown size={11} className="opacity-30" />
   const toggleSelect = (id: string) => {
+    if (!canWrite('assets', id)) return
     setSelected(prev => {
       const next = new Set(prev)
 
@@ -333,7 +335,8 @@ export default function AssetInventory({ navigate }: Props) {
       return next
     })
   }
-  const allSelected = paged.length > 0 && paged.every(a => selected.has(a.id))
+  const selectable = paged.filter(a => canWrite('assets', a.id))
+  const allSelected = selectable.length > 0 && selectable.every(a => selected.has(a.id))
 
   const onlineCount = assets.filter(a => a.status === 'online').length
 
@@ -341,7 +344,7 @@ export default function AssetInventory({ navigate }: Props) {
     setBulkDeleting(true)
     // Settle all deletes even if some fail — a failed one keeps its row,
     // rather than one rejection aborting the whole batch silently.
-    await Promise.allSettled(Array.from(selected).map(id => deleteAsset(id)))
+    await Promise.allSettled(Array.from(selected).filter(id => canWrite('assets', id)).map(id => deleteAsset(id)))
     setSelected(new Set())
     setBulkDeleting(false)
   }
@@ -366,6 +369,7 @@ export default function AssetInventory({ navigate }: Props) {
         </div>
         <button
           onClick={() => setAddOpen(true)}
+          disabled={!canWrite('assets')}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}
         >
@@ -402,7 +406,7 @@ export default function AssetInventory({ navigate }: Props) {
             <span className="text-xs text-ink-muted font-mono">{selected.size} selected</span>
             <button
               onClick={handleBulkDelete}
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || Array.from(selected).some(id => !canWrite('assets', id))}
               className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 border border-red-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50">
               {bulkDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete selected
             </button>
@@ -429,12 +433,12 @@ export default function AssetInventory({ navigate }: Props) {
               <p className="text-[10px] text-ink-muted mt-0.5">{asset.type} · {asset.owner}</p>
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0">
-              <button onClick={() => toggleStarAsset(asset.id)}
+              <button disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)}
                 className={`p-2 rounded-md transition-colors ${asset.starred ? 'text-yellow-400' : 'text-ink-muted'}`}>
                 <Star size={14} fill={asset.starred ? 'currentColor' : 'none'} />
               </button>
-              <button onClick={() => setEditAsset(asset)} className="p-2 rounded-md text-ink-muted hover:text-ink-primary transition-colors"><Edit2 size={14} /></button>
-              <button onClick={() => setDeleteTarget(asset)} className="p-2 rounded-md text-ink-muted hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+              <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} className="p-2 rounded-md text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={14} /></button>
+              <button disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} className="p-2 rounded-md text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}
@@ -459,7 +463,7 @@ export default function AssetInventory({ navigate }: Props) {
             <thead>
               <tr className="border-b border-edge-subtle bg-navy-900/50">
                 <th className="pl-4 pr-2 py-3 w-8">
-                  <div onClick={() => allSelected ? setSelected(new Set()) : setSelected(new Set(paged.map(a => a.id)))}
+                  <div onClick={() => allSelected ? setSelected(new Set()) : setSelected(new Set(paged.filter(a => canWrite('assets', a.id)).map(a => a.id)))}
                     className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-all ${allSelected ? 'bg-blue-500 border-blue-500' : 'border-edge-strong hover:border-blue-500/50'}`}>
                     {allSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </div>
@@ -510,13 +514,13 @@ export default function AssetInventory({ navigate }: Props) {
                   <td className="px-3 py-3 text-ink-muted font-mono">{asset.updated}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-0.5">
-                      <button onClick={() => toggleStarAsset(asset.id)} title={asset.starred ? 'Unstar' : 'Star'}
+                      <button disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)} title={asset.starred ? 'Unstar' : 'Star'}
                         className={`p-1.5 rounded-md transition-colors ${asset.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-yellow-400'} hover:bg-navy-600`}>
                         <Star size={13} fill={asset.starred ? 'currentColor' : 'none'} />
                       </button>
                       <button onClick={() => navigate('asset-detail', asset.id)} title="View" className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-blue-400 transition-colors"><Eye size={13} /></button>
-                      <button onClick={() => setEditAsset(asset)} title="Edit" className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-ink-primary transition-colors"><Edit2 size={13} /></button>
-                      <button onClick={() => setDeleteTarget(asset)} title="Delete" className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+                      <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} title="Edit" className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={13} /></button>
+                      <button disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} title="Delete" className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={13} /></button>
                     </div>
                   </td>
                 </tr>

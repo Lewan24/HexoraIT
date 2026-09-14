@@ -1,4 +1,4 @@
-export type AssetType = 'Server' | 'Workstation' | 'Network' | 'Storage' | 'AP' | 'Printer' | 'Phone'
+export type AssetType = 'Server' | 'Workstation' | 'Network' | 'Storage' | 'AP' | 'Printer' | 'Phone' | 'Camera' | 'Recorder'
 export type AssetStatus = 'online' | 'offline' | 'maintenance' | 'unknown'
 export type PasswordStrength = 'strong' | 'medium' | 'weak'
 export type IPEntryStatus = 'used' | 'reserved' | 'free'
@@ -26,7 +26,26 @@ export interface AdminUser { id: string; email: string; displayName: string; sys
 export interface Organization { id: string; name: string; color: string; initials: string; description: string }
 export interface OrganizationSummary { id: string; name: string; role: OrgRole }
 export interface OrgMembership extends Organization { role: OrgRole }
-export interface OrgMember { userId: string; email: string; displayName: string; role: OrgRole }
+export interface OrgMember { userId: string; email: string; displayName: string; role: OrgRole; customRoleId?: string; customRoleName?: string }
+
+export interface ResourcePermission {
+  resource: string
+  resourceId: string
+  canRead: boolean
+  canWrite: boolean
+}
+
+export interface OrganizationRole {
+  id: string
+  name: string
+  permissions: ResourcePermission[]
+}
+
+export interface OrganizationAccess {
+  roleName: string
+  canManageRoles: boolean
+  permissions: ResourcePermission[]
+}
 
 export interface DashboardLayout { sectionOrder: string[]; hiddenSections: string[] }
 

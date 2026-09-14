@@ -54,7 +54,7 @@ public class ContactsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var contact = await Db.Contacts.FirstOrDefaultAsync(c => c.Id == id);
         if (contact is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contact.OrganizationId);
+        var check = await CheckWriteAccessAsync(contact.OrganizationId, resourceId: contact.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, contact);
@@ -68,7 +68,7 @@ public class ContactsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var contact = await Db.Contacts.FirstOrDefaultAsync(c => c.Id == id);
         if (contact is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contact.OrganizationId);
+        var check = await CheckWriteAccessAsync(contact.OrganizationId, resourceId: contact.Id);
         if (check is not null) return check;
 
         Db.Contacts.Remove(contact);
@@ -82,7 +82,7 @@ public class ContactsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var contact = await Db.Contacts.FirstOrDefaultAsync(c => c.Id == id);
         if (contact is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contact.OrganizationId);
+        var check = await CheckWriteAccessAsync(contact.OrganizationId, resourceId: contact.Id);
         if (check is not null) return check;
 
         contact.Starred = !contact.Starred;

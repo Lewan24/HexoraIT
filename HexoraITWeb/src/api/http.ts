@@ -36,6 +36,10 @@ async function request<T>(path: string, options: RequestInit = {}, getString: bo
   }
 
   if (!res.ok) {
+    if (res.status === 403) {
+      if (!path.endsWith('/permissions')) window.dispatchEvent(new Event('organization-access-changed'))
+      throw new ApiError(403, 'Access forbidden. Your organization role does not allow this action.')
+    }
     let message = res.statusText
     try {
       const body = await res.json()

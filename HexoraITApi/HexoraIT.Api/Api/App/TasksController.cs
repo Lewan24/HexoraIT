@@ -42,6 +42,10 @@ public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var check = await CheckWriteAccessAsync(organizationId);
         if (check is not null) return check;
 
+        if (dto.ProjectId is { } projectId &&
+            !await Db.Projects.AnyAsync(p => p.Id == projectId && p.OrganizationId == organizationId))
+            return BadRequest("Project is not available in this organization.");
+
         var task = mapper.Map<WorkTask>(dto);
         task.OrganizationId = organizationId;
         task.CreatedAt = DateTime.UtcNow;
@@ -56,8 +60,12 @@ public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var task = await Db.Tasks.FirstOrDefaultAsync(t => t.Id == id);
         if (task is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(task.OrganizationId);
+        var check = await CheckWriteAccessAsync(task.OrganizationId, resourceId: task.Id);
         if (check is not null) return check;
+
+        if (dto.ProjectId is { } projectId && dto.ProjectId != task.ProjectId &&
+            !await Db.Projects.AnyAsync(p => p.Id == projectId && p.OrganizationId == task.OrganizationId))
+            return BadRequest("Project is not available in this organization.");
 
         mapper.Map(dto, task);
         await Db.SaveChangesAsync();
@@ -70,7 +78,7 @@ public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var task = await Db.Tasks.FirstOrDefaultAsync(t => t.Id == id);
         if (task is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(task.OrganizationId);
+        var check = await CheckWriteAccessAsync(task.OrganizationId, resourceId: task.Id);
         if (check is not null) return check;
 
         Db.Tasks.Remove(task);

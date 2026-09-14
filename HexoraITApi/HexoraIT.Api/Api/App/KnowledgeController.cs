@@ -55,7 +55,7 @@ public class KnowledgeController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var article = await Db.KnowledgeArticles.FirstOrDefaultAsync(a => a.Id == id);
         if (article is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(article.OrganizationId);
+        var check = await CheckWriteAccessAsync(article.OrganizationId, resourceId: article.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, article);
@@ -70,7 +70,7 @@ public class KnowledgeController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var article = await Db.KnowledgeArticles.FirstOrDefaultAsync(a => a.Id == id);
         if (article is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(article.OrganizationId);
+        var check = await CheckWriteAccessAsync(article.OrganizationId, resourceId: article.Id);
         if (check is not null) return check;
 
         Db.KnowledgeArticles.Remove(article);
@@ -84,7 +84,7 @@ public class KnowledgeController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var article = await Db.KnowledgeArticles.FirstOrDefaultAsync(a => a.Id == id);
         if (article is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(article.OrganizationId);
+        var check = await CheckWriteAccessAsync(article.OrganizationId, resourceId: article.Id);
         if (check is not null) return check;
 
         article.Starred = !article.Starred;

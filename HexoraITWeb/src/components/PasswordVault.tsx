@@ -207,7 +207,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
   onEdit: () => void
   onDelete: () => void
 }) {
-  const { toggleStarPassword, revealPassword } = useApp()
+  const { toggleStarPassword, revealPassword, canWrite } = useApp()
   const [revealed, setRevealed] = useState<{
     id: string
     value: string
@@ -283,14 +283,14 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => toggleStarPassword(selected.id)}
+          <button disabled={!canWrite('passwords', selected.id)} onClick={() => toggleStarPassword(selected.id)}
             className={`p-2 rounded-lg border transition-all ${selected.starred ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-navy-800 border-edge-default text-ink-muted hover:text-yellow-400'}`}>
             <Star size={13} fill={selected.starred ? 'currentColor' : 'none'} />
           </button>
-          <button onClick={onEdit} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors">
+          <button disabled={!canWrite('passwords', selected.id)} onClick={onEdit} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors disabled:opacity-40">
             <Edit2 size={12} /><span className="hidden sm:inline">Edit</span>
           </button>
-          <button onClick={onDelete} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-red-400 hover:border-red-500/30 transition-all">
+          <button disabled={!canWrite('passwords', selected.id)} onClick={onDelete} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40">
             <Trash2 size={13} />
           </button>
         </div>
@@ -371,7 +371,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PasswordVault() {
-  const { passwords, isLoading, addPassword, updatePassword, deletePassword } = useApp()
+  const { passwords, isLoading, addPassword, updatePassword, deletePassword, canWrite } = useApp()
 
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
@@ -434,7 +434,7 @@ export default function PasswordVault() {
               <h2 className="text-sm font-semibold text-ink-primary">Password Vault</h2>
               <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{passwords.length} entries</p>
             </div>
-            <button onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all" title="Add entry">
+            <button disabled={!canWrite('passwords')} onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all disabled:opacity-40" title="Add entry">
               <Plus size={14} />
             </button>
           </div>
@@ -494,19 +494,19 @@ export default function PasswordVault() {
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="w-14 h-14 rounded-2xl bg-navy-800 border border-edge-subtle flex items-center justify-center"><KeyRound size={24} className="text-ink-muted" /></div>
             <p className="text-sm text-ink-secondary font-medium">Select an entry</p>
-            <p className="text-xs text-ink-muted">or <button onClick={() => setAddOpen(true)} className="text-blue-400 hover:text-blue-300 transition-colors">add a new password</button></p>
+            {canWrite('passwords') && <p className="text-xs text-ink-muted">or <button onClick={() => setAddOpen(true)} className="text-blue-400 hover:text-blue-300 transition-colors">add a new password</button></p>}
           </div>
         )}
       </div>
 
       {/* Modals */}
-      {addOpen && (
+      {addOpen && canWrite('passwords') && (
         <PasswordForm
           onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }); setAddOpen(false) }}
           onClose={() => setAddOpen(false)}
         />
       )}
-      {editEntry && (
+      {editEntry && canWrite('passwords', editEntry.id) && (
         <PasswordForm
           initial={editEntry}
           onSave={async d => { await updatePassword({ ...editEntry, ...d }); setEditEntry(null) }}
@@ -514,7 +514,7 @@ export default function PasswordVault() {
         />
       )}
 
-      {deleteTarget && (
+      {deleteTarget && canWrite('passwords', deleteTarget.id) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !deleting && setDeleteTarget(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative bg-navy-800 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm p-6" style={{ animation: 'modalIn 0.15s ease-out' }} onClick={e => e.stopPropagation()}>

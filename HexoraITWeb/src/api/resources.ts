@@ -35,8 +35,8 @@ export const organizationsApi = {
   create: (data: Omit<Organization, 'id'>) => http.post<Organization>('/organizations', data),
   update: (id: string, data: Omit<Organization, 'id'>) => http.put<void>(`/organizations/${id}`, data),
   getMembers: (id: string) => http.get<OrgMember[]>(`/organizations/${id}/members`),
-  inviteMember: (id: string, email: string, role: OrgRole) =>
-    http.post<OrgMember>(`/organizations/${id}/members`, { email, role }),
+  inviteMember: (id: string, email: string, role: OrgRole, customRoleId?: string) =>
+    http.post<OrgMember>(`/organizations/${id}/members`, { email, role, customRoleId }),
   removeMember: (id: string, userId: string) => http.delete<void>(`/organizations/${id}/members/${userId}`),
   softDelete: (id: string) => http.delete<void>(`/organizations/${id}`),
   restore: (id: string) => http.post<void>(`/organizations/${id}/restore`),

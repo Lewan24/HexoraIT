@@ -55,7 +55,7 @@ public class AssetsController(AppDbContext db, IMapper mapper, ICurrentUserConte
         var asset = await Db.Assets.FirstOrDefaultAsync(a => a.Id == id);
         if (asset is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(asset.OrganizationId);
+        var check = await CheckWriteAccessAsync(asset.OrganizationId, resourceId: asset.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, asset);
@@ -70,7 +70,7 @@ public class AssetsController(AppDbContext db, IMapper mapper, ICurrentUserConte
         var asset = await Db.Assets.FirstOrDefaultAsync(a => a.Id == id);
         if (asset is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(asset.OrganizationId);
+        var check = await CheckWriteAccessAsync(asset.OrganizationId, resourceId: asset.Id);
         if (check is not null) return check;
 
         Db.Assets.Remove(asset);
@@ -84,7 +84,7 @@ public class AssetsController(AppDbContext db, IMapper mapper, ICurrentUserConte
         var asset = await Db.Assets.FirstOrDefaultAsync(a => a.Id == id);
         if (asset is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(asset.OrganizationId);
+        var check = await CheckWriteAccessAsync(asset.OrganizationId, resourceId: asset.Id);
         if (check is not null) return check;
 
         asset.Starred = !asset.Starred;

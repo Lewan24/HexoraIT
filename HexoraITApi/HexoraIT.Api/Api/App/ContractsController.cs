@@ -77,7 +77,7 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var contract = await Db.Contracts.FirstOrDefaultAsync(c => c.Id == id);
         if (contract is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contract.OrganizationId);
+        var check = await CheckWriteAccessAsync(contract.OrganizationId, resourceId: contract.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, contract);
@@ -92,7 +92,7 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var contract = await Db.Contracts.FirstOrDefaultAsync(c => c.Id == id);
         if (contract is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contract.OrganizationId);
+        var check = await CheckWriteAccessAsync(contract.OrganizationId, resourceId: contract.Id);
         if (check is not null) return check;
 
         Db.Contracts.Remove(contract);
@@ -106,7 +106,7 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var contract = await Db.Contracts.FirstOrDefaultAsync(c => c.Id == id);
         if (contract is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(contract.OrganizationId);
+        var check = await CheckWriteAccessAsync(contract.OrganizationId, resourceId: contract.Id);
         if (check is not null) return check;
 
         contract.Starred = !contract.Starred;
@@ -122,7 +122,7 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         if (contract is null) 
             return NotFound();
 
-        var check = await CheckWriteAccessAsync(contract.OrganizationId);
+        var check = await CheckWriteAccessAsync(contract.OrganizationId, resourceId: contract.Id);
         if (check is not null) 
             return check;
 

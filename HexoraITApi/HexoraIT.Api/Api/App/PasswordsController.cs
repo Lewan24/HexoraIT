@@ -61,7 +61,7 @@ public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var entry = await Db.Passwords.FirstOrDefaultAsync(p => p.Id == id);
         if (entry is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(entry.OrganizationId);
+        var check = await CheckWriteAccessAsync(entry.OrganizationId, resourceId: entry.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, entry);
@@ -81,7 +81,7 @@ public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var entry = await Db.Passwords.FirstOrDefaultAsync(p => p.Id == id);
         if (entry is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(entry.OrganizationId);
+        var check = await CheckWriteAccessAsync(entry.OrganizationId, resourceId: entry.Id);
         if (check is not null) return check;
 
         Db.Passwords.Remove(entry);
@@ -95,7 +95,7 @@ public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var entry = await Db.Passwords.FirstOrDefaultAsync(p => p.Id == id);
         if (entry is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(entry.OrganizationId);
+        var check = await CheckWriteAccessAsync(entry.OrganizationId, resourceId: entry.Id);
         if (check is not null) return check;
 
         entry.Starred = !entry.Starred;

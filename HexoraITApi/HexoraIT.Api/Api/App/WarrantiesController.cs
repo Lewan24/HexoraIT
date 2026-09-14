@@ -85,7 +85,7 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         var item = await Db.WarrantyItems.FirstOrDefaultAsync(w => w.Id == id);
         if (item is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(item.OrganizationId);
+        var check = await CheckWriteAccessAsync(item.OrganizationId, resourceId: item.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, item);
@@ -101,7 +101,7 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         if (item is null) 
             return NotFound();
 
-        var check = await CheckWriteAccessAsync(item.OrganizationId);
+        var check = await CheckWriteAccessAsync(item.OrganizationId, resourceId: item.Id);
         if (check is not null) 
             return check;
 
@@ -122,7 +122,7 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         var item = await Db.WarrantyItems.FirstOrDefaultAsync(w => w.Id == id);
         if (item is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(item.OrganizationId);
+        var check = await CheckWriteAccessAsync(item.OrganizationId, resourceId: item.Id);
         if (check is not null) return check;
 
         item.Starred = !item.Starred;
@@ -138,7 +138,7 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         if (item is null)
             return NotFound();
 
-        var check = await CheckWriteAccessAsync(item.OrganizationId);
+        var check = await CheckWriteAccessAsync(item.OrganizationId, resourceId: item.Id);
         if (check is not null)
             return check;
 

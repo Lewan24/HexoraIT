@@ -80,7 +80,7 @@ public class ProjectsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var project = await Db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(project.OrganizationId);
+        var check = await CheckWriteAccessAsync(project.OrganizationId, resourceId: project.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, project);
@@ -94,8 +94,16 @@ public class ProjectsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         var project = await Db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(project.OrganizationId);
+        var check = await CheckWriteAccessAsync(project.OrganizationId, resourceId: project.Id);
         if (check is not null) return check;
+
+        var affectedTasks = await Db.Tasks.IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == project.OrganizationId && t.ProjectId == id)
+            .Select(t => t.Id).ToListAsync();
+        foreach (var taskId in affectedTasks)
+        {
+            if (!await userContext.HasPermissionAsync(project.OrganizationId, "tasks", true, taskId)) return Forbid();
+        }
 
         Db.Projects.Remove(project);
         await Db.SaveChangesAsync();

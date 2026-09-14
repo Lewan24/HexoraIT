@@ -11,10 +11,12 @@ import { ApiError } from '../api/http'
 import { toggleTheme, getTheme } from '../lib/theme'
 import type { Organization, OrgMembership, OrgMember, OrgRole, OrganizationSummary } from '../api/types'
 import type { View } from '../App'
+import OrganizationRoles from './OrganizationRoles'
 
-type Section = 'profile' | 'organizations' | 'appearance' | 'security' | 'notifications' | 'about'
+type Section = 'profile' | 'organizations' | 'roles' | 'appearance' | 'security' | 'notifications' | 'about'
 
 const SECTIONS: { id: Section; label: string; icon: React.ReactNode; desc: string }[] = [
+  { id: 'roles', label: 'Organization roles', icon: <Shield size={16} />, desc: 'Configure permissions for the current organization' },
   { id: 'profile',       label: 'Profile',        icon: <User size={16} />,       desc: 'Your account information' },
   { id: 'organizations', label: 'Organizations',   icon: <Building2 size={16} />,  desc: 'Manage your organizations' },
   { id: 'appearance',    label: 'Appearance',      icon: <Monitor size={16} />,    desc: 'Theme and display preferences' },
@@ -269,7 +271,7 @@ function MembersModal({ org, onClose }: { org: OrgMembership; onClose: () => voi
                     <p className="text-xs font-medium text-ink-primary truncate">{m.displayName || m.email}{isSelf ? ' (you)' : ''}</p>
                     <p className="text-[10px] text-ink-muted truncate">{m.email}</p>
                   </div>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-navy-700 border border-edge-subtle text-ink-muted flex-shrink-0">{m.role}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-navy-700 border border-edge-subtle text-ink-muted flex-shrink-0">{m.customRoleName ?? m.role}</span>
                   {showRemove && (
                     <button onClick={() => handleRemove(m.userId)} disabled={removingId === m.userId}
                       className="p-1.5 rounded-md text-ink-muted hover:text-red-400 hover:bg-navy-700 transition-colors disabled:opacity-40 flex-shrink-0"
@@ -804,6 +806,7 @@ export default function Settings({ navigate }: { navigate: (v: View) => void }) 
   const content = () => {
     switch (active) {
       case 'profile':       return <ProfileSection />
+      case 'roles':         return <OrganizationRoles />
       case 'organizations': return <OrganizationsSection navigate={navigate} />
       case 'appearance':    return <AppearanceSection />
       case 'security':      return <SecuritySection />

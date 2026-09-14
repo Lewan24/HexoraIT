@@ -38,6 +38,10 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
 
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Folder name is required.");
 
+        if (dto.ParentFolderId is { } parentId &&
+            !await Db.FileFolders.AnyAsync(f => f.Id == parentId && f.OrganizationId == organizationId))
+            return BadRequest("Parent folder does not exist in this organization.");
+
         var folder = new FileFolder { OrganizationId = organizationId, Name = dto.Name.Trim(), ParentFolderId = dto.ParentFolderId };
         Db.FileFolders.Add(folder);
         await Db.SaveChangesAsync();
@@ -50,7 +54,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var folder = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == id);
         if (folder is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(folder.OrganizationId);
+        var check = await CheckWriteAccessAsync(folder.OrganizationId, resourceId: folder.Id);
         if (check is not null) return check;
 
         await using var tx = await Db.Database.BeginTransactionAsync();
@@ -67,9 +71,15 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
             frontier = children;
         }
 
-        var filesToDelete = await Db.StoredFiles
-            .Where(f => f.FolderId != null && folderIds.Contains(f.FolderId!.Value))
+        // Inspect all descendants in this organization before a cascading delete.
+        var filesToDelete = await Db.StoredFiles.IgnoreQueryFilters()
+            .Where(f => f.OrganizationId == folder.OrganizationId && f.FolderId != null && folderIds.Contains(f.FolderId!.Value))
             .ToListAsync();
+
+        foreach (var file in filesToDelete)
+        {
+            if (!await userContext.HasPermissionAsync(folder.OrganizationId, "files", true, file.Id)) return Forbid();
+        }
 
         foreach (var file in filesToDelete)
         {
@@ -92,7 +102,9 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         if (check is not null) return check;
 
         var files = await Db.StoredFiles
-            .Where(f => f.OrganizationId == organizationId && f.FolderId == folderId)
+            .Where(f => f.OrganizationId == organizationId &&
+                (f.FolderId == folderId || (folderId == null &&
+                    !Db.FileFolders.Any(folder => folder.Id == f.FolderId && folder.OrganizationId == organizationId))))
             .OrderBy(f => f.Name)
             .ProjectTo<StoredFileDto>(mapper.ConfigurationProvider)
             .ToListAsync();
@@ -156,7 +168,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var file = await Db.StoredFiles.FirstOrDefaultAsync(f => f.Id == id);
         if (file is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(file.OrganizationId);
+        var check = await CheckWriteAccessAsync(file.OrganizationId, resourceId: file.Id);
         if (check is not null) return check;
 
         try { await storage.DeleteAsync(file.BlobPath); }
@@ -173,7 +185,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var folder = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == id);
         if (folder is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(folder.OrganizationId);
+        var check = await CheckWriteAccessAsync(folder.OrganizationId, resourceId: folder.Id);
         if (check is not null) return check;
 
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Folder name is required.");
@@ -189,7 +201,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var folder = await Db.FileFolders.FirstOrDefaultAsync(f => f.Id == id);
         if (folder is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(folder.OrganizationId);
+        var check = await CheckWriteAccessAsync(folder.OrganizationId, resourceId: folder.Id);
         if (check is not null) return check;
 
         if (dto.NewParentFolderId == id) return BadRequest("A folder cannot be moved into itself.");
@@ -219,7 +231,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var file = await Db.StoredFiles.FirstOrDefaultAsync(f => f.Id == id);
         if (file is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(file.OrganizationId);
+        var check = await CheckWriteAccessAsync(file.OrganizationId, resourceId: file.Id);
         if (check is not null) return check;
 
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("File name is required.");
@@ -235,7 +247,7 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var file = await Db.StoredFiles.FirstOrDefaultAsync(f => f.Id == id);
         if (file is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(file.OrganizationId);
+        var check = await CheckWriteAccessAsync(file.OrganizationId, resourceId: file.Id);
         if (check is not null) return check;
 
         if (dto.NewFolderId is { } targetId &&

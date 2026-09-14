@@ -54,7 +54,7 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var subnet = await Db.Subnets.FirstOrDefaultAsync(s => s.Id == id);
         if (subnet is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(subnet.OrganizationId);
+        var check = await CheckWriteAccessAsync(subnet.OrganizationId, resourceId: subnet.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, subnet);
@@ -68,7 +68,7 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var subnet = await Db.Subnets.FirstOrDefaultAsync(s => s.Id == id);
         if (subnet is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(subnet.OrganizationId);
+        var check = await CheckWriteAccessAsync(subnet.OrganizationId, resourceId: subnet.Id);
         if (check is not null) return check;
 
         Db.Subnets.Remove(subnet);
@@ -82,7 +82,7 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var subnet = await Db.Subnets.FirstOrDefaultAsync(s => s.Id == subnetId);
         if (subnet is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(subnet.OrganizationId);
+        var check = await CheckWriteAccessAsync(subnet.OrganizationId, resourceId: subnet.Id);
         if (check is not null) return check;
 
         var entry = mapper.Map<IPEntry>(dto);
@@ -98,7 +98,7 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var subnet = await Db.Subnets.FirstOrDefaultAsync(s => s.Id == subnetId);
         if (subnet is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(subnet.OrganizationId);
+        var check = await CheckWriteAccessAsync(subnet.OrganizationId, resourceId: subnet.Id);
         if (check is not null) return check;
 
         var entry = await Db.IPEntries.FirstOrDefaultAsync(ip => ip.Id == entryId && ip.SubnetId == subnetId);
@@ -115,7 +115,7 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var subnet = await Db.Subnets.FirstOrDefaultAsync(s => s.Id == subnetId);
         if (subnet is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(subnet.OrganizationId);
+        var check = await CheckWriteAccessAsync(subnet.OrganizationId, resourceId: subnet.Id);
         if (check is not null) return check;
 
         var entry = await Db.IPEntries.FirstOrDefaultAsync(ip => ip.Id == entryId && ip.SubnetId == subnetId);

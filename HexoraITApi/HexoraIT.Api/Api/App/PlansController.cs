@@ -55,7 +55,7 @@ public class PlansController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var plan = await Db.Plans.FirstOrDefaultAsync(p => p.Id == id);
         if (plan is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(plan.OrganizationId);
+        var check = await CheckWriteAccessAsync(plan.OrganizationId, resourceId: plan.Id);
         if (check is not null) return check;
 
         mapper.Map(dto, plan);
@@ -69,7 +69,7 @@ public class PlansController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var plan = await Db.Plans.FirstOrDefaultAsync(p => p.Id == id);
         if (plan is null) return NotFound();
 
-        var check = await CheckWriteAccessAsync(plan.OrganizationId);
+        var check = await CheckWriteAccessAsync(plan.OrganizationId, resourceId: plan.Id);
         if (check is not null) return check;
 
         Db.Plans.Remove(plan);

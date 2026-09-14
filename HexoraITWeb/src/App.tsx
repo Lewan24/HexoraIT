@@ -23,12 +23,14 @@ import ToastContainer from './components/ui/Toast'
 import { useAuth } from './context/useAuth'
 import AdminPanel from './components/AdminPanel'
 import FileExplorer from './components/FileExplorer'
+import PermissionGate from './components/PermissionGate'
+import PrivateNotes from './components/PrivateNotes'
 
 export type View =
   | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
   | 'networks' | 'licenses' | 'contacts' | 'contracts'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
-  | 'groups' | 'warranty' | 'diagram' | 'adminpanel'
+  | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes'
 
 function AuthenticatedApp() {
   const { logout } = useAuth()
@@ -46,6 +48,7 @@ function AuthenticatedApp() {
       case 'assets':       return <AssetInventory navigate={navigate} />
       case 'asset-detail': return <AssetDetails assetId={selectedAssetId} navigate={navigate} />
       case 'passwords':    return <PasswordVault />
+      case 'private-notes': return <PrivateNotes />
       case 'files': return <FileExplorer />
       case 'networks':     return <Networks />
       case 'licenses':     return <Licenses />
@@ -67,7 +70,7 @@ function AuthenticatedApp() {
   return (
     <AppProvider>
       <Layout currentView={view} navigate={navigate} onLogout={logout}>
-        {content}
+        <PermissionGate view={view}>{content}</PermissionGate>
       </Layout>
       <ToastContainer/>
     </AppProvider>

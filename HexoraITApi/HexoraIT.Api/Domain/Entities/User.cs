@@ -28,4 +28,6 @@ public class UserOrganization
     public Organization Organization { get; set; } = null!;
 
     public OrgRole Role { get; set; } = OrgRole.Member;
+    public Guid? CustomRoleId { get; set; }
+    public OrganizationRole? CustomRole { get; set; }
 }
