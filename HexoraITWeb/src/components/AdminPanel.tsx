@@ -150,10 +150,11 @@ export default function AdminPanel() {
                                     <p className="text-xs font-medium text-ink-primary truncate">{u.displayName}{isSelf ? tr(" (you)") : ''}</p>
                                     <p className="text-[10px] text-ink-muted truncate">{u.email}</p>
                                 </div>
-                                <select value={u.systemRole} disabled={isSelf || busy}
+                                <select value={u.systemRole} disabled={isSelf || busy || u.systemRole === 'Client'}
                                     onChange={e => changeRole(u, e.target.value as SystemRole)}
                                     className="px-2 py-1 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-[11px] disabled:opacity-50">
-                                    <option value="User">{tr("User")}</option>
+                                    {u.systemRole === 'Client' && <option value={"Client"}>{tr('Client')}</option>}
+                                      <option value="User">{tr("User")}</option>
                                     <option value="Admin">{tr("Admin")}</option>
                                 </select>
                                 {u.isBlocked && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30 flex-shrink-0">{tr("Blocked")}</span>}

@@ -805,13 +805,15 @@ function AboutSection() {
 
 export default function Settings({ navigate }: { navigate: (v: View) => void }) {
   useLocale()
+  const { user } = useAuth()
+  const isClient = user?.systemRole === 'Client'
   const [active, setActive] = useState<Section>('profile')
   const [mobileSection, setMobileSection] = useState(false)
 
   const activeSection = SECTIONS.find(s => s.id === active)!
 
   const content = () => {
-    switch (active) {
+    switch (isClient && ['roles', 'organizations'].includes(active) ? 'profile' : active) {
       case 'profile':       return <ProfileSection />
       case 'roles':         return <OrganizationRoles />
       case 'organizations': return <OrganizationsSection navigate={navigate} />
@@ -832,7 +834,7 @@ export default function Settings({ navigate }: { navigate: (v: View) => void }) 
       <div className="flex flex-col md:flex-row gap-4">
         <div className={`md:w-52 flex-shrink-0 ${mobileSection ? 'hidden' : ''} md:block`}>
           <div className="bg-navy-800 border border-edge-subtle rounded-xl overflow-hidden">
-            {SECTIONS.map(s => (
+            {SECTIONS.filter(s => !isClient || !['roles', 'organizations'].includes(s.id)).map(s => (
               <button key={s.id}
                 onClick={() => { setActive(s.id); setMobileSection(true) }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm border-b border-edge-subtle last:border-0 transition-colors text-left group

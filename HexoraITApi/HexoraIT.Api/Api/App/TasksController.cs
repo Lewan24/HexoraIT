@@ -49,6 +49,8 @@ public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContex
         var task = mapper.Map<WorkTask>(dto);
         task.OrganizationId = organizationId;
         task.CreatedAt = DateTime.UtcNow;
+        task.CreatedByUserId = userContext.UserId;
+        task.CreatedByName = await Db.Users.Where(u => u.Id == userContext.UserId).Select(u => u.DisplayName).SingleAsync();
         Db.Tasks.Add(task);
         await Db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = task.Id }, mapper.Map<WorkTaskDto>(task));

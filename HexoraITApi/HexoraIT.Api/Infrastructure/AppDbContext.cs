@@ -52,6 +52,7 @@ public interface ICurrentOrgAccessor
 public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserIdProvider currentUser) : DbContext(options)
 {
     private Guid? CurrentUserId => currentUser.UserId;
+    public DbSet<ClientPermission> ClientPermissions => Set<ClientPermission>();
     public DbSet<PrivateNote> PrivateNotes => Set<PrivateNote>();
     public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
     public DbSet<User> Users => Set<User>();
@@ -82,6 +83,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<ClientPermission>(e =>
+        {
+            e.Property(p => p.Resource).HasMaxLength(40);
+            e.HasIndex(p => new { p.UserId, p.OrganizationId, p.Resource, p.ResourceId }).IsUnique();
+            e.HasOne<UserOrganization>().WithMany().HasForeignKey(p => new { p.UserId, p.OrganizationId });
+        });
 
         b.Entity<PrivateNote>(e =>
         {
@@ -325,13 +332,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
                 .Any(uo =>
                     uo.UserId == CurrentUserId &&
                     uo.OrganizationId == e.OrganizationId &&
-                    (uo.CustomRoleId == null ||
+                    (uo.User.SystemRole == SystemRole.Client
+                     ? (Set<ClientPermission>().Any(p => p.UserId == uo.UserId && p.OrganizationId == e.OrganizationId && p.Resource == resource && p.ResourceId == e.Id && p.CanRead) ||
+                        (Set<ClientPermission>().Any(p => p.UserId == uo.UserId && p.OrganizationId == e.OrganizationId && p.Resource == resource && p.ResourceId == Guid.Empty && p.CanRead) &&
+                         !Set<ClientPermission>().Any(p => p.UserId == uo.UserId && p.OrganizationId == e.OrganizationId && p.Resource == resource && p.ResourceId == e.Id)))
+                     : (uo.CustomRoleId == null ||
                      (Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
                          p.Resource == resource && p.ResourceId == e.Id && p.CanRead) ||
                       (Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
                          p.Resource == resource && p.ResourceId == Guid.Empty && p.CanRead) &&
                       !Set<RolePermission>().Any(p => p.RoleId == uo.CustomRoleId &&
-                         p.Resource == resource && p.ResourceId == e.Id))))) &&
+                         p.Resource == resource && p.ResourceId == e.Id)))))) &&
             Set<Organization>()
                 .Any(o => o.Id == e.OrganizationId);
 

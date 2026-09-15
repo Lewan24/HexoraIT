@@ -23,14 +23,14 @@ public class PrivateNotesController(AppDbContext db, ICurrentUserContext userCon
     [HttpGet]
     public async Task<IActionResult> GetAll(Guid organizationId)
     {
-        if (!await userContext.HasAccessAsync(organizationId)) return Forbid();
+        if (!await userContext.HasAccessAsync(organizationId) || await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         return Ok(await OwnedNotes(organizationId).AsNoTracking().OrderByDescending(n => n.UpdatedAt).ToListAsync());
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(Guid organizationId, SavePrivateNoteDto dto)
     {
-        if (!await userContext.HasAccessAsync(organizationId)) return Forbid();
+        if (!await userContext.HasAccessAsync(organizationId) || await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         if (string.IsNullOrWhiteSpace(dto.Title)) return BadRequest("Title is required.");
         var note = new PrivateNote
         {
@@ -47,7 +47,7 @@ public class PrivateNotesController(AppDbContext db, ICurrentUserContext userCon
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid organizationId, Guid id, SavePrivateNoteDto dto)
     {
-        if (!await userContext.HasAccessAsync(organizationId)) return Forbid();
+        if (!await userContext.HasAccessAsync(organizationId) || await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         var note = await OwnedNotes(organizationId).SingleOrDefaultAsync(n => n.Id == id);
         if (note is null) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.Title)) return BadRequest("Title is required.");
@@ -61,7 +61,7 @@ public class PrivateNotesController(AppDbContext db, ICurrentUserContext userCon
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid organizationId, Guid id)
     {
-        if (!await userContext.HasAccessAsync(organizationId)) return Forbid();
+        if (!await userContext.HasAccessAsync(organizationId) || await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         var note = await OwnedNotes(organizationId).SingleOrDefaultAsync(n => n.Id == id);
         if (note is null) return NotFound();
         db.PrivateNotes.Remove(note);

@@ -1,4 +1,4 @@
-﻿using HexoraITApi.Domain.Entities;
+using HexoraITApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace HexoraITApi.Infrastructure;
@@ -20,9 +20,20 @@ public class DbCurrentUserContext(AppDbContext db, ICurrentUserIdProvider idProv
     {
         var membership = await db.UserOrganizations.AsNoTracking()
             .Where(m => m.UserId == UserId && m.OrganizationId == organizationId && !m.Organization.IsDeleted)
-            .Select(m => new { m.Role, m.CustomRoleId })
+            .Select(m => new { m.Role, m.CustomRoleId, m.User.SystemRole })
             .FirstOrDefaultAsync();
         if (membership is null || !OrganizationResources.All.Contains(resource)) return false;
+        if (membership.SystemRole == SystemRole.Client)
+        {
+            if (resource is "dashboard" or "settings") return false;
+            if (resource == "tasks" && write) return false;
+            var permissions = await db.ClientPermissions.AsNoTracking()
+                .Where(p => p.UserId == UserId && p.OrganizationId == organizationId && p.Resource == resource).ToListAsync();
+            if (resourceId is null && !write) return permissions.Any(p => p.CanRead);
+            var rule = permissions.FirstOrDefault(p => resourceId != null && p.ResourceId == resourceId)
+                ?? permissions.FirstOrDefault(p => p.ResourceId == Guid.Empty);
+            return rule is not null && rule.CanRead && (!write || rule.CanWrite);
+        }
         if (membership.CustomRoleId is null)
             return !write || membership.Role >= OrgRole.Member;
 
@@ -45,7 +56,7 @@ public class DbCurrentUserContext(AppDbContext db, ICurrentUserIdProvider idProv
     public async Task<OrgRole?> GetRoleAsync(Guid organizationId) =>
         await db.UserOrganizations.AsNoTracking()
             .Where(uo => uo.UserId == UserId && uo.OrganizationId == organizationId)
-            .Select(uo => (OrgRole?)(uo.CustomRoleId == null ? uo.Role : OrgRole.ReadOnly))
+            .Select(uo => (OrgRole?)(uo.User.SystemRole != SystemRole.Client && uo.CustomRoleId == null ? uo.Role : OrgRole.ReadOnly))
             .FirstOrDefaultAsync();
 
     public async Task<List<Guid>> GetAccessibleOrganizationIdsAsync() =>

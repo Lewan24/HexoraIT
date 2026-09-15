@@ -47,6 +47,7 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
     [HttpPost]
     public async Task<ActionResult<OrganizationDto>> Create(CreateOrganizationDto dto)
     {
+        if (await Db.Users.AnyAsync(u => u.Id == _userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         var org = mapper.Map<Organization>(dto);
         Db.Organizations.Add(org);
         Db.UserOrganizations.Add(new UserOrganization { UserId = _userContext.UserId, OrganizationId = org.Id, Role = OrgRole.Owner });
@@ -78,7 +79,7 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
         var members = await Db.UserOrganizations
             .Where(uo => uo.OrganizationId == id)
             .Select(uo => new OrgMemberDto(uo.UserId, uo.User.Email, uo.User.DisplayName, uo.Role,
-                uo.CustomRoleId, uo.CustomRole == null ? null : uo.CustomRole.Name))
+                uo.CustomRoleId, uo.CustomRole == null ? null : uo.CustomRole.Name, uo.User.SystemRole))
             .ToListAsync();
         return Ok(members);
     }
@@ -105,6 +106,8 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
         var user = await Db.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user is null)
             return NotFound("No registered user with that email address was found.");
+        if (user.SystemRole == SystemRole.Client)
+            return BadRequest("Clients are assigned through client management and cannot join another organization.");
 
         var alreadyMember = await Db.UserOrganizations.AnyAsync(uo => uo.OrganizationId == id && uo.UserId == user.Id);
         if (alreadyMember)
@@ -122,6 +125,7 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
     [HttpDelete("{id:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMember(Guid id, Guid userId)
     {
+        if (await Db.Users.AnyAsync(u => u.Id == _userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
         var isSelf = userId == _userContext.UserId;
         var check = isSelf
             ? await CheckReadAccessAsync(id)
