@@ -1,0 +1,20 @@
+.guide-hero { background: linear-gradient(120deg, rgb(59 130 246 / 12%), transparent 75%); }
+.user-guide :is(button, a, input):focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 3px; }
+.guide-prose { color: var(--color-ink-secondary); font-size: 0.9375rem; line-height: 1.85; overflow-wrap: anywhere; }
+.guide-prose > * + * { margin-top: 1rem; }
+.guide-prose strong { color: var(--color-ink-primary); font-weight: 600; }
+.guide-prose :is(ol, ul) { padding-left: 1.6rem; }
+.guide-prose ol { list-style: decimal; }
+.guide-prose ul { list-style: disc; }
+.guide-prose li { padding-left: .35rem; margin: .65rem 0; }
+.guide-prose li::marker { color: var(--color-ink-muted); font-weight: 600; }
+.guide-prose code { background: var(--color-navy-800); color: var(--color-ink-primary); border-radius: .3rem; padding: .15rem .35rem; font-size: .85em; }
+.guide-prose pre { white-space: pre-wrap; background: var(--color-navy-950); border: 1px solid var(--color-edge-default); padding: 1rem; border-radius: .75rem; }
+.guide-prose pre code { background: transparent; padding: 0; }
+.guide-callout { border-left: 3px solid var(--color-blue-500); background: rgb(59 130 246 / 6%); padding: .8rem 1rem; border-radius: 0 .5rem .5rem 0; }
+.guide-table { overflow-x: auto; border: 1px solid var(--color-edge-default); border-radius: .75rem; }
+.guide-table table { border-collapse: collapse; width: 100%; min-width: 420px; text-align: left; font-size: .875rem; }
+.guide-table :is(th, td) { padding: .85rem 1rem; vertical-align: top; }
+.guide-table th { background: var(--color-navy-800); color: var(--color-ink-primary); font-weight: 600; }
+.guide-table td { border-top: 1px solid var(--color-edge-subtle); }
+.guide-table tbody tr:nth-child(even) { background: rgb(128 128 128 / 4%); }

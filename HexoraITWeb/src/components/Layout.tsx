@@ -6,7 +6,7 @@ import {
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
   ShieldCheck, Layers, Share2, Sun, Moon,
-  FolderOpen,
+  FolderOpen, BookOpenText,
 } from 'lucide-react'
 import type { View } from '../App'
 import { useApp } from '../context/useApp'
@@ -171,6 +171,7 @@ function Sidebar({
           {/* {(!collapsed || isMobile) && <span className="ml-2.5 font-semibold text-ink-primary text-sm">HexoraIT</span>} */}
         </div>
         <button className="p-4 text-ink-secondary" onClick={() => handleNav('settings')}>{tr('Settings')}</button>
+        <button className="p-4 text-ink-secondary" onClick={() => handleNav('help')}>{tr('User guide')}</button>
         <button className="p-4 text-ink-secondary" onClick={onLogout}>{tr('Sign out')}</button>
       </div>
     )
@@ -285,6 +286,15 @@ function Sidebar({
           {(!collapsed || isMobile) && <span>{tr("Admin Panel")}</span>}
         </button>)}
       </nav>
+
+      <div className="border-t border-edge-subtle p-2 flex-shrink-0">
+        <button onClick={() => handleNav('help')} title={tr('User guide')} aria-label={tr('User guide')}
+          aria-current={currentView === 'help' ? 'page' : undefined}
+          className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-sm transition-colors ${collapsed && !isMobile ? 'justify-center' : ''} ${currentView === 'help' ? 'bg-blue-500/10 text-ink-primary' : 'text-ink-secondary hover:bg-navy-700 hover:text-ink-primary'}`}>
+          <BookOpenText size={18} className="flex-shrink-0" />
+          {(!collapsed || isMobile) && <span>{tr('User guide')}</span>}
+        </button>
+      </div>
 
       {/* User footer */}
       {(!collapsed || isMobile) && (

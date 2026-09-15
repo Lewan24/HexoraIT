@@ -10,6 +10,8 @@ export default function PermissionGate({ view, children }: { view: View; childre
   const { user } = useAuth()
   const isClient = user?.systemRole === 'Client'
   const { access, accessError, canRead, canWrite, currentOrg, isLoading } = useApp()
+  // Static application help is available independently of organization access.
+  if (view === 'help') return children
   if (view === 'settings' && isClient) return children
   if (view === 'adminpanel' && user?.systemRole === 'Admin' || (!currentOrg && view === 'settings')) return children
   if (isClient && ['dashboard', 'private-notes', 'adminpanel'].includes(view)) return <p className="p-6">{tr('Access forbidden')}</p>

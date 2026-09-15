@@ -27,12 +27,13 @@ import FileExplorer from './components/FileExplorer'
 import PermissionGate from './components/PermissionGate'
 import PrivateNotes from './components/PrivateNotes'
 import ClientReports from './components/ClientReports'
+import UserGuide from './components/UserGuide'
 
 export type View =
   | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
   | 'networks' | 'licenses' | 'contacts' | 'contracts'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
-  | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes' | 'reports'
+  | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes' | 'reports' | 'help'
 
 function AuthenticatedApp() {
   useLocale()
@@ -47,6 +48,7 @@ function AuthenticatedApp() {
 
   const content = (() => {
     switch (view) {
+      case 'help': return <UserGuide />
       case 'reports': return <ClientReports />
       case 'dashboard':    return <Dashboard navigate={navigate} />
       case 'assets':       return <AssetInventory navigate={navigate} />
