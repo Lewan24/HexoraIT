@@ -6,7 +6,7 @@ import {
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
   ShieldCheck, Layers, Share2, Sun, Moon,
-  FolderOpen,
+  FolderOpen, BookOpenText,
 } from 'lucide-react'
 import type { View } from '../App'
 import { useApp } from '../context/useApp'
@@ -151,7 +151,7 @@ function Sidebar({
   onClose?: () => void
 }) {
   useLocale()
-  const { orgs, currentOrg, switchOrg, licenses, addOrg, toast } = useApp()
+  const { orgs, currentOrg, switchOrg, licenses, addOrg, toast, canRead } = useApp()
   const { user } = useAuth()
   const [orgOpen, setOrgOpen] = useState(false)
   const [orgModalOpen, setOrgModalOpen] = useState(false)
@@ -170,6 +170,9 @@ function Sidebar({
           <img src={logo} />
           {/* {(!collapsed || isMobile) && <span className="ml-2.5 font-semibold text-ink-primary text-sm">HexoraIT</span>} */}
         </div>
+        <button className="p-4 text-ink-secondary" onClick={() => handleNav('settings')}>{tr('Settings')}</button>
+        <button className="p-4 text-ink-secondary" onClick={() => handleNav('help')}>{tr('User guide')}</button>
+        <button className="p-4 text-ink-secondary" onClick={onLogout}>{tr('Sign out')}</button>
       </div>
     )
   }
@@ -187,7 +190,7 @@ function Sidebar({
       {(getTheme() === 'dark') && (
         (!collapsed || isMobile) && (
         <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logo} width='75%' onClick={() => handleNav('dashboard')} />
+          <img src={logo} width='75%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
         </div>
         )
       )}
@@ -195,14 +198,14 @@ function Sidebar({
       {(getTheme() === 'light') && (
         (!collapsed || isMobile) && (
         <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logoWhite} width='75%' onClick={() => handleNav('dashboard')} />
+          <img src={logoWhite} width='75%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
         </div>
         )
       )}
 
       {(collapsed) && (
         <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logoHex} width='65%' onClick={() => handleNav('dashboard')} />
+          <img src={logoHex} width='65%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
         </div>
       )}
 
@@ -234,7 +237,8 @@ function Sidebar({
 
       {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-        {NAV_SECTIONS.map((section, si) => (
+        {user?.systemRole === 'Client' && <button className={"w-full px-4 py-3 text-left text-blue-300"} onClick={() => handleNav('reports')}>{tr('Report a problem')}</button>}
+        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => user?.systemRole !== 'Client' || canRead(item.id)) })).filter(section => section.items.length > 0).map((section, si) => (
           <div key={section.label}>
             {si > 0 && <div className="mx-3 my-1.5 border-t border-edge-subtle" />}
             {(!collapsed || isMobile) && (
@@ -282,6 +286,15 @@ function Sidebar({
           {(!collapsed || isMobile) && <span>{tr("Admin Panel")}</span>}
         </button>)}
       </nav>
+
+      <div className="border-t border-edge-subtle p-2 flex-shrink-0">
+        <button onClick={() => handleNav('help')} title={tr('User guide')} aria-label={tr('User guide')}
+          aria-current={currentView === 'help' ? 'page' : undefined}
+          className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-sm transition-colors ${collapsed && !isMobile ? 'justify-center' : ''} ${currentView === 'help' ? 'bg-blue-500/10 text-ink-primary' : 'text-ink-secondary hover:bg-navy-700 hover:text-ink-primary'}`}>
+          <BookOpenText size={18} className="flex-shrink-0" />
+          {(!collapsed || isMobile) && <span>{tr('User guide')}</span>}
+        </button>
+      </div>
 
       {/* User footer */}
       {(!collapsed || isMobile) && (
@@ -333,7 +346,7 @@ function Sidebar({
                 onClick={() => {
                   switchOrg(org.id)
                   setOrgOpen(false)
-                  navigate('dashboard')
+                  navigate(user?.systemRole === 'Client' ? 'reports' : 'dashboard')
                   toast(tr("Switched to {{value1}}", { value1: org.name }), 'info')
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-navy-700 transition-colors text-left">
@@ -347,7 +360,7 @@ function Sidebar({
               </button>
             ))}
             <div className="border-t border-edge-subtle">
-              <button onClick={() => { setOrgOpen(false); setOrgModalOpen(true) }}
+              <button hidden={user?.systemRole === 'Client'} onClick={() => { setOrgOpen(false); setOrgModalOpen(true) }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors">
                 <Plus size={12} />  {tr("New Organization")} </button>
             </div>
@@ -355,7 +368,7 @@ function Sidebar({
         </>
       )}
 
-      {orgModalOpen && <OrgModal onClose={() => setOrgModalOpen(false)} onAdd={addOrg} />}
+      {orgModalOpen && user?.systemRole !== 'Client' && <OrgModal onClose={() => setOrgModalOpen(false)} onAdd={addOrg} />}
     </div>
   )
 }

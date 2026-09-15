@@ -3,7 +3,7 @@ import { config } from "../../config"
 const BASE_URL = config.apiBaseUrl
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public details?: unknown) {
     super(message)
   }
 }
@@ -41,13 +41,15 @@ async function request<T>(path: string, options: RequestInit = {}, getString: bo
       throw new ApiError(403, 'Access forbidden. Your organization role does not allow this action.')
     }
     let message = res.statusText
+    let details: unknown
     try {
       const body = await res.json()
+      details = body
       message = body.title ?? body.message ?? (typeof body === 'string' ? body : message)
     } catch {
       /* no JSON body */
     }
-    throw new ApiError(res.status, message)
+    throw new ApiError(res.status, message, details)
   }
 
   if (res.status === 204) 

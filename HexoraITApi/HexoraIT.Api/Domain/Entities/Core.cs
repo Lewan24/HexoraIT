@@ -141,6 +141,8 @@ public class KnowledgeArticle : BaseEntity
 
 public class WorkTask : BaseEntity
 {
+    public Guid? CreatedByUserId { get; set; }
+    public string? CreatedByName { get; set; }
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public Priority Priority { get; set; }

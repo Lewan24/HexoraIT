@@ -1,6 +1,6 @@
 namespace HexoraITApi.Domain.Entities;
 
-public enum SystemRole { User, Admin }
+public enum SystemRole { User, Admin, Client }
 
 public class User
 {

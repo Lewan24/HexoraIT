@@ -1,4 +1,6 @@
 using HexoraITApi.Api.Auth;
+using HexoraITApi.Application;
+using System.ComponentModel.DataAnnotations;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -6,6 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HexoraITApi.Api.App;
+
+public record CreateClientDto([Required, EmailAddress, StringLength(256)] string Email,
+    [Required, StringLength(200)] string DisplayName, [Required, StringLength(200, MinimumLength = 8)] string Password);
+public record CopyRoleDto([Required] List<Guid> OrganizationIds, bool Overwrite = false);
 
 [ApiController]
 [Route("api/organizations/{organizationId:guid}")]
@@ -21,6 +27,12 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
         var member = await Db.UserOrganizations.AsNoTracking()
             .Include(m => m.CustomRole).ThenInclude(r => r!.Permissions)
             .SingleAsync(m => m.OrganizationId == organizationId && m.UserId == userContext.UserId);
+        if (await Db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client))
+        {
+            var individual = await Db.ClientPermissions.Where(p => p.UserId == userContext.UserId && p.OrganizationId == organizationId)
+                .Select(p => new PermissionDto(p.Resource, p.ResourceId, p.CanRead, p.CanWrite)).ToListAsync();
+            return Ok(new OrganizationAccessDto("Client", false, individual));
+        }
         var permissions = member.CustomRoleId is null
             ? OrganizationResources.All.Select(r => new PermissionDto(r, Guid.Empty, true, member.Role >= OrgRole.Member)).ToList()
             : member.CustomRole!.Permissions.Select(ToDto).ToList();
@@ -103,6 +115,8 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
         if (check is not null) return check;
         var member = await Db.UserOrganizations.FirstOrDefaultAsync(m => m.OrganizationId == organizationId && m.UserId == userId);
         if (member is null) return NotFound();
+        if (await Db.Users.AnyAsync(u => u.Id == userId && u.SystemRole == SystemRole.Client))
+            return BadRequest("Configure individual client permissions instead of assigning a role.");
         if (!Enum.IsDefined(dto.Role) || dto.Role == OrgRole.Owner || member.Role == OrgRole.Owner)
             return BadRequest("The organization owner cannot be changed through role assignment.");
         var actingRole = await userContext.GetRoleAsync(organizationId);
@@ -124,6 +138,96 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
         return Ok(await ResourceOptionsAsync(organizationId, resource));
+    }
+
+    [HttpPost("clients")]
+    public async Task<IActionResult> CreateClient(Guid organizationId, CreateClientDto dto, [FromServices] IPasswordHasher hasher)
+    {
+        var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
+        if (check is not null) return check;
+        var email = dto.Email.Trim().ToLowerInvariant();
+        if (await Db.Users.AnyAsync(u => u.Email.ToLower() == email)) return Conflict("An account with this email already exists.");
+        var (hash, salt) = hasher.Hash(dto.Password);
+        var client = new User { Email = email, DisplayName = dto.DisplayName.Trim(), PasswordHash = hash,
+            PasswordSalt = salt, SystemRole = SystemRole.Client };
+        Db.Users.Add(client);
+        Db.UserOrganizations.Add(new UserOrganization { UserId = client.Id, OrganizationId = organizationId, Role = OrgRole.ReadOnly });
+        await Db.SaveChangesAsync();
+        return Ok(new { client.Id, client.Email, client.DisplayName });
+    }
+
+    [HttpGet("clients")]
+    public async Task<IActionResult> Clients(Guid organizationId)
+    {
+        var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
+        if (check is not null) return check;
+        return Ok(await Db.UserOrganizations.Where(m => m.OrganizationId == organizationId && m.User.SystemRole == SystemRole.Client)
+            .Select(m => new { m.User.Id, m.User.Email, m.User.DisplayName }).ToListAsync());
+    }
+
+    [HttpGet("clients/{clientId:guid}/permissions")]
+    public async Task<IActionResult> ClientPermissions(Guid organizationId, Guid clientId)
+    {
+        var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
+        if (check is not null) return check;
+        if (!await Db.UserOrganizations.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == clientId && m.User.SystemRole == SystemRole.Client)) return NotFound();
+        return Ok(await Db.ClientPermissions.Where(p => p.OrganizationId == organizationId && p.UserId == clientId)
+            .Select(p => new PermissionDto(p.Resource, p.ResourceId, p.CanRead, p.CanWrite)).ToListAsync());
+    }
+
+    [HttpPut("clients/{clientId:guid}/permissions")]
+    public async Task<IActionResult> SaveClientPermissions(Guid organizationId, Guid clientId, SaveOrganizationRoleDto dto)
+    {
+        var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
+        if (check is not null) return check;
+        if (!await Db.UserOrganizations.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == clientId && m.User.SystemRole == SystemRole.Client)) return NotFound();
+        var error = await ValidateAsync(organizationId, dto, client: true);
+        if (error is not null) return BadRequest(error);
+        if (dto.Permissions.Any(p => p.Resource is "dashboard" or "settings" || (p.Resource == "tasks" && p.CanWrite)))
+            return BadRequest("Clients cannot access dashboard or organization settings, or manage tasks.");
+        var existing = await Db.ClientPermissions.Where(p => p.OrganizationId == organizationId && p.UserId == clientId).ToListAsync();
+        Db.ClientPermissions.RemoveRange(existing.Where(p => !dto.Permissions.Any(d => d.Resource == p.Resource && d.ResourceId == p.ResourceId)));
+        foreach (var p in dto.Permissions)
+        {
+            var rule = existing.FirstOrDefault(e => e.Resource == p.Resource && e.ResourceId == p.ResourceId);
+            if (rule is null) { rule = new ClientPermission { UserId = clientId, OrganizationId = organizationId, Resource = p.Resource, ResourceId = p.ResourceId }; Db.ClientPermissions.Add(rule); }
+            rule.CanRead = p.CanRead; rule.CanWrite = p.CanWrite;
+        }
+        await Db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("roles/{roleId:guid}/copy")]
+    public async Task<IActionResult> Copy(Guid organizationId, Guid roleId, CopyRoleDto dto)
+    {
+        var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
+        if (check is not null) return check;
+        var source = await Db.OrganizationRoles.AsNoTracking().Include(r => r.Permissions)
+            .FirstOrDefaultAsync(r => r.Id == roleId && r.OrganizationId == organizationId);
+        if (source is null) return NotFound();
+        var targets = dto.OrganizationIds.Distinct().ToList();
+        if (targets.Count == 0 || targets.Count > 100 || targets.Contains(organizationId)) return BadRequest("Choose 1–100 other organizations.");
+        foreach (var id in targets)
+            if (!await userContext.HasAccessAsync(id) || await userContext.GetRoleAsync(id) is not (OrgRole.Admin or OrgRole.Owner)) return Forbid();
+        var existing = await Db.OrganizationRoles.Include(r => r.Permissions)
+            .Where(r => targets.Contains(r.OrganizationId) && r.Name.ToLower() == source.Name.ToLower()).ToListAsync();
+        if (!dto.Overwrite && existing.Count > 0)
+            return Conflict(new { message = "Confirm overwriting existing roles.", organizationIds = existing.Select(r => r.OrganizationId) });
+        foreach (var id in targets)
+        {
+            var role = existing.FirstOrDefault(r => r.OrganizationId == id);
+            if (role is null) { role = new OrganizationRole { OrganizationId = id, Name = source.Name }; Db.OrganizationRoles.Add(role); }
+            var defaults = source.Permissions.Where(p => p.ResourceId == Guid.Empty).ToList();
+            Db.RolePermissions.RemoveRange(role.Permissions.Where(p => p.ResourceId == Guid.Empty && !defaults.Any(d => d.Resource == p.Resource)));
+            foreach (var p in defaults)
+            {
+                var rule = role.Permissions.FirstOrDefault(e => e.ResourceId == Guid.Empty && e.Resource == p.Resource);
+                if (rule is null) Db.RolePermissions.Add(ToEntity(ToDto(p), role.Id));
+                else { rule.CanRead = p.CanRead; rule.CanWrite = p.CanWrite; }
+            }
+        }
+        await Db.SaveChangesAsync();
+        return NoContent();
     }
 
     private async Task<List<ResourceOptionDto>> ResourceOptionsAsync(Guid organizationId, string resource) =>
@@ -160,7 +264,7 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
             _ => []
         };
 
-    private async Task<string?> ValidateAsync(Guid organizationId, SaveOrganizationRoleDto dto, Guid? roleId = null)
+    private async Task<string?> ValidateAsync(Guid organizationId, SaveOrganizationRoleDto dto, Guid? roleId = null, bool client = false)
     {
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100)
             return "Role name must contain between 1 and 100 characters.";
@@ -172,7 +276,7 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
             return "Duplicate permission rules are not allowed.";
         if (dto.Permissions.Any(p => p.ResourceId != Guid.Empty && p.Resource is "dashboard" or "diagram" or "settings"))
             return "This resource supports module permissions only.";
-        if (await Db.OrganizationRoles.AnyAsync(r => r.OrganizationId == organizationId && r.Id != roleId && r.Name.ToLower() == dto.Name.Trim().ToLower()))
+        if (!client && await Db.OrganizationRoles.AnyAsync(r => r.OrganizationId == organizationId && r.Id != roleId && r.Name.ToLower() == dto.Name.Trim().ToLower()))
             return "A role with this name already exists.";
         foreach (var group in dto.Permissions.Where(p => p.ResourceId != Guid.Empty).GroupBy(p => p.Resource))
         {

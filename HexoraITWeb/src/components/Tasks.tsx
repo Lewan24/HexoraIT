@@ -28,7 +28,7 @@ const PROJECT_COLORS = ['#2563eb', '#7c3aed', '#059669', '#dc2626', '#d97706', '
 const NO_PROJECT = '__none__'
 
 function isOverdue(dueDate: string) {
-  if (!dueDate) return false
+  if (!dueDate || dueDate === '0001-01-01') return false
   return new Date(dueDate) < new Date()
 }
 
@@ -307,6 +307,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
   onMove: (dir: 'prev' | 'next') => void
   onPreview: () => void
 }) {
+  const { canWrite } = useApp()
   useLocale()
   const pc = PRIORITY_CONFIG[task.priority]
   const overdue = isOverdue(task.dueDate)
@@ -320,12 +321,13 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
             <Eye size={14} className='text-green-500'/>
         </button>
 
-        <button onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700 cursor-pointer">
+        <button hidden={!canWrite('tasks', task.id)} onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700 cursor-pointer">
             <Edit2 size={12} className='text-orange-500'/>
         </button>
       </div>
 
       <div className='cursor-pointer' onClick={onPreview}>
+        <p className="mb-2 text-[10px] text-ink-muted">{tr('Created by')}: {task.createdByName || tr('Unknown author')} · {new Date(task.createdAt).toLocaleString()}</p>
         {task.description.trim() && (
           <div className="space-y-0.5 mb-2">{renderMarkdownCompact(task.description)}</div>
         )}
@@ -342,7 +344,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
         </div>
         {(task.dueDate || task.tags.length > 0) && (
           <div className="flex items-center gap-2 flex-wrap">
-            {task.dueDate && (
+            {task.dueDate && task.dueDate !== '0001-01-01' && (
               <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${overdue && task.status !== 'done' ? 'text-red-400' : 'text-ink-muted'}`}>
                 <Calendar size={9} /> {task.dueDate}
                 {overdue && task.status !== 'done' && <span className="text-[9px]">{tr("· overdue")}</span>}
@@ -358,14 +360,14 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
       <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-edge-subtle">
         <button
           onClick={() => onMove('prev')}
-          disabled={statusIdx === 0}
+          disabled={!canWrite('tasks', task.id) || statusIdx === 0}
           className="cursor-pointer bg-transparent border border-cyan-600 flex hover:scale-[1.1] hover:border-cyan-300 items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
           <ChevronLeft size={10} /> {statusIdx > 0 ? tr(STATUS_CONFIG[STATUSES[statusIdx - 1]!].label) : ''}
         </button>
         <div className="flex-1" />
         <button
           onClick={() => onMove('next')}
-          disabled={statusIdx === STATUSES.length - 1}
+          disabled={!canWrite('tasks', task.id) || statusIdx === STATUSES.length - 1}
           className="cursor-pointer bg-transparent border border-cyan-600 hover:scale-[1.1] hover:border-cyan-300 flex items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
           {statusIdx < STATUSES.length - 1 ? tr(STATUS_CONFIG[STATUSES[statusIdx + 1]!].label) : ''} <ChevronRight size={10} />
         </button>
@@ -385,6 +387,7 @@ function TaskPreviewModal({
     onClose: () => void
     onEdit: () => void
 }) {
+  const { canWrite } = useApp()
   useLocale()
     const pc = PRIORITY_CONFIG[task.priority]
     const overdue = isOverdue(task.dueDate)
@@ -400,6 +403,7 @@ function TaskPreviewModal({
                         <h2 className="text-xl font-semibold text-ink-primary break-words">
                             {task.title}
                         </h2>
+                        <p className="mt-2 text-xs text-ink-muted">{tr('Created by')}: {task.createdByName || tr('Unknown author')} · {new Date(task.createdAt).toLocaleString()}</p>
 
                         <div className="mt-3 flex flex-wrap gap-2">
                             <span className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${pc.cls}`}>
@@ -431,7 +435,7 @@ function TaskPreviewModal({
                         </div>
                     )}
 
-                    {task.dueDate && (
+                    {task.dueDate && task.dueDate !== '0001-01-01' && (
                         <div
                             className={`flex items-center gap-2 ${
                                 overdue && task.status !== "done"
@@ -469,7 +473,7 @@ function TaskPreviewModal({
                     <button onClick={onClose} className="rounded-lg border border-edge-default bg-navy-700 px-4 py-2 text-xs text-ink-secondary transition hover:bg-navy-600">
                          {tr("Close")} </button>
 
-                    <button onClick={onEdit} className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-400">
+                    <button hidden={!canWrite('tasks', task.id)} onClick={onEdit} className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-400">
                         <Edit2 size={13} />
                          {tr("Edit Task")} </button>
                 </div>
@@ -486,6 +490,7 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
   onNew: () => void
   onEdit: (p: Project) => void
 }) {
+  const { canWrite } = useApp()
   useLocale()
   const [open, setOpen] = useState(false)
   const active = projects.find(p => p.id === activeId)
@@ -521,11 +526,11 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
                   <span className="text-[10px] text-ink-muted flex-shrink-0">{p.taskCount}</span>
                   {activeId === p.id && <Check size={11} className="ml-auto flex-shrink-0" />}
                 </button>
-                <button onClick={() => { onEdit(p); setOpen(false) }} className="p-2 text-ink-muted hover:text-ink-primary flex-shrink-0"><Edit2 size={11} /></button>
+                <button hidden={!canWrite('projects', p.id)} onClick={() => { onEdit(p); setOpen(false) }} className="p-2 text-ink-muted hover:text-ink-primary flex-shrink-0"><Edit2 size={11} /></button>
               </div>
             ))}
             <div className="border-t border-edge-subtle">
-              <button onClick={() => { onNew(); setOpen(false) }}
+              <button hidden={!canWrite('projects')} onClick={() => { onNew(); setOpen(false) }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors">
                 <Plus size={12} />  {tr("New Project")} </button>
             </div>
@@ -538,7 +543,7 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
 
 export default function Tasks() {
   useLocale()
-  const { tasks, projects, isLoading, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject } = useApp()
+  const { tasks, projects, isLoading, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, canWrite } = useApp()
   const [modal, setModal] = useState<{ open: boolean; initial?: Task }>({ open: false })
   const [projectModal, setProjectModal] = useState<{ open: boolean; initial?: Project } | null>(null)
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('todo')
@@ -624,7 +629,7 @@ export default function Tasks() {
           <h1 className="text-xl font-semibold text-ink-primary flex items-center gap-2"><FolderKanban size={18} className="text-blue-400" />  {tr("Tasks")}</h1>
           <p className="text-xs text-ink-muted mt-0.5">{filteredTasks.length}  {tr("tasks ·")} {byStatus('in-progress').length}  {tr("in progress")}</p>
         </div>
-        <button onClick={() => setModal({ open: true })}
+        <button hidden={!canWrite('tasks')} onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
           <Plus size={14} />  {tr("Add Task")} </button>

@@ -19,14 +19,14 @@ export type WarrantyStatus = 'active' | 'expiring' | 'expired'
 export type DiagramDeviceType = 'server' | 'firewall' | 'switch' | 'router' | 'workstation' | 'ap' | 'storage' | 'cloud' | 'internet' | 'printer' | 'custom'
 export type DiagramConnectionType = 'ethernet' | 'fiber' | 'wireless' | 'vpn' | 'wan'
 export type OrgRole = 'ReadOnly' | 'Member' | 'Admin' | 'Owner'
-export type SystemRole = 'User' | 'Admin'
+export type SystemRole = 'User' | 'Admin' | 'Client'
 
 export interface AdminUser { id: string; email: string; displayName: string; systemRole: SystemRole; isBlocked: boolean; createdAt: string }
 
 export interface Organization { id: string; name: string; color: string; initials: string; description: string }
 export interface OrganizationSummary { id: string; name: string; role: OrgRole }
 export interface OrgMembership extends Organization { role: OrgRole }
-export interface OrgMember { userId: string; email: string; displayName: string; role: OrgRole; customRoleId?: string; customRoleName?: string }
+export interface OrgMember { userId: string; email: string; displayName: string; role: OrgRole; customRoleId?: string; customRoleName?: string; systemRole?: SystemRole }
 
 export interface ResourcePermission {
   resource: string
@@ -104,6 +104,7 @@ export interface KnowledgeArticle {
 export interface Project { id: string; name: string; description: string; color: string; createdAt: string; taskCount: number }
 
 export interface Task {
+  createdByUserId?: string; createdByName?: string
   id: string; title: string; description: string; priority: Priority
   status: TaskStatus; assignee: string; dueDate: string; tags: string[]; createdAt: string
   projectId?: string

@@ -1,4 +1,4 @@
-﻿using HexoraITApi.Application;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -32,7 +32,7 @@ public class AdminController(AppDbContext db, IPasswordHasher hasher) : Controll
         if (dto.Password.Length < 8)
             return BadRequest("Password must be be at least 8 characters.");
 
-        if (!Enum.TryParse<SystemRole>(dto.SystemRole, out var role))
+        if (!Enum.TryParse<SystemRole>(dto.SystemRole, out var role) || !Enum.IsDefined(role) || role == SystemRole.Client)
             return BadRequest("Invalid role.");
 
         if (await db.Users.AnyAsync(x => x.Email == dto.Email))
@@ -82,7 +82,7 @@ public class AdminController(AppDbContext db, IPasswordHasher hasher) : Controll
     [HttpPatch("users/{id:guid}/role")]
     public async Task<IActionResult> SetRole(Guid id, UpdateUserRoleDto dto)
     {
-        if (!Enum.TryParse<SystemRole>(dto.SystemRole, out var role))
+        if (!Enum.TryParse<SystemRole>(dto.SystemRole, out var role) || !Enum.IsDefined(role) || role == SystemRole.Client)
             return BadRequest("Invalid role.");
 
         var user = await db.Users.FindAsync(id);
@@ -91,6 +91,7 @@ public class AdminController(AppDbContext db, IPasswordHasher hasher) : Controll
         if (role == SystemRole.User && user.SystemRole == SystemRole.Admin && await IsLastAdmin(user.Id))
             return BadRequest("Cannot demote the last remaining administrator.");
 
+        if (user.SystemRole == SystemRole.Client) return BadRequest("Client accounts must remain clients.");
         user.SystemRole = role;
         await db.SaveChangesAsync();
         return NoContent();
