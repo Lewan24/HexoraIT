@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 interface UpdateDialogProps {
     open: boolean;
     currentVersion?: string;
@@ -7,6 +8,7 @@ interface UpdateDialogProps {
 }
 
 export default function UpdateDialog({open, currentVersion, latestVersion, onClose}: UpdateDialogProps) {
+  useLocale()
     if (!open)
         return null;
 
@@ -20,20 +22,17 @@ export default function UpdateDialog({open, currentVersion, latestVersion, onClo
                     
                     <div>
                         <h2 className="text-lg font-semibold text-gray-900">
-                            New update available!
-                        </h2>
+                             {tr("New update available!")} </h2>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            There is a new <span className="text-indigo-500"><b>HexoraIT</b></span> update available.
-                        </p>
+                             {tr("A new HexoraIT update is available.")} </p>
                     </div>
                 </div>
 
                 <div className="mt-5 rounded-lg bg-gray-50 p-4 text-sm">
                     <div className="flex justify-between">
                         <span className="text-gray-500">
-                            Current version
-                        </span>
+                             {tr("Current version")} </span>
 
                         <span className="font-medium text-gray-900">
                             {currentVersion}
@@ -44,8 +43,7 @@ export default function UpdateDialog({open, currentVersion, latestVersion, onClo
 
                     <div className="flex justify-between">
                         <span className="text-gray-500">
-                            Latest version
-                        </span>
+                             {tr("Latest version")} </span>
 
                         <span className="font-semibold text-blue-600">
                             {latestVersion}
@@ -54,23 +52,18 @@ export default function UpdateDialog({open, currentVersion, latestVersion, onClo
                 </div>
 
                 <p className="mt-5 text-sm leading-relaxed text-gray-600">
-                    Contact with the <b>Administrator</b> to upgrade current <span className="text-indigo-500"><b>HexoraIT</b></span> version.
-                </p>
+                     {tr("Contact your administrator to update HexoraIT.")} </p>
                 <p className="mt-5 text-sm leading-relaxed text-gray-600">
-                    See the latest changes on
-
-                    <a href="https://github.com/Lewan24/HexoraIT/releases" target="_blank" className="ml-1 ">
+                     {tr("See the latest changes on")} <a href="https://github.com/Lewan24/HexoraIT/releases" target="_blank" className="ml-1 ">
                         <button className="rounded-lg ml-2 bg-green-600 px-2 py-1 text-sm font-medium text-white transition hover:bg-green-800 active:scale-95 hover:scale-105">
-                            Github/Releases
-                        </button>
+                             {tr("Github/Releases")} </button>
                     </a>
                 </p>
 
                 <div className="mt-6 flex justify-end">
                     <button onClick={onClose}
                         className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-95">
-                        Understand
-                    </button>
+                         {tr("Understand")} </button>
                 </div>
             </div>
         </div>

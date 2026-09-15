@@ -1,3 +1,4 @@
+import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, Search, X, Edit2, Trash2, Star,
@@ -97,6 +98,7 @@ function LicenseModal({ initial, onClose, onSave }: {
   onClose: () => void
   onSave: (l: Omit<License, 'id' | 'status'>) => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     vendor: initial?.vendor ?? '',
@@ -119,9 +121,9 @@ function LicenseModal({ initial, onClose, onSave }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Required'
-    if (!form.vendor.trim()) e.vendor = 'Required'
-    if (!form.expiryDate) e.expiryDate = 'Required'
+    if (!form.name.trim()) e.name = tr("Required")
+    if (!form.vendor.trim()) e.vendor = tr("Required")
+    if (!form.expiryDate) e.expiryDate = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -152,88 +154,87 @@ function LicenseModal({ initial, onClose, onSave }: {
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit License' : 'Add License'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Software, antivirus, domain, cloud subscription</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit License") : tr("Add License")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Software, antivirus, domain, cloud subscription")}</p>
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">License Name *</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Microsoft 365 Business" className={inp(errors.name)} autoFocus disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("License Name *")}</label>
+              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Microsoft 365 Business")} className={inp(errors.name)} autoFocus disabled={submitting} />
               {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Vendor *</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder="Microsoft" className={inp(errors.vendor)} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor *")}</label>
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Microsoft")} className={inp(errors.vendor)} disabled={submitting} />
               {errors.vendor && <p className="text-[10px] text-red-400 mt-1">{errors.vendor}</p>}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Category</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Category")}</label>
               <select value={form.category} onChange={e => set('category', e.target.value)} className={inp()} disabled={submitting}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {CATEGORIES.map(c => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">License Type</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("License Type")}</label>
               <select value={form.type} onChange={e => set('type', e.target.value)} className={inp()} disabled={submitting}>
-                {LICENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {LICENSE_TYPES.map(t => <option key={t} value={t}>{tr(t)}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Seats</label>
-                <input value={form.seats} onChange={e => set('seats', e.target.value)} placeholder="1" className={inp() + ' font-mono'} disabled={submitting} />
+                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Seats")}</label>
+                <input value={form.seats} onChange={e => set('seats', e.target.value)} placeholder={"1"} className={inp() + ' font-mono'} disabled={submitting} />
               </div>
               <div className="flex-1">
-                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Used</label>
-                <input value={form.seatsUsed} onChange={e => set('seatsUsed', e.target.value)} placeholder="0" className={inp() + ' font-mono'} disabled={submitting} />
+                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Used")}</label>
+                <input value={form.seatsUsed} onChange={e => set('seatsUsed', e.target.value)} placeholder={"0"} className={inp() + ' font-mono'} disabled={submitting} />
               </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Purchase Date</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Purchase Date")}</label>
               <input type="date" value={form.purchaseDate} onChange={e => set('purchaseDate', e.target.value)} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Expiry Date *</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Expiry Date *")}</label>
               <input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} className={inp(errors.expiryDate)} disabled={submitting} />
               {errors.expiryDate && <p className="text-[10px] text-red-400 mt-1">{errors.expiryDate}</p>}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Annual Cost</label>
-              <input value={form.cost} onChange={e => set('cost', e.target.value)} placeholder="0.00" className={inp() + ' font-mono'} disabled={submitting} />
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Annual Cost")}</label>
+              <input value={form.cost} onChange={e => set('cost', e.target.value)} placeholder={"0.00"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Currency</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Currency")}</label>
               <select value={form.currency} onChange={e => set('currency', e.target.value)} className={inp()} disabled={submitting}>
-                {['USD', 'EUR', 'GBP', 'CZK', 'PLN', 'CHF'].map(c => <option key={c}>{c}</option>)}
+                {['USD', 'EUR', 'GBP', 'CZK', 'PLN', 'CHF'].map(c => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">License Key / Serial</label>
-            <input value={form.licenseKey} onChange={e => set('licenseKey', e.target.value)} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" className={inp() + ' font-mono'} disabled={submitting} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("License Key / Serial")}</label>
+            <input value={form.licenseKey} onChange={e => set('licenseKey', e.target.value)} placeholder={tr("XXXXX-XXXXX-XXXXX-XXXXX")} className={inp() + ' font-mono'} disabled={submitting} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Notes</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className={inp() + ' resize-none'} disabled={submitting} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           <button onClick={() => !submitting && set('starred', !form.starred)} disabled={submitting}
             className={`flex items-center gap-1.5 text-xs transition-colors disabled:opacity-40 ${form.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-ink-secondary'}`}>
-            <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} /> Starred
-          </button>
+            <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} />  {tr("Starred")} </button>
           <div className="flex gap-2">
-            <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !submitting && onClose()} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={submitting} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5" style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add License'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add License")}
             </button>
           </div>
         </div>
@@ -250,6 +251,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
   onDelete: () => void
   onToggleStar: () => void
 }) {
+  useLocale()
   const sc = STATUS_CONFIG[license.status]
   const cc = CAT_COLORS[getLicenseCategoryFromString(license.category)]
   const days = daysUntil(license.expiryDate)
@@ -275,12 +277,12 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
             <p className="text-sm font-semibold text-ink-primary leading-snug">{license.name}</p>
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>
-                {sc.icon} {sc.label}
+                {sc.icon} {tr(sc.label)}
               </span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md border font-semibold ${cc.bg} ${cc.text}`}>
-                {license.category}
+                {tr(license.category)}
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-navy-700 text-ink-muted border border-edge-subtle">{license.type}</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-navy-700 text-ink-muted border border-edge-subtle">{tr(license.type)}</span>
             </div>
           </div>
           <div className="flex gap-1 flex-shrink-0">
@@ -299,14 +301,14 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
       {license.seats > 0 && (
         <div className="px-5 py-3 border-b border-edge-subtle">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Seat Usage</span>
+            <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{tr("Seat Usage")}</span>
             <span className="text-[11px] font-mono text-ink-secondary">{license.seatsUsed}/{license.seats}</span>
           </div>
           <div className="h-1.5 rounded-full bg-navy-700 overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-500 ${seatPct > 90 ? 'bg-orange-500' : 'bg-blue-500'}`}
               style={{ width: `${seatPct}%` }} />
           </div>
-          <p className="text-[10px] text-ink-muted mt-1">{license.seats - license.seatsUsed} seat{license.seats - license.seatsUsed !== 1 ? 's' : ''} available</p>
+          <p className="text-[10px] text-ink-muted mt-1">{tr('Available seats: {{count}}', { count: license.seats - license.seatsUsed })}</p>
         </div>
       )}
 
@@ -314,7 +316,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
       {Math.abs(days) < 365 && (
         <div className={`px-5 py-3 border-b border-edge-subtle ${days < 0 ? 'bg-red-500/5' : days <= 60 ? 'bg-orange-500/5' : ''}`}>
           <p className={`text-xs font-semibold font-mono ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-secondary'}`}>
-            {days < 0 ? `Expired ${Math.abs(days)} days ago` : `Expires in ${days} days`}
+            {days < 0 ? tr('Expired {{count}} days ago', { count: Math.abs(days) }) : tr('Expires in {{count}} days', { count: days })}
           </p>
         </div>
       )}
@@ -325,11 +327,11 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
           { label: 'Vendor', value: license.vendor, icon: <Building2 size={11} /> },
           { label: 'Purchased', value: license.purchaseDate || '—', icon: <Calendar size={11} />, mono: true },
           { label: 'Expires', value: license.expiryDate, icon: <Calendar size={11} />, mono: true },
-          { label: 'Cost', value: license.cost > 0 ? `${license.cost.toLocaleString()} ${license.currency}` : '—', icon: <DollarSign size={11} />, mono: true },
+          { label: 'Cost', value: license.cost > 0 ? `${license.cost.toLocaleString(locale())} ${license.currency}` : '—', icon: <DollarSign size={11} />, mono: true },
         ].map((r, i) => (
           <div key={i} className="flex items-center gap-2 py-1.5 border-b border-edge-subtle last:border-0">
             <span className="text-ink-muted flex-shrink-0">{r.icon}</span>
-            <span className="text-xs text-ink-muted w-20 flex-shrink-0">{r.label}</span>
+            <span className="text-xs text-ink-muted w-20 flex-shrink-0">{tr(r.label)}</span>
             <span className={`text-xs text-ink-secondary ${r.mono ? 'font-mono' : ''}`}>{r.value}</span>
           </div>
         ))}
@@ -337,14 +339,14 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
         {license.licenseKey && (
           <div className="flex items-center gap-2 py-1.5 border-b border-edge-subtle">
             <span className="text-ink-muted flex-shrink-0"><Key size={11} /></span>
-            <span className="text-xs text-ink-muted w-20 flex-shrink-0">Key</span>
+            <span className="text-xs text-ink-muted w-20 flex-shrink-0">{tr("Key")}</span>
             <div className="flex-1 flex items-center gap-1.5 min-w-0">
               <span className={`text-xs font-mono text-ink-secondary truncate ${!keyVisible ? 'blur-sm select-none' : ''}`}>
                 {license.licenseKey}
               </span>
               <button onClick={() => setKeyVisible(!keyVisible)}
                 className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0 font-mono">
-                {keyVisible ? 'hide' : 'show'}
+                {keyVisible ? tr("hide") : tr("show")}
               </button>
             </div>
           </div>
@@ -352,7 +354,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
 
         {license.notes && (
           <div className="pt-1">
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1.5">Notes</p>
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1.5">{tr("Notes")}</p>
             <p className="text-xs text-ink-secondary leading-relaxed">{license.notes}</p>
           </div>
         )}
@@ -364,6 +366,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
 // ─── Licenses ─────────────────────────────────────────────────────────────────
 
 export default function Licenses() {
+  useLocale()
   const { licenses, isLoading, addLicense, updateLicense, deleteLicense, toggleStarLicense, currentOrg } = useApp()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<LicenseCategory | 'All'>('All')
@@ -428,16 +431,14 @@ export default function Licenses() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Licenses</h1>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Licenses")}</h1>
           <p className="text-xs text-ink-muted mt-0.5 font-mono">
-            {currentOrg ? `${currentOrg.name} · ` : ''}{licenses.length} licenses · {totalCost.toLocaleString()} tracked
-          </p>
+            {currentOrg ? tr("{{value1}} · ", { value1: currentOrg.name }) : ''}{licenses.length}  {tr("licenses ·")} {totalCost.toLocaleString(locale())}  {tr("tracked")} </p>
         </div>
         <button onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> Add License
-        </button>
+          <Plus size={14} />  {tr("Add License")} </button>
       </div>
 
       {/* Summary cards */}
@@ -452,8 +453,8 @@ export default function Licenses() {
             onClick={() => card.status && setStatusFilter(statusFilter === card.status ? 'All' : card.status)}
             className={`bg-navy-800 border rounded-xl p-4 transition-all ${card.status ? 'cursor-pointer hover:-translate-y-0.5 hover:border-edge-default' : ''} ${statusFilter === card.status ? 'border-blue-500/40 bg-navy-750' : 'border-edge-subtle'}`}>
             <p className={`text-2xl font-semibold font-mono ${card.color}`}>{card.value}</p>
-            <p className="text-xs font-medium text-ink-secondary mt-1">{card.label}</p>
-            <p className="text-[10px] text-ink-muted">{card.sub}</p>
+            <p className="text-xs font-medium text-ink-secondary mt-1">{tr(card.label)}</p>
+            <p className="text-[10px] text-ink-muted">{tr(card.sub)}</p>
           </div>
         ))}
       </div>
@@ -463,14 +464,14 @@ export default function Licenses() {
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
           <input value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Search name, vendor, key…"
+            placeholder={tr("Search name, vendor, key…")}
             className="w-full pl-8 pr-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
 
         <div className="relative">
           <button onClick={() => setCatOpen(!catOpen)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs transition-colors ${category !== 'All' ? 'bg-blue-500/10 border-blue-500/40 text-blue-400' : 'bg-navy-800 border-edge-default text-ink-secondary hover:text-ink-primary'}`}>
-            <Package size={12} /> {category}
+            <Package size={12} /> {tr(category)}
             <ChevronDown size={11} className={`transition-transform ${catOpen ? 'rotate-180' : ''}`} />
           </button>
           {catOpen && (
@@ -478,7 +479,7 @@ export default function Licenses() {
               {['All', ...CATEGORIES].map(c => (
                 <button key={c} onClick={() => { setCategory(c as LicenseCategory | 'All'); setCatOpen(false) }}
                   className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors hover:bg-navy-700 ${category === c ? 'text-blue-400' : 'text-ink-secondary'}`}>
-                  {c}
+                  {tr(c)}
                   {category === c && <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
                 </button>
               ))}
@@ -488,16 +489,15 @@ export default function Licenses() {
 
         <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
           className="px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-xs text-ink-secondary focus:border-blue-500 focus:outline-none transition-colors">
-          <option value="expiry">Sort: Expiry</option>
-          <option value="cost">Sort: Cost</option>
-          <option value="name">Sort: Name</option>
+          <option value="expiry">{tr("Sort: Expiry")}</option>
+          <option value="cost">{tr("Sort: Cost")}</option>
+          <option value="name">{tr("Sort: Name")}</option>
         </select>
 
         {(statusFilter !== 'All' || category !== 'All') && (
           <button onClick={() => { setStatusFilter('All'); setCategory('All') }}
             className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors px-2 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/5">
-            <X size={11} /> Clear
-          </button>
+            <X size={11} />  {tr("Clear")} </button>
         )}
       </div>
 
@@ -507,16 +507,16 @@ export default function Licenses() {
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Package size={24} className="text-ink-muted opacity-30" />
-              <p className="text-sm text-ink-muted">No licenses match your filters</p>
+              <p className="text-sm text-ink-muted">{tr("No licenses match your filters")}</p>
             </div>
           ) : (
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-edge-subtle bg-navy-900/40">
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted">License</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden sm:table-cell">Vendor</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted">Expires</th>
-                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden md:table-cell">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted">{tr("License")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden sm:table-cell">{tr("Vendor")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted">{tr("Expires")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-ink-muted hidden md:table-cell">{tr("Status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-edge-subtle">
@@ -534,8 +534,8 @@ export default function Licenses() {
                           <div className="min-w-0">
                             <p className="text-ink-primary font-medium truncate max-w-[180px]">{lic.name}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-[9px] font-mono px-1 py-0.5 rounded border font-semibold ${cc.bg} ${cc.text}`}>{lic.category}</span>
-                              <span className="text-[10px] text-ink-muted">{lic.type}</span>
+                              <span className={`text-[9px] font-mono px-1 py-0.5 rounded border font-semibold ${cc.bg} ${cc.text}`}>{tr(lic.category)}</span>
+                              <span className="text-[10px] text-ink-muted">{tr(lic.type)}</span>
                             </div>
                           </div>
                         </div>
@@ -545,13 +545,13 @@ export default function Licenses() {
                         <p className="font-mono text-ink-secondary">{lic.expiryDate}</p>
                         {Math.abs(days) < 365 && (
                           <p className={`text-[10px] font-mono mt-0.5 ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-muted'}`}>
-                            {days < 0 ? `${Math.abs(days)}d ago` : `${days}d left`}
+                            {days < 0 ? tr('{{count}}d ago', { count: Math.abs(days) }) : tr('{{count}}d left', { count: days })}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${sc.cls}`}>
-                          {sc.icon} {sc.label}
+                          {sc.icon} {tr(sc.label)}
                         </span>
                       </td>
                     </tr>
@@ -567,8 +567,7 @@ export default function Licenses() {
             <button
               onClick={() => setMobileDetailOpen(false)}
               className="lg:hidden flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mb-3 transition-colors">
-              ← Back to licenses
-            </button>
+               {tr("← Back to licenses")} </button>
           )}
           {selected ? (
             <div className="sticky top-0">
@@ -583,7 +582,7 @@ export default function Licenses() {
             <div className="bg-navy-800 border border-edge-subtle rounded-xl flex items-center justify-center h-48">
               <div className="text-center">
                 <Package size={22} className="text-ink-muted mx-auto mb-2 opacity-30" />
-                <p className="text-xs text-ink-muted">Select a license to view details</p>
+                <p className="text-xs text-ink-muted">{tr("Select a license to view details")}</p>
               </div>
             </div>
           )}

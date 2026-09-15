@@ -1,3 +1,4 @@
+import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, X, Edit2, Trash2, Tag, Calendar,
@@ -33,6 +34,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
   onSave: (p: Omit<Plan, 'id' | 'createdAt'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  useLocale()
   const { assets } = useApp()
 
   const [form, setForm] = useState({
@@ -57,7 +59,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.title.trim()) e.title = 'Required'
+    if (!form.title.trim()) e.title = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -105,62 +107,59 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Plan' : 'Add Plan'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Strategic initiative or project plan</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Plan") : tr("Add Plan")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Strategic initiative or project plan")}</p>
           </div>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Title *</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Network Upgrade Q3" className={inp(errors.title)} autoFocus disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Network Upgrade Q3")} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Description</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
-              placeholder="Goals, scope, and key deliverables…" className={inp() + ' resize-none'} disabled={busy} />
+              placeholder={tr("Goals, scope, and key deliverables…")} className={inp() + ' resize-none'} disabled={busy} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Priority</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Priority")}</label>
               <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inp()} disabled={busy}>
-                {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                {PRIORITIES.map(p => <option key={p} value={p}>{tr(PRIORITY_CONFIG[p].label)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Status</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Status")}</label>
               <select value={form.status} onChange={e => set('status', e.target.value)} className={inp()} disabled={busy}>
-                {STATUSES.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{tr(STATUS_CONFIG[s].label)}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Target Date</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Target Date")}</label>
             <input type="date" value={form.targetDate} onChange={e => set('targetDate', e.target.value)} className={inp()} disabled={busy} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
-              Estimated Cost
-            </label>
+               {tr("Estimated Cost")} </label>
 
             <input type="number" min="0" step="0.01" value={form.estimatedCost}
               onChange={e =>
                 set('estimatedCost', e.target.value)
               }
-              placeholder="25000" className={inp()} disabled={busy}
+              placeholder={"25000"} className={inp()} disabled={busy}
             />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
-              Linked Assets
-            </label>
+               {tr("Linked Assets")} </label>
 
             <div className="max-h-40 overflow-y-auto bg-navy-700 border border-edge-default rounded-lg p-2 space-y-1">
               {assets.length === 0 && (
                 <p className="text-xs text-ink-muted">
-                  No assets available
-                </p>
+                   {tr("No assets available")} </p>
               )}
 
               {assets.map(asset => (
@@ -178,37 +177,34 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
 
             {form.assetIds.length > 0 && (
               <p className="text-[10px] text-ink-muted mt-1">
-                {form.assetIds.length} asset(s) selected
-              </p>
+                {form.assetIds.length}  {tr("asset(s) selected")} </p>
             )}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Tags (comma-separated)</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="network, infrastructure, q3" className={inp()} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, infrastructure, q3")} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           {initial && onDelete ? (
             confirmDelete ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-ink-muted">Delete this plan?</span>
+                <span className="text-[11px] text-ink-muted">{tr("Delete this plan?")}</span>
                 <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50 flex items-center gap-1">
-                  {deleting && <Loader2 size={10} className="animate-spin" />} Yes
-                </button>
-                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted hover:text-ink-secondary disabled:opacity-50">No</button>
+                  {deleting && <Loader2 size={10} className="animate-spin" />}  {tr("Yes")} </button>
+                <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted hover:text-ink-secondary disabled:opacity-50">{tr("No")}</button>
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)} disabled={busy} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40">
-                <Trash2 size={12} /> Delete
-              </button>
+                <Trash2 size={12} />  {tr("Delete")} </button>
             )
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Add Plan'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Plan")}
             </button>
           </div>
         </div>
@@ -220,6 +216,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
 function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
+  useLocale()
   const sc = STATUS_CONFIG[plan.status]
   const pc = PRIORITY_CONFIG[plan.priority]
 
@@ -232,10 +229,9 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
             {plan.title}
             {plan.estimatedCost > 0 && (
               <span className="inline-flex items-center gap-1 ml-5 text-orange-400">
-                Estimated cost:
-                <span className='inline-flex items-center gap-1'>
+                 {tr("Estimated cost:")} <span className='inline-flex items-center gap-1'>
                   <DollarSign size={11}/>
-                  {plan.estimatedCost.toLocaleString('en-US')}
+                  {plan.estimatedCost.toLocaleString(locale())}
                 </span>
               </span>
             )}  
@@ -248,8 +244,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
             <span className="
               text-[12px] text-ink-muted
             ">
-              {plan.assetIds.length} assets included
-            </span>
+              {plan.assetIds.length}  {tr("assets included")} </span>
           )}
         </div>
         <Edit2 size={12} className="text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 flex-shrink-0" />
@@ -258,10 +253,10 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
       <div className="flex items-center gap-2 mt-3 flex-wrap">
         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border font-semibold ${pc.cls}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`} />
-          {pc.label}
+          {tr(pc.label)}
         </span>
         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>
-          {sc.icon} {sc.label}
+          {sc.icon} {tr(sc.label)}
         </span>
         {plan.targetDate && (
           <span className="inline-flex items-center gap-1 text-[10px] text-ink-muted">
@@ -285,6 +280,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
 // ─── Plans ────────────────────────────────────────────────────────────────────
 
 export default function Plans() {
+  useLocale()
   const { plans, isLoading, addPlan, updatePlan, deletePlan } = useApp()
   const [statusFilter, setStatusFilter] = useState<PlanStatus | 'all'>('all')
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all')
@@ -330,14 +326,13 @@ export default function Plans() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Plans</h1>
-          <p className="text-xs text-ink-muted mt-0.5">{plans.length} plans total</p>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Plans")}</h1>
+          <p className="text-xs text-ink-muted mt-0.5">{plans.length}  {tr("plans total")}</p>
         </div>
         <button onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> New Plan
-        </button>
+          <Plus size={14} />  {tr("New Plan")} </button>
       </div>
 
       {/* Summary counts */}
@@ -350,7 +345,7 @@ export default function Plans() {
               className={`bg-navy-800 border rounded-xl p-3.5 cursor-pointer transition-all hover:-translate-y-0.5 ${statusFilter === s ? 'border-blue-500/40' : 'border-edge-subtle'}`}>
               <p className="text-2xl font-semibold font-mono text-ink-primary">{counts[s]}</p>
               <div className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border mt-1.5 ${sc.cls}`}>
-                {sc.icon} {sc.label}
+                {sc.icon} {tr(sc.label)}
               </div>
             </div>
           )
@@ -362,7 +357,7 @@ export default function Plans() {
         {(['all', ...STATUSES] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
-            {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
+            {s === 'all' ? tr("All") : STATUS_CONFIG[s].label}
             <span className="ml-1.5 text-[10px] text-ink-muted">{counts[s]}</span>
           </button>
         ))}
@@ -370,7 +365,7 @@ export default function Plans() {
 
       {/* Priority filter pills */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
-        <span className="text-[11px] text-ink-muted">Priority:</span>
+        <span className="text-[11px] text-ink-muted">{tr("Priority:")}</span>
         {(['all', ...PRIORITIES] as const).map(p => (
           <button key={p} onClick={() => setPriorityFilter(p)}
             className={`px-2.5 py-1 rounded-full text-[11px] border transition-colors ${
@@ -378,7 +373,7 @@ export default function Plans() {
                 ? p === 'all' ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' : `${PRIORITY_CONFIG[p].cls}`
                 : 'border-edge-default text-ink-muted hover:text-ink-secondary bg-navy-800'
             }`}>
-            {p === 'all' ? 'All' : PRIORITY_CONFIG[p].label}
+            {p === 'all' ? tr("All") : PRIORITY_CONFIG[p].label}
           </button>
         ))}
       </div>
@@ -387,8 +382,8 @@ export default function Plans() {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <CheckCircle2 size={28} className="text-ink-muted opacity-30" />
-          <p className="text-sm text-ink-muted">No plans match your filters</p>
-          <button onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">+ Add Plan</button>
+          <p className="text-sm text-ink-muted">{tr("No plans match your filters")}</p>
+          <button onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{tr("+ Add Plan")}</button>
         </div>
       ) : (
         <div className="space-y-3">

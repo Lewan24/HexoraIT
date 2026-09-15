@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
   Plus, Search, X, Edit2, Trash2, Star, ArrowLeft,
@@ -32,6 +33,7 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
   onSave: (a: Omit<KnowledgeArticle, 'id' | 'updatedAt'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
+  useLocale()
   const [form, setForm] = useState({
     title: initial?.title ?? '',
     category: initial?.category ?? '',
@@ -51,8 +53,8 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
 
   const submit = async () => {
     const e: Record<string, string> = {}
-    if (!form.title.trim()) e.title = 'Required'
-    if (!form.category.trim()) e.category = 'Required'
+    if (!form.title.trim()) e.title = tr("Required")
+    if (!form.category.trim()) e.category = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -88,76 +90,73 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? 'Edit Article' : 'New Article'}</h2>
-            <p className="text-[11px] text-ink-muted mt-0.5">Supports **bold**, `code`, # headers, - lists, - [ ] checkboxes</p>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Article") : tr("New Article")}</h2>
+            <p className="text-[11px] text-ink-muted mt-0.5">{tr("Supports **bold**, `code`, # headers, - lists, - [ ] checkboxes")}</p>
           </div>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Title *</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Article title" className={inp(errors.title)} autoFocus disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("Article title")} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Category *</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Category *")}</label>
             <input
               value={form.category}
               onChange={e => set('category', e.target.value)}
               list="kb-categories"
-              placeholder="e.g. Network"
+              placeholder={tr("e.g. Network")}
               className={inp(errors.category)}
               disabled={busy}
             />
             <datalist id="kb-categories">
-              {CATEGORY_SUGGESTIONS.map(c => <option key={c} value={c} />)}
+              {CATEGORY_SUGGESTIONS.map(c => <option key={c} value={c} label={tr(c)} />)}
             </datalist>
             {errors.category && <p className="text-[10px] text-red-400 mt-1">{errors.category}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Content</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Content")}</label>
             <textarea
               value={form.content}
               onChange={e => set('content', e.target.value)}
               rows={12}
-              placeholder={`# Main Title\n\n## Section\n\nWrite your article content here.\n\n- Bullet point\n- [ ] Checkbox item\n- [x] Completed item\n\n**bold text** and \`inline code\``}
+              placeholder={tr("# Main Title\n\n## Section\n\nWrite your article content here.\n\n- Bullet point\n- [ ] Checkbox item\n- [x] Completed item\n\n**bold text** and `inline code`")}
               className={inp() + ' resize-none font-mono leading-relaxed'}
               disabled={busy}
             />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">Tags (comma-separated)</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="vpn, routing, setup" className={inp()} disabled={busy} />
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("vpn, routing, setup")} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
           <div className="flex items-center gap-3">
             <button onClick={() => !busy && set('starred', !form.starred)} disabled={busy}
               className={`flex items-center gap-1.5 text-xs transition-colors disabled:opacity-40 ${form.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-ink-secondary'}`}>
-              <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} /> Starred
-            </button>
+              <Star size={13} className={form.starred ? 'fill-yellow-400' : ''} />  {tr("Starred")} </button>
             {initial && onDelete && (
               confirmDelete ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-ink-muted">Delete?</span>
+                  <span className="text-[11px] text-ink-muted">{tr("Delete?")}</span>
                   <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-400 hover:text-red-300 font-medium disabled:opacity-50 flex items-center gap-1">
-                    {deleting && <Loader2 size={10} className="animate-spin" />} Yes
-                  </button>
-                  <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">No</button>
+                    {deleting && <Loader2 size={10} className="animate-spin" />}  {tr("Yes")} </button>
+                  <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-ink-muted disabled:opacity-50">{tr("No")}</button>
                 </div>
               ) : (
                 <button onClick={() => setConfirmDelete(true)} disabled={busy} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40">
-                  <Trash2 size={12} /> Delete
-                </button>
+                  <Trash2 size={12} />  {tr("Delete")} </button>
               )
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">Cancel</button>
+            <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
             <button onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
-              {submitting ? 'Saving…' : initial ? 'Save Changes' : 'Create Article'}
+              {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Create Article")}
             </button>
           </div>
         </div>
@@ -169,6 +168,7 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
 // ─── Article List Item ────────────────────────────────────────────────────────
 
 function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle; selected: boolean; onClick: () => void }) {
+  useLocale()
   return (
     <button onClick={onClick}
       className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-navy-700/50 ${selected ? 'bg-navy-700/70 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent'}`}>
@@ -187,6 +187,7 @@ function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle
 // ─── KnowledgeBase ────────────────────────────────────────────────────────────
 
 export default function KnowledgeBase() {
+  useLocale()
   const { knowledgeArticles, isLoading, addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge } = useApp()
   const [query, setQuery] = useState('')
   const [catFilter, setCatFilter] = useState<string>('All')
@@ -250,14 +251,13 @@ export default function KnowledgeBase() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">Knowledge Base</h1>
-          <p className="text-xs text-ink-muted mt-0.5">{knowledgeArticles.length} articles</p>
+          <h1 className="text-xl font-semibold text-ink-primary">{tr("Knowledge Base")}</h1>
+          <p className="text-xs text-ink-muted mt-0.5">{knowledgeArticles.length}  {tr("articles")}</p>
         </div>
         <button onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
-          <Plus size={14} /> New Article
-        </button>
+          <Plus size={14} />  {tr("New Article")} </button>
       </div>
 
       {/* Two-panel */}
@@ -269,7 +269,7 @@ export default function KnowledgeBase() {
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search articles…"
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder={tr("Search articles…")}
                   className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:border-blue-500 focus:outline-none transition-colors" />
               </div>
               <button onClick={() => setStarOnly(!starOnly)}
@@ -297,8 +297,8 @@ export default function KnowledgeBase() {
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
                 <BookOpen size={24} className="text-ink-muted opacity-30" />
-                <p className="text-sm text-ink-muted">No articles found</p>
-                <button onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">+ New Article</button>
+                <p className="text-sm text-ink-muted">{tr("No articles found")}</p>
+                <button onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{tr("+ New Article")}</button>
               </div>
             ) : (
               filtered.map(a => (
@@ -313,8 +313,7 @@ export default function KnowledgeBase() {
           {mobileDetailOpen && (
             <button onClick={() => setMobileDetailOpen(false)}
               className="lg:hidden flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mb-3 transition-colors flex-shrink-0">
-              <ArrowLeft size={14} /> Back to articles
-            </button>
+              <ArrowLeft size={14} />  {tr("Back to articles")} </button>
           )}
           {selected ? (
             <div className="bg-navy-800 border border-edge-subtle rounded-xl overflow-hidden flex flex-col flex-1">
@@ -324,7 +323,7 @@ export default function KnowledgeBase() {
                   <p className="text-sm font-semibold text-ink-primary">{selected.title}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${catCls(selected.category)}`}>{selected.category}</span>
-                    <span className="text-[10px] font-mono text-ink-muted">Updated {selected.updatedAt}</span>
+                    <span className="text-[10px] font-mono text-ink-muted">{tr("Updated")} {selected.updatedAt}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
@@ -344,7 +343,7 @@ export default function KnowledgeBase() {
                 {selected.content ? (
                   <div className="space-y-0.5">{renderMarkdown(selected.content)}</div>
                 ) : (
-                  <p className="text-xs text-ink-muted italic">No content yet. Click edit to add content.</p>
+                  <p className="text-xs text-ink-muted italic">{tr("No content yet. Click edit to add content.")}</p>
                 )}
               </div>
 
@@ -362,7 +361,7 @@ export default function KnowledgeBase() {
             <div className="bg-navy-800 border border-edge-subtle rounded-xl flex items-center justify-center flex-1 min-h-[200px]">
               <div className="text-center">
                 <BookOpen size={28} className="text-ink-muted mx-auto mb-2 opacity-30" />
-                <p className="text-sm text-ink-muted">Select an article to read</p>
+                <p className="text-sm text-ink-muted">{tr("Select an article to read")}</p>
               </div>
             </div>
           )}
