@@ -34,7 +34,7 @@ function inp(error?: string) {
 
 interface PwFormProps {
   initial?: PasswordEntry
-  onSave: (d: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password?: string }) => Promise<void>
+  onSave: (d: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password?: string }) => Promise<void>
   onClose: () => void
 }
 
@@ -360,7 +360,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4">
           <h3 className="text-xs font-semibold text-ink-primary mb-3 flex items-center gap-2"><Clock size={12} className="text-cyan-400" />  {tr("Metadata")}</h3>
           <div className="space-y-1.5 text-[11px]">
-            <div className="flex justify-between"><span className="text-ink-muted">{tr("Last updated")}</span><span className="text-ink-secondary font-mono">{selected.updated}</span></div>
+            <div className="flex justify-between"><span className="text-ink-muted">{tr("Last updated")}</span><span className="text-ink-secondary font-mono">{selected.updatedAt}</span></div>
             <div className="flex justify-between"><span className="text-ink-muted">{tr("Strength")}</span><span className={`font-mono ${selected.strength === 'strong' ? 'text-green-400' : selected.strength === 'medium' ? 'text-orange-400' : 'text-red-400'}`}>{tr(selected.strength)}</span></div>
           </div>
         </div>
@@ -504,7 +504,7 @@ export default function PasswordVault() {
       {/* Modals */}
       {addOpen && canWrite('passwords') && (
         <PasswordForm
-          onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }); setAddOpen(false) }}
+          onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }); setAddOpen(false) }}
           onClose={() => setAddOpen(false)}
         />
       )}

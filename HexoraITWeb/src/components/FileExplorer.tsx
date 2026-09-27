@@ -24,10 +24,12 @@ function iconFor(file: StoredFile) {
 }
 
 interface Crumb { id?: string; name: string }
+const MAX_UPLOAD_BYTES = 100_000_000
+const MAX_FILES_PER_BATCH = 20
 
 export default function FileExplorer() {
   useLocale()
-  const { currentOrg, toast } = useApp()
+  const { currentOrg, toast, canWrite } = useApp()
   const [breadcrumbs, setBreadcrumbs] = useState<Crumb[]>([{ id: undefined, name: 'Files' }])
   const [folders, setFolders] = useState<FileFolder[]>([])
   const [files, setFiles] = useState<StoredFile[]>([])
@@ -48,6 +50,7 @@ export default function FileExplorer() {
   const [moveTarget, setMoveTarget] = useState<{ type: 'file' | 'folder'; id: string; name: string; currentFolderId?: string } | null>(null)
 
   const currentFolderId = breadcrumbs[breadcrumbs.length - 1]?.id
+  const canCreate = canWrite('files')
 
   const load = useCallback(async () => {
     if (!currentOrg) return
@@ -73,7 +76,7 @@ export default function FileExplorer() {
   const jumpTo = (index: number) => setBreadcrumbs(prev => prev.slice(0, index + 1))
 
   const handleUpload = useCallback(async (fileList: FileList | File[]) => {
-    if (!currentOrg)
+    if (!currentOrg || !canCreate)
         return
 
     if (previewFile)
@@ -82,6 +85,14 @@ export default function FileExplorer() {
     const filesArr = Array.from(fileList)
     if (filesArr.length === 0)
         return
+    if (filesArr.length > MAX_FILES_PER_BATCH) {
+      toast(tr("Select at most {{value1}} files at once.", { value1: MAX_FILES_PER_BATCH }), 'error')
+      return
+    }
+    if (filesArr.some(file => file.size > MAX_UPLOAD_BYTES)) {
+      toast(tr("Each file must be smaller than 100 MB."), 'error')
+      return
+    }
 
     setUploading(true)
 
@@ -101,7 +112,7 @@ export default function FileExplorer() {
         toast(filesArr.length === 1 ? tr("File uploaded") : tr("{{value1}} files uploaded", { value1: filesArr.length }))
 
     await load()
-  }, [currentOrg, previewFile, toast, load, currentFolderId])
+  }, [currentOrg, canCreate, previewFile, toast, load, currentFolderId])
 
   const handleCreateFolder = async () => {
     if (!currentOrg || !newFolderName.trim() || creatingFolder) return
@@ -135,13 +146,17 @@ export default function FileExplorer() {
   }
 
   const download = async (file: StoredFile) => {
-    const blob = await filesApi.downloadFile(file.id)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const blob = await filesApi.downloadFile(file.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : tr("Failed to download file"), 'error')
+    }
   }
 
   const handleRename = async () => {
@@ -160,8 +175,8 @@ export default function FileExplorer() {
   }
 
   return (
-    <div className="p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
-      onDrop={e => { e.preventDefault(); setDragOver(false); void handleUpload(e.dataTransfer.files) }}>
+    <div className="p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(canCreate && previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
+      onDrop={e => { e.preventDefault(); setDragOver(false); if (canCreate) void handleUpload(e.dataTransfer.files) }}>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
@@ -180,12 +195,14 @@ export default function FileExplorer() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setNewFolderOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:text-ink-primary hover:border-edge-strong transition-colors">
+          <button onClick={() => setNewFolderOpen(true)} disabled={!canCreate}
+            title={canCreate ? undefined : tr("Your organization role does not permit changes to this resource.")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:text-ink-primary hover:border-edge-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <FolderPlus size={14} />  {tr("New Folder")} </button>
-          <input ref={fileInputRef} type="file" multiple className="hidden"
+          <input ref={fileInputRef} type="file" multiple className="hidden" disabled={!canCreate}
             onChange={e => { if (e.target.files) void handleUpload(e.target.files); e.target.value = '' }} />
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading || !canCreate}
+            title={canCreate ? undefined : tr("Your organization role does not permit changes to this resource.")}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium transition-all disabled:opacity-50"
             style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
@@ -217,11 +234,11 @@ export default function FileExplorer() {
                 <Folder size={32} className="text-blue-400 fill-blue-400/20" />
                 <p className="text-xs text-ink-primary truncate w-full text-center">{folder.name}</p>
               </button>
-              <button onClick={() => setMenuOpenId(menuOpenId === folder.id ? null : folder.id)}
+              {canCreate && <button onClick={() => setMenuOpenId(menuOpenId === folder.id ? null : folder.id)}
                 className="absolute top-2 right-2 p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 opacity-0 group-hover:opacity-100 transition-opacity">
                 <MoreVertical size={13} />
-              </button>
-              {menuOpenId === folder.id && (
+              </button>}
+              {canCreate && menuOpenId === folder.id && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setMenuOpenId(null)} />
                   <div className="absolute top-8 right-2 z-40 w-36 bg-navy-750 border border-edge-default rounded-lg shadow-2xl overflow-hidden">
@@ -244,7 +261,7 @@ export default function FileExplorer() {
             const previewable = getPreviewKind(file.name, file.mimeType) !== 'none'
             return (
               <div key={file.id} className="relative group transition transition-all hover:scale-[1.05] border-blue-500 rounded-xl hover:border-1">
-                <button title={file.name}
+                <div title={file.name}
                   className={`w-full flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-navy-800 border border-edge-subtle transition-colors ${previewable ? 'hover:border-edge-strong hover:bg-navy-750' : 'cursor-default'}`}>
                   <div className="flex justify-center order-1">
                     {previewable && (
@@ -257,18 +274,18 @@ export default function FileExplorer() {
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Download size={13} className='text-indigo-500' />
                     </button>
-                    <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
+                    {canWrite('files', file.id) && <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Trash2 size={13} className='text-red-500' />
-                    </button>
-                    <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
+                    </button>}
+                    {canWrite('files', file.id) && <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Edit2 size={13} className='text-orange-500' />
-                    </button>
-                    <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
+                    </button>}
+                    {canWrite('files', file.id) && <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <FolderInput size={13} className='text-gray-400' />
-                    </button>
+                    </button>}
                   </div>
 
                   <div onClick={() => previewable && setPreviewFile(file)} className='cursor-pointer flex flex-col justify-center items-center gap-2 w-full'>
@@ -276,7 +293,7 @@ export default function FileExplorer() {
                     <p className="text-xs text-ink-primary truncate w-full text-center px-1">{file.name}</p>
                     <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>
                   </div>
-                </button>
+                </div>
               </div>
             )
           })}
@@ -291,7 +308,7 @@ export default function FileExplorer() {
               <h2 className="text-sm font-semibold text-ink-primary">{tr("New Folder")}</h2>
               <button onClick={() => setNewFolderOpen(false)} disabled={creatingFolder} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
             </div>
-            <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder={tr("Folder name")} autoFocus disabled={creatingFolder}
+            <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder={tr("Folder name")} autoFocus disabled={creatingFolder} maxLength={200}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder() }}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
             <div className="flex gap-2 justify-end">
@@ -332,6 +349,7 @@ export default function FileExplorer() {
               <button onClick={() => setRenameTarget(null)} disabled={renaming} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
             </div>
             <input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus disabled={renaming}
+              maxLength={renameTarget.type === 'folder' ? 200 : 260}
               onKeyDown={e => { if (e.key === 'Enter') handleRename() }}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
             <div className="flex gap-2 justify-end">

@@ -12,3 +12,9 @@ public record SaveOrganizationRoleDto(
     [Required, CollectionCount(1000)] List<PermissionDto> Permissions);
 public record AssignOrganizationRoleDto(OrgRole Role, Guid? CustomRoleId);
 public record OrganizationAccessDto(string RoleName, bool CanManageRoles, List<PermissionDto> Permissions);
+public record CreateClientDto(
+    [Required, EmailAddress, StringLength(256)] string Email,
+    [Required, StringLength(200)] string DisplayName,
+    [Required, StringLength(200, MinimumLength = 15)] string Password);
+public record ClientSummaryDto(Guid Id, string Email, string DisplayName);
+public record CopyRoleDto([Required, CollectionCount(100)] List<Guid> OrganizationIds, bool Overwrite = false);

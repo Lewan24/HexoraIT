@@ -34,12 +34,23 @@ function emptyOrgState() {
 
 const CURRENT_ORG_KEY = 'current_org_id'
 
+function readCurrentOrganization(): string {
+  try { return localStorage.getItem(CURRENT_ORG_KEY) ?? '' } catch { return '' }
+}
+
+function storeCurrentOrganization(id: string) {
+  try {
+    if (id) localStorage.setItem(CURRENT_ORG_KEY, id)
+    else localStorage.removeItem(CURRENT_ORG_KEY)
+  } catch { /* Storage may be disabled. */ }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   useLocale()
   const { isAuthenticated } = useAuth()
 
   const [orgs, setOrgs] = useState<OrgMembership[]>([])
-  const [currentOrgId, setCurrentOrgId] = useState<string>(() => localStorage.getItem(CURRENT_ORG_KEY) ?? '')
+  const [currentOrgId, setCurrentOrgId] = useState<string>(readCurrentOrganization)
   const [data, setData] = useState(emptyOrgState())
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -96,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const next = stillValid ? prev : (full[0]?.id ?? '')
 
           if (next) {
-            localStorage.setItem(CURRENT_ORG_KEY, next)
+            storeCurrentOrganization(next)
           }
 
           return next
@@ -195,7 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(emptyOrgState())
     setAccessState(undefined)
     setAccessError('')
-    localStorage.setItem(CURRENT_ORG_KEY, id)
+    storeCurrentOrganization(id)
     setCurrentOrgId(id)
   }, [])
 
@@ -245,7 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [guarded, toast])
 
   // ── Assets ──
-  const addAsset = useCallback(async (a: Omit<Asset, 'id' | 'updated'>) => {
+  const addAsset = useCallback(async (a: Omit<Asset, 'id' | 'updatedAt'>) => {
     const created = await guarded(() => assetsApi.create(currentOrgId, a), 'Failed to create asset')
     setData(d => ({ ...d, assets: [created, ...d.assets] }))
     toast(tr("Asset \"{{value1}}\" created", { value1: a.name }))
@@ -253,7 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateAsset = useCallback(async (a: Asset) => {
     await guarded(() => assetsApi.update(a.id, a), 'Failed to update asset')
-    setData(d => ({ ...d, assets: d.assets.map(x => x.id === a.id ? { ...a, updated: 'just now' } : x) }))
+    setData(d => ({ ...d, assets: d.assets.map(x => x.id === a.id ? { ...a, updatedAt: new Date().toISOString() } : x) }))
     toast(tr("Asset \"{{value1}}\" updated", { value1: a.name }))
   }, [guarded, toast])
 
@@ -270,7 +281,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [guarded])
 
   // ── Passwords ──
-  const addPassword = useCallback(async (p: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }) => {
+  const addPassword = useCallback(async (p: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) => {
     const created = await guarded(() => passwordsApi.create(currentOrgId, p), 'Failed to save password')
     setData(d => ({ ...d, passwords: [created, ...d.passwords] }))
     toast(tr("Password \"{{value1}}\" saved", { value1: p.name }))

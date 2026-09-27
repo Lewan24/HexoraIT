@@ -15,3 +15,11 @@ test('spreadsheet preview renders bounded cell text without injecting generated 
   assert.match(previewSource, /MAX_PREVIEW_COLUMNS/)
   assert.match(previewSource, /getCell\(rowNumber, columnNumber\)\.text/)
 })
+
+test('document and text previews are bounded and DOCX renders without script capability', () => {
+  assert.match(previewSource, /MAX_DOCUMENT_PREVIEW_BYTES/)
+  assert.match(previewSource, /MAX_TEXT_PREVIEW_BYTES/)
+  assert.match(previewSource, /sandbox="allow-same-origin"/)
+  assert.doesNotMatch(previewSource, /sandbox="[^"]*allow-scripts/)
+  assert.match(previewSource, /referrerPolicy="no-referrer"/)
+})

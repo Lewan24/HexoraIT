@@ -157,7 +157,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
               <InfoRow icon={<MapPin size={12} />} label={tr("Location")} value={asset.location} />
               <InfoRow icon={<User size={12} />} label={tr("Owner")} value={asset.owner} />
               {asset.serial && <InfoRow icon={<Tag size={12} />} label={tr("Serial")} value={asset.serial} mono />}
-              <InfoRow icon={<Clock size={12} />} label={tr("Last Updated")} value={asset.updated} />
+              <InfoRow icon={<Clock size={12} />} label={tr("Last Updated")} value={asset.updatedAt} />
             </InfoCard>
 
             {/* Technical details */}
@@ -202,7 +202,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
               <div className="space-y-3">
                 {[
                   { label: 'Status', value: tr(asset.status), ok: asset.status === 'online' },
-                  { label: 'Last Updated', value: asset.updated, ok: true },
+                  { label: 'Last Updated', value: asset.updatedAt, ok: true },
                 ].map((s, i) => (
                   <div key={i} className="flex justify-between items-center">
                     <span className="text-xs text-ink-muted">{tr(s.label)}</span>
@@ -242,7 +242,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
           <div className="px-5 py-8 text-center">
             <History size={20} className="text-ink-muted mx-auto mb-2 opacity-40" />
             <p className="text-xs text-ink-muted">{tr("Activity history isn't tracked yet.")}</p>
-            <p className="text-[10px] text-ink-muted mt-1">{tr("This asset was last updated")} {asset.updated}.</p>
+            <p className="text-[10px] text-ink-muted mt-1">{tr("This asset was last updated")} {asset.updatedAt}.</p>
           </div>
         </div>
       )}

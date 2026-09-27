@@ -4,7 +4,7 @@ Ostatnia aktualizacja: 2026-09-27.
 
 ## Aktualny etap
 
-Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 oraz duża część P1 są wdrożone, walidacja obejmuje główne wejścia, a kompatybilna paginacja działa dla samodzielnych endpointów listujących. Rozpoczęto hardening frontendu z Etapu 5 oraz Etap 4: moduły wersji, Auth, assets, contacts i groups działają już jako Minimal API. Następny krok: kolejne proste moduły CRUD wraz z testami kontraktowymi.
+Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 oraz duża część P1 są wdrożone, walidacja obejmuje główne wejścia, a kompatybilna paginacja działa dla samodzielnych endpointów listujących. Etap 4 zakończony: wszystkie moduły działają jako Minimal API, usunięto konkretne kontrolery MVC i rejestrację routingu kontrolerów. Etap 5 trwa: centralna komunikacja HTTP, utrata sesji, wymagane statusy błędów, główne kontrakty, konfiguracja runtime oraz operacje plikowe frontendu zostały poprawione i pokryte testami.
 
 ## Wykonane
 
@@ -61,6 +61,37 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 - Moduł contacts przeniesiono do Minimal API i `IContactService`; sześć tras zachowuje paginację, walidację, operację gwiazdki oraz jawne uprawnienie `contacts`. Dodano test odmowy zapisu dla członka tylko do odczytu.
 - Moduł groups przeniesiono do Minimal API i `IGroupService`; pięć tras używa jawnego uprawnienia `groups`. Tworzenie i aktualizacja odrzucają teraz identyfikatory assets niewidoczne lub należące do innej organizacji, bez ujawniania ich istnienia.
 - Test regresyjny groups potwierdza 400 i brak zapisu dla odwołania cross-tenant; testy metadanych potwierdzają obowiązkową autoryzację wszystkich tras contacts/groups.
+- Moduły incidents, knowledge, licenses i plans przeniesiono do Minimal API oraz osobnych serwisów aplikacyjnych. Zachowano ścieżki, DTO, statusy, paginację, operacje gwiazdki i jawne uprawnienia zasobowe.
+- Plany odrzucają teraz identyfikatory assets z innej organizacji lub niewidoczne dla użytkownika; test regresyjny potwierdza 400 i brak częściowego zapisu.
+- DTO licencji otrzymały limity długości, zakresy wartości liczbowych i wymagane pola, egzekwowane przez wspólny filtr DataAnnotations przed wykonaniem endpointu.
+- Testy dawnych kontrolerów czterech modułów zastąpiono testami serwisów; pokrywają CRUD, paginację, izolację organizacji, status licencji, operacje gwiazdki, odmowę zapisu użytkownikowi tylko do odczytu oraz walidację powiązanych assets.
+- Moduły projects, tasks i subnets przeniesiono do Minimal API oraz osobnych serwisów aplikacyjnych. Zachowano filtry organizacji/projektu, metadane paginacji, autorstwo tasków i wszystkie operacje na wpisach IP.
+- Usunięcie projektu nadal wymaga uprawnienia zapisu do wszystkich powiązanych tasków. Tworzenie i aktualizacja taska odrzuca projekt z innej organizacji lub niewidoczny dla użytkownika.
+- Dodawanie i aktualizacja wpisu IP odrzuca `AssetId` spoza organizacji lub niewidoczny dla użytkownika, bez ujawniania istnienia zasobu; test potwierdza 400 i brak częściowego zapisu.
+- DTO projektów, podsieci i wpisów IP otrzymały limity długości oraz zakres VLAN, egzekwowane przed logiką endpointu.
+- Moduły private notes, dashboard layout i diagram przeniesiono do Minimal API oraz osobnych serwisów. Prywatne notatki zachowują izolację po użytkowniku i organizacji, blokadę kont klienckich oraz natychmiastową reakcję na cofnięcie członkostwa.
+- Dashboard zachowuje układ per użytkownik i organizację oraz wymaga jawnego prawa odczytu modułu `dashboard`; zapis preferencji nie nadaje żadnych uprawnień do danych biznesowych.
+- Diagram zachowuje limit żądania 4 MB, 2000 węzłów i 4000 krawędzi, walidację grafu, kontrolę assets i transakcyjną podmianę. Nadal blokuje nadpisanie węzłów ukrytych przez uprawnienia zasobowe.
+- Moduł passwords przeniesiono do Minimal API i serwisu sejfu. Lista nadal nie zawiera sekretu, reveal korzysta z szyfru i generuje `password_revealed`, a aktualizacja bez nowego hasła nie nadpisuje istniejącej wartości.
+- Moduły contracts i warranties przeniesiono do Minimal API oraz serwisów zachowujących walidację uploadu, limit 20 MB, bezpieczną nazwę pobrania, kompensacyjne usuwanie nowego blobu po błędzie bazy i usuwanie starego blobu dopiero po udanym zapisie metadanych.
+- Gwarancje odrzucają niepoprawny lub niezgodny z trasą identyfikator oraz `AssetId` z innej organizacji lub niewidoczny dla użytkownika. Kontrakty i gwarancje otrzymały limity pól zgodne z przeznaczeniem i bazą.
+- Endpointy multipart jawnie wyłączają antiforgery, ponieważ API używa tokenu Bearer w nagłówku, a nie uwierzytelniania cookie; nadal wymagają autoryzacji JWT i uprawnienia zasobowego.
+- Files Explorer przeniesiono w całości do Minimal API i `IFileExplorerService`: 12 tras zachowuje paginację, hierarchię folderów, upload 100 MB, tryb inline/attachment, bezpieczne nazwy i kompensację storage.
+- Przenoszenie folderów odrzuca cel równy folderowi oraz cykle przez potomka. Tworzenie i przenoszenie odrzuca folder docelowy z innej organizacji lub niewidoczny dla użytkownika.
+- Usunięcie drzewa folderów nadal działa transakcyjnie i przed zmianą metadanych sprawdza prawo zapisu do każdego potomnego pliku z pominięciem filtrów odczytu; blob jest usuwany dopiero po zatwierdzeniu bazy.
+- Client Reports przeniesiono do Minimal API i serwisu zachowującego wymaganie aktywnego członkostwa oraz roli systemowej Client; zgłoszenie nadal tworzy task z identyfikatorem i nazwą autora.
+- Panel Admin przeniesiono do Minimal API i `IAdminUserService`. Wszystkie pięć tras wymaga polityki `AdminOnly`; zachowano blokadę zablokowania/degradacji ostatniego administratora, zakaz konwersji kont Client, rotację `SecurityStamp` oraz audyt zmian kont.
+- Tworzenie użytkownika administracyjnego normalizuje e-mail przed kontrolą unikalności; testy obejmują krótkie hasło, rolę Client, duplikat e-mail i ochronę ostatniego administratora.
+- Organizations przeniesiono do Minimal API i `IOrganizationService`: dziesięć tras zachowuje soft-delete/restore, reguły właściciela i administratora, członkostwa, zakaz tworzenia organizacji przez klienta, uprawnienie `settings` oraz paginację.
+- Organization Roles i zarządzanie klientami przeniesiono do Minimal API i `IOrganizationRoleService`: 12 tras zachowuje role niestandardowe, ochronę właściciela, blokady eskalacji, indywidualne reguły zasobowe, ograniczenia klientów i kopiowanie wyłącznie domyślnych reguł modułów.
+- Usunięto ostatnie konkretne kontrolery MVC oraz `AddControllers`/`MapControllers`. Serializacja enumów jako tekst została jawnie skonfigurowana dla Minimal API, a test metadanych potwierdza autoryzację wszystkich operacji ról organizacyjnych.
+- Frontendowa warstwa HTTP rozróżnia błędne logowanie od wygaśnięcia aktywnej sesji, wspólnie obsługuje JSON, tekst i blob, odczytuje `message`, `detail` oraz błędy walidacji z Problem Details i mapuje błędy sieciowe na spójny `ApiError`.
+- Dodano testy odpowiedzi 400/401/403/404/409/422/429, utraty sesji, awarii sieci i zablokowanego `localStorage`. Token ma awaryjny magazyn pamięciowy, handler 401 jest odpinany po odmontowaniu providera, a wylogowanie synchronizuje się między kartami.
+- Ujednolicono kontrakty `updatedAt` dla assets i passwords. Puste opcjonalne daty są normalizowane przed wysłaniem do nie-nullowych typów backendu, a nierozwiązany incydent wysyła `resolvedAt: null` zamiast niepoprawnego pustego ciągu.
+- Konfiguracja frontendowa waliduje i normalizuje `API_BASE_URL`, dopuszczając wyłącznie HTTP(S) lub ścieżkę względną do korzenia. Kontener kończy start przy braku wymaganej wartości albo niebezpiecznym formacie, lokalny `env.js` usuwa błąd 404, a Vite domyślnie nasłuchuje tylko na `127.0.0.1`.
+- Frontendowy Docker build używa deterministycznego `npm ci`; dodano `.dockerignore`, aby nie kopiować `node_modules`, artefaktów, lokalnych plików środowiskowych i cache TypeScript do kontekstu obrazu.
+- Eksplorator plików wyłącza tworzenie i upload bez modułowego prawa zapisu oraz ukrywa zmianę nazwy, przenoszenie i usuwanie pliku bez prawa do konkretnego zasobu. Dodano zgodne z backendem limity 100 MB, maksymalnie 20 plików w jednej partii, długości nazw oraz kontrolowaną obsługę błędów pobierania.
+- Podgląd tekstu ma limit 2 MB, DOCX 10 MB, a renderer DOCX działa w ramce `sandbox` bez `allow-scripts` i bez referrera. Usunięto także niepoprawne zagnieżdżenie interaktywnych przycisków w karcie pliku.
 
 ## Najważniejsze decyzje
 
@@ -77,14 +108,14 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 - P1: uploady nie mają jeszcze produkcyjnego skanera antymalware; DOCX wymaga dalszej oceny izolacji renderera.
 - P1 (wdrożeniowe): operator musi podać dokładny adres każdego zaufanego reverse proxy, aby limiter rozróżniał klientów; nagłówki z innych źródeł są ignorowane.
 - P2: główne wejściowe DTO i kolekcje JSON mają limity; wszystkie samodzielne endpointy listujące mają ograniczony kontrakt. Zagnieżdżone kolekcje (np. adresy IP w stronie podsieci) wymagają jeszcze pomiaru i ewentualnego osobnego kontraktu.
-- P2: moduły wersji, Auth, assets, contacts i groups są już Minimal API; pozostałych 18 konkretnych kontrolerów jest migrowanych partiami.
+- P2: migracja wszystkich modułów aplikacyjnych do Minimal API jest zakończona; w kodzie API nie pozostały konkretne kontrolery MVC.
 - P2: klucze licencyjne plaintext, key-ring bez ochrony at-rest, migracje DB przy starcie.
 - Testy backendu uruchamiają pełny host HTTP na SQLite, ale nie obejmują jeszcze rzeczywistego PostgreSQL.
 
 ## Wyniki ostatnich testów
 
-- Backend: PASS 159/159, w tym kontrakty Minimal API wersji/Auth/assets/contacts/groups, test cross-tenant powiązanego zasobu, metadane autoryzacji, paginacja i walidacja przed akcją.
-- Frontend: PASS 13/13.
+- Backend: PASS 145/145, w tym kontrakty Minimal API wszystkich modułów, polityka `AdminOnly`, ochrona ostatniego administratora, rotacja sesji, zgłoszenia klientów, cross-tenant, metadane autoryzacji, paginacja i walidacja przed akcją.
+- Frontend: PASS 32/32.
 - Frontend lint: PASS.
 - Frontend build: PASS; główny JS 1,18 MB, ExcelJS jako osobny dynamiczny chunk 0,93 MB.
 - npm audit: PASS, 0 podatności.
@@ -101,8 +132,8 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 
 ## Następne działania
 
-1. Migrować kolejne proste moduły CRUD (`incidents`, `knowledge`, `licenses`, `plans`) z użyciem wspólnego wyniku, walidacji i jawnej autoryzacji zasobowej.
-2. Rozszerzać testy kontraktowe każdej partii i usuwać kontroler dopiero po potwierdzeniu zgodności.
+1. Kontynuować Etap 5: ujednolicić ograniczenia formularzy z DataAnnotations backendu, dokończyć kontrolę routingu/widoków i ocenić zasadność generowania typowanego klienta z OpenAPI.
+2. Kontynuować Etap 6: rozszerzyć testy integracji frontend–API i przygotować wymagane dokumenty strategii oraz wyników testów.
 3. Ocenić rozmiar zagnieżdżonych kolekcji w odpowiedziach i dodać osobne limity tylko tam, gdzie nie złamią rzeczywistego UX.
 
 ## Blokery / czynności właściciela

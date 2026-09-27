@@ -28,12 +28,12 @@ export interface AppContextValue {
   isLoading: boolean
   toasts: Toast[]; dismissToast: (id: string) => void; toast: (message: string, type?: Toast['type']) => void
 
-  addAsset: (a: Omit<Asset, 'id' | 'updated'>) => Promise<void>
+  addAsset: (a: Omit<Asset, 'id' | 'updatedAt'>) => Promise<void>
   updateAsset: (a: Asset) => Promise<void>
   deleteAsset: (id: string) => Promise<void>
   toggleStarAsset: (id: string) => Promise<void>
 
-  addPassword: (p: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }) => Promise<void>
+  addPassword: (p: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) => Promise<void>
   updatePassword: (p: PasswordEntry & { password?: string }) => Promise<void>
   deletePassword: (id: string) => Promise<void>
   toggleStarPassword: (id: string) => Promise<void>

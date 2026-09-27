@@ -43,8 +43,8 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
     description: initial?.description ?? '',
     resolution: initial?.resolution ?? '',
     affectedSystems: initial?.affectedSystems.join(', ') ?? '',
-    occurredAt: initial?.occurredAt ?? '',
-    resolvedAt: initial?.resolvedAt ?? '',
+    occurredAt: initial?.occurredAt?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
+    resolvedAt: initial?.resolvedAt?.slice(0, 16) ?? '',
     tags: initial?.tags.join(', ') ?? '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -72,7 +72,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
         resolution: form.resolution.trim(),
         affectedSystems: form.affectedSystems.split(',').map(s => s.trim()).filter(Boolean),
         occurredAt: form.occurredAt,
-        resolvedAt: form.resolvedAt,
+        resolvedAt: form.resolvedAt || null,
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       })
     } catch {

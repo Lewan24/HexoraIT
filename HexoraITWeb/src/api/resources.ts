@@ -13,6 +13,8 @@ import type {
   StoredFile,
 } from './types'
 
+const requiredApiDate = (value: string) => value || '0001-01-01'
+
 export const adminApi = {
   getUsers: () => http.getAllPages<AdminUser>('/admin/users'),
   createUser: (email: string, displayName: string, password: string, systemRole: SystemRole) => http.post<AdminUser>('/admin/users', {email, displayName, password, systemRole}),
@@ -44,9 +46,9 @@ export const organizationsApi = {
 
 export const assetsApi = {
   getAll: (organizationId: string) => http.getAllPages<Asset>(`/assets${qs({ organizationId })}`),
-  create: (organizationId: string, data: Omit<Asset, 'id' | 'updated'>) =>
+  create: (organizationId: string, data: Omit<Asset, 'id' | 'updatedAt'>) =>
     http.post<Asset>(`/assets${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<Asset, 'id' | 'updated'>) => http.put<void>(`/assets/${id}`, data),
+  update: (id: string, data: Omit<Asset, 'id' | 'updatedAt'>) => http.put<void>(`/assets/${id}`, data),
   delete: (id: string) => http.delete<void>(`/assets/${id}`),
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/assets/${id}/star`),
 }
@@ -54,9 +56,9 @@ export const assetsApi = {
 export const passwordsApi = {
   getAll: (organizationId: string) => http.getAllPages<PasswordEntry>(`/passwords${qs({ organizationId })}`),
   reveal: (id: string) => http.getString(`/passwords/${id}/reveal`),
-  create: (organizationId: string, data: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }) =>
+  create: (organizationId: string, data: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) =>
     http.post<PasswordEntry>(`/passwords${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password?: string }) =>
+  update: (id: string, data: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password?: string }) =>
     http.put<void>(`/passwords/${id}`, data),
   delete: (id: string) => http.delete<void>(`/passwords/${id}`),
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/passwords/${id}/star`),
@@ -76,8 +78,8 @@ export const subnetsApi = {
 export const licensesApi = {
   getAll: (organizationId: string) => http.getAllPages<License>(`/licenses${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<License, 'id' | 'status'>) =>
-    http.post<License>(`/licenses${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<License, 'id' | 'status'>) => http.put<void>(`/licenses/${id}`, data),
+    http.post<License>(`/licenses${qs({ organizationId })}`, { ...data, purchaseDate: requiredApiDate(data.purchaseDate), expiryDate: requiredApiDate(data.expiryDate) }),
+  update: (id: string, data: Omit<License, 'id' | 'status'>) => http.put<void>(`/licenses/${id}`, { ...data, purchaseDate: requiredApiDate(data.purchaseDate), expiryDate: requiredApiDate(data.expiryDate) }),
   delete: (id: string) => http.delete<void>(`/licenses/${id}`),
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/licenses/${id}/star`),
 }
@@ -94,8 +96,8 @@ export const contactsApi = {
 export const contractsApi = {
   getAll: (organizationId: string) => http.getAllPages<Contract>(`/contracts${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Contract, 'id' | 'status'>) =>
-    http.post<Contract>(`/contracts${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<Contract, 'id' | 'status'>) => http.put<void>(`/contracts/${id}`, data),
+    http.post<Contract>(`/contracts${qs({ organizationId })}`, { ...data, startDate: requiredApiDate(data.startDate), endDate: requiredApiDate(data.endDate) }),
+  update: (id: string, data: Omit<Contract, 'id' | 'status'>) => http.put<void>(`/contracts/${id}`, { ...data, startDate: requiredApiDate(data.startDate), endDate: requiredApiDate(data.endDate) }),
   delete: (id: string) => http.delete<void>(`/contracts/${id}`),
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/contracts/${id}/star`),
   uploadDocument: (id: string, file: File) => http.upload<Contract>(`/contracts/${id}/document`, file),
@@ -105,16 +107,16 @@ export const contractsApi = {
 export const plansApi = {
   getAll: (organizationId: string) => http.getAllPages<Plan>(`/plans${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Plan, 'id' | 'createdAt'>) =>
-    http.post<Plan>(`/plans${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<Plan, 'id' | 'createdAt'>) => http.put<void>(`/plans/${id}`, data),
+    http.post<Plan>(`/plans${qs({ organizationId })}`, { ...data, targetDate: requiredApiDate(data.targetDate) }),
+  update: (id: string, data: Omit<Plan, 'id' | 'createdAt'>) => http.put<void>(`/plans/${id}`, { ...data, targetDate: requiredApiDate(data.targetDate) }),
   delete: (id: string) => http.delete<void>(`/plans/${id}`),
 }
 
 export const incidentsApi = {
   getAll: (organizationId: string) => http.getAllPages<Incident>(`/incidents${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Incident, 'id'>) =>
-    http.post<Incident>(`/incidents${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<Incident, 'id'>) => http.put<void>(`/incidents/${id}`, data),
+    http.post<Incident>(`/incidents${qs({ organizationId })}`, { ...data, occurredAt: data.occurredAt || new Date().toISOString(), resolvedAt: data.resolvedAt || null }),
+  update: (id: string, data: Omit<Incident, 'id'>) => http.put<void>(`/incidents/${id}`, { ...data, occurredAt: data.occurredAt || new Date().toISOString(), resolvedAt: data.resolvedAt || null }),
   delete: (id: string) => http.delete<void>(`/incidents/${id}`),
 }
 
@@ -138,8 +140,8 @@ export const projectsApi = {
 export const tasksApi = {
   getAll: (organizationId: string) => http.getAllPages<Task>(`/tasks${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Task, 'id' | 'createdAt'>) =>
-    http.post<Task>(`/tasks${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<Task, 'id' | 'createdAt'>) => http.put<void>(`/tasks/${id}`, data),
+    http.post<Task>(`/tasks${qs({ organizationId })}`, { ...data, dueDate: requiredApiDate(data.dueDate) }),
+  update: (id: string, data: Omit<Task, 'id' | 'createdAt'>) => http.put<void>(`/tasks/${id}`, { ...data, dueDate: requiredApiDate(data.dueDate) }),
   delete: (id: string) => http.delete<void>(`/tasks/${id}`),
 }
 
@@ -154,8 +156,8 @@ export const groupsApi = {
 export const warrantyApi = {
   getAll: (organizationId: string) => http.getAllPages<WarrantyItem>(`/warranties${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<WarrantyItem, 'status'>) =>
-    http.post<WarrantyItem>(`/warranties${qs({ organizationId })}`, data),
-  update: (id: string, data: Omit<WarrantyItem, 'id' | 'status'>) => http.put<void>(`/warranties/${id}`, data),
+    http.post<WarrantyItem>(`/warranties${qs({ organizationId })}`, { ...data, purchaseDate: requiredApiDate(data.purchaseDate), warrantyEndDate: requiredApiDate(data.warrantyEndDate) }),
+  update: (id: string, data: Omit<WarrantyItem, 'id' | 'status'>) => http.put<void>(`/warranties/${id}`, { ...data, purchaseDate: requiredApiDate(data.purchaseDate), warrantyEndDate: requiredApiDate(data.warrantyEndDate) }),
   delete: (id: string) => http.delete<void>(`/warranties/${id}`),
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/warranties/${id}/star`),
   uploadDocument: (id: string, file: File) => http.upload<WarrantyItem>(`/warranties/${id}/document`, file),

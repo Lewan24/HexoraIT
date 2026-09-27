@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using HexoraITApi.Api.App;
+using HexoraITApi.Api.Administrator;
 using HexoraITApi.Api.Auth;
 using HexoraITApi.Api.Interfaces;
 using HexoraITApi.Application;
@@ -49,6 +50,24 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<IKnowledgeService, KnowledgeService>();
+builder.Services.AddScoped<ILicenseService, LicenseService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IWorkTaskService, WorkTaskService>();
+builder.Services.AddScoped<ISubnetService, SubnetService>();
+builder.Services.AddScoped<IPrivateNoteService, PrivateNoteService>();
+builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
+builder.Services.AddScoped<IDiagramService, DiagramService>();
+builder.Services.AddScoped<IPasswordVaultService, PasswordVaultService>();
+builder.Services.AddScoped<IContractService, ContractService>();
+builder.Services.AddScoped<IWarrantyService, WarrantyService>();
+builder.Services.AddScoped<IFileExplorerService, FileExplorerService>();
+builder.Services.AddScoped<IClientReportService, ClientReportService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
 builder.Services.AddSingleton<ISecurityAuditLogger, SecurityAuditLogger>();
 builder.Services.AddScoped<ICurrentUserIdProvider, HttpCurrentUserIdProvider>();
 builder.Services.AddScoped<ICurrentUserContext, DbCurrentUserContext>();
@@ -174,9 +193,9 @@ builder.Services.AddCors(opt =>
         .AllowCredentials());
 });
 
-builder.Services.AddControllers().AddJsonOptions(o =>
+builder.Services.ConfigureHttpJsonOptions(o =>
 {
-    o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -251,7 +270,24 @@ app.MapAuthEndpoints();
 app.MapAssetEndpoints();
 app.MapContactEndpoints();
 app.MapGroupEndpoints();
-app.MapControllers();
+app.MapIncidentEndpoints();
+app.MapKnowledgeEndpoints();
+app.MapLicenseEndpoints();
+app.MapPlanEndpoints();
+app.MapProjectEndpoints();
+app.MapWorkTaskEndpoints();
+app.MapSubnetEndpoints();
+app.MapPrivateNoteEndpoints();
+app.MapDashboardLayoutEndpoints();
+app.MapDiagramEndpoints();
+app.MapPasswordEndpoints();
+app.MapContractEndpoints();
+app.MapWarrantyEndpoints();
+app.MapFileExplorerEndpoints();
+app.MapClientReportEndpoints();
+app.MapAdminEndpoints();
+app.MapOrganizationEndpoints();
+app.MapOrganizationRoleEndpoints();
 
 app.Run();
 

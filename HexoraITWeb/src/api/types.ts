@@ -51,12 +51,12 @@ export interface DashboardLayout { sectionOrder: string[]; hiddenSections: strin
 
 export interface Asset {
   id: string; name: string; type: AssetType; status: AssetStatus; location: string
-  owner: string; ip: string; updated: string; starred: boolean; tags: string[]; notes: string; serial?: string
+  owner: string; ip: string; updatedAt: string; starred: boolean; tags: string[]; notes: string; serial?: string
 }
 
 export interface PasswordEntry {
   id: string; name: string; username: string; category: string
-  tags: string[]; updated: string; strength: PasswordStrength; starred: boolean; notes: string
+  tags: string[]; updatedAt: string; strength: PasswordStrength; starred: boolean; notes: string
 }
 
 export interface IPEntry { id: string; ip: string; label: string; status: IPEntryStatus; assetId?: string; plainText?: string; notes: string }
@@ -93,7 +93,7 @@ export interface Plan {
 export interface Incident {
   id: string; title: string; severity: IncidentSeverity; status: IncidentStatus
   description: string; resolution: string; affectedSystems: string[]
-  occurredAt: string; resolvedAt: string; tags: string[]
+  occurredAt: string; resolvedAt: string | null; tags: string[]
 }
 
 export interface KnowledgeArticle {

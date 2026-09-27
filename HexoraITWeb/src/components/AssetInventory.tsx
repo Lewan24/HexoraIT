@@ -40,7 +40,7 @@ function StatusBadge({ status }: { status: AssetStatus }) {
 
 interface AssetFormProps {
   initial?: Asset
-  onSave: (data: Omit<Asset, 'id' | 'updated'>) => Promise<void>
+  onSave: (data: Omit<Asset, 'id' | 'updatedAt'>) => Promise<void>
   onClose: () => void
 }
 
@@ -478,7 +478,7 @@ export default function AssetInventory({ navigate }: Props) {
                   { k: 'status' as SortKey, label: 'Status' },
                   { k: 'location' as SortKey, label: 'Location' },
                   { k: 'owner' as SortKey, label: 'Owner' },
-                  { k: 'updated' as SortKey, label: 'Updated' },
+                  { k: 'updatedAt' as SortKey, label: 'Updated' },
                 ].map(col => (
                   <th key={col.k} onClick={() => sort(col.k)}
                     className="px-3 py-3 text-left font-medium text-ink-muted cursor-pointer hover:text-ink-secondary transition-colors select-none whitespace-nowrap">
@@ -515,7 +515,7 @@ export default function AssetInventory({ navigate }: Props) {
                   <td className="px-3 py-3"><StatusBadge status={asset.status} /></td>
                   <td className="px-3 py-3 text-ink-secondary font-mono">{asset.location}</td>
                   <td className="px-3 py-3 text-ink-secondary">{asset.owner}</td>
-                  <td className="px-3 py-3 text-ink-muted font-mono">{asset.updated}</td>
+                  <td className="px-3 py-3 text-ink-muted font-mono">{asset.updatedAt}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-0.5">
                       <button disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)} title={asset.starred ? tr("Unstar") : tr("Star")}

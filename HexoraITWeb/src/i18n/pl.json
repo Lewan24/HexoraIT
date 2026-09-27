@@ -1009,5 +1009,8 @@
   "Zoom out": "Oddal",
   "Fit view": "Dopasuj widok",
   "Toggle interactivity": "Przełącz interakcję",
-  "Mini map": "Minimapa"
+  "Mini map": "Minimapa",
+  "Select at most {{value1}} files at once.": "Wybierz jednocześnie nie więcej niż {{value1}} plików.",
+  "Each file must be smaller than 100 MB.": "Każdy plik musi być mniejszy niż 100 MB.",
+  "Failed to download file": "Nie udało się pobrać pliku"
 }

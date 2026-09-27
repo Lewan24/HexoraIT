@@ -17,6 +17,8 @@ interface SpreadsheetPreview {
 }
 
 const MAX_SPREADSHEET_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_DOCUMENT_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
 const MAX_PREVIEW_ROWS = 1_000
 const MAX_PREVIEW_COLUMNS = 100
 
@@ -29,7 +31,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
   const [activeSheet, setActiveSheet] = useState(0)
   const [sheets, setSheets] = useState<SpreadsheetPreview[]>([])
 
-  const docxContainerRef = useRef<HTMLDivElement>(null)
+  const docxFrameRef = useRef<HTMLIFrameElement>(null)
   const kind = getPreviewKind(file.name, file.mimeType)
 
   useEffect(() => {
@@ -47,16 +49,15 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           setObjectUrl(createdUrl)
         } else if (kind === 'docx') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_DOCUMENT_PREVIEW_BYTES) throw new Error('Document is too large to preview safely.')
 
-          if (cancelled) 
-            return
-          
-          if (!docxContainerRef.current) {
-              return;
-          }
-
-          docxContainerRef.current.innerHTML = '';
-          await renderAsync(blob, docxContainerRef.current, undefined, {
+          if (cancelled) return
+          const frameDocument = docxFrameRef.current?.contentDocument
+          if (!frameDocument) throw new Error('Document preview frame is unavailable.')
+          frameDocument.open()
+          frameDocument.write('<!doctype html><html><head></head><body></body></html>')
+          frameDocument.close()
+          await renderAsync(blob, frameDocument.body, frameDocument.head, {
             className: 'docx-preview',
             inWrapper: true,
             ignoreWidth: false,
@@ -86,6 +87,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           setActiveSheet(0)
         } else if (kind === 'text') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_TEXT_PREVIEW_BYTES) throw new Error('Text file is too large to preview safely.')
           const text = await blob.text()
           if (!cancelled) setTextContent(text)
         }
@@ -115,13 +117,17 @@ export default function FilePreviewModal({ file, onClose }: Props) {
   }, [onClose])
 
   const download = async () => {
-    const blob = await filesApi.downloadFile(file.id)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const blob = await filesApi.downloadFile(file.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch {
+      setError(true)
+    }
   }
 
   const activeSpreadsheet = sheets[activeSheet]
@@ -153,7 +159,8 @@ export default function FilePreviewModal({ file, onClose }: Props) {
 
         <div className="flex-1 min-h-0 bg-navy-950 overflow-auto relative">
           {kind === 'docx' && (
-            <div ref={docxContainerRef} className="docx-preview-host md:flex md:flex-col md:items-center bg-white p-4 h-full overflow-auto"/>
+            <iframe ref={docxFrameRef} sandbox="allow-same-origin" referrerPolicy="no-referrer" title={file.name}
+              className="docx-preview-host bg-white h-full w-full border-0" />
           )}
 
           {loading && (

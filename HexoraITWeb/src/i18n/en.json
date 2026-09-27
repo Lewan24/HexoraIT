@@ -1009,5 +1009,8 @@
   "Zoom out": "Zoom out",
   "Fit view": "Fit view",
   "Toggle interactivity": "Toggle interactivity",
-  "Mini map": "Mini map"
+  "Mini map": "Mini map",
+  "Select at most {{value1}} files at once.": "Select at most {{value1}} files at once.",
+  "Each file must be smaller than 100 MB.": "Each file must be smaller than 100 MB.",
+  "Failed to download file": "Failed to download file"
 }

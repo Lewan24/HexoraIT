@@ -21,6 +21,137 @@ namespace HexoraIT.Tests.Integration;
 
 public sealed class SecurityPipelineTests
 {
+    [Theory]
+    [InlineData("/api/incidents", 5)]
+    [InlineData("/api/knowledge", 6)]
+    [InlineData("/api/licenses", 6)]
+    [InlineData("/api/plans", 5)]
+    public void ContentMinimalApis_RegisterEveryOperationAsAuthorizedEndpoint(string routePrefix, int expectedCount)
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(routePrefix, StringComparison.Ordinal) == true)
+            .ToList();
+
+        endpoints.Should().HaveCount(expectedCount);
+        endpoints.Should().AllSatisfy(endpoint =>
+            endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
+    [Theory]
+    [InlineData("/api/projects", 5)]
+    [InlineData("/api/tasks", 5)]
+    [InlineData("/api/subnets", 8)]
+    public void ProjectTaskAndSubnetMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(routePrefix, StringComparison.Ordinal) == true)
+            .ToList();
+        endpoints.Should().HaveCount(expectedCount);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
+    [Theory]
+    [InlineData("/api/organizations/{organizationId:guid}/private-notes", 4)]
+    [InlineData("/api/dashboard-layout", 3)]
+    [InlineData("/api/diagram", 2)]
+    public void PersonalizationAndDiagramMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(routePrefix, StringComparison.Ordinal) == true)
+            .ToList();
+        endpoints.Should().HaveCount(expectedCount);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
+    [Theory]
+    [InlineData("/api/passwords", 6)]
+    [InlineData("/api/contracts", 8)]
+    [InlineData("/api/warranties", 8)]
+    public void SensitiveAndDocumentMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(routePrefix, StringComparison.Ordinal) == true).ToList();
+        endpoints.Should().HaveCount(expectedCount);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
+    [Fact]
+    public void FileExplorerMinimalApi_AuthorizesAllOperationsAndKeepsUploadLimit()
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/files", StringComparison.Ordinal) == true).ToList();
+        endpoints.Should().HaveCount(12);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+        endpoints.Single(endpoint => endpoint.RoutePattern.RawText == "/api/files/upload")
+            .Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>()?.MaxRequestBodySize
+            .Should().Be(100_000_000);
+    }
+
+    [Fact]
+    public void AdminMinimalApi_RequiresAdminPolicyOnEveryOperation()
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/admin", StringComparison.Ordinal) == true).ToList();
+        endpoints.Should().HaveCount(5);
+        endpoints.Should().AllSatisfy(endpoint =>
+            endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Should().Contain(item => item.Policy == "AdminOnly"));
+    }
+
+    [Fact]
+    public void ClientReportMinimalApi_RequiresAuthorization()
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoint = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Single(item => item.RoutePattern.RawText == "/api/organizations/{organizationId:guid}/reports");
+        endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void OrganizationMinimalApi_AuthorizesEveryOperation()
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/organizations", StringComparison.Ordinal) == true &&
+                endpoint.RoutePattern.RawText != "/api/organizations/{organizationId:guid}/reports" &&
+                !endpoint.RoutePattern.RawText!.Contains("/private-notes") &&
+                !endpoint.RoutePattern.RawText!.Contains("/roles") && !endpoint.RoutePattern.RawText.Contains("/permissions") &&
+                !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
+                !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
+            .ToList();
+        endpoints.Should().HaveCount(10);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
+    [Fact]
+    public void OrganizationRoleMinimalApi_AuthorizesEveryOperation()
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var prefix = "/api/organizations/{organizationId:guid}";
+        var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
+            .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText is { } route && route.StartsWith(prefix, StringComparison.Ordinal) &&
+                (route == $"{prefix}/permissions" || route.Contains("/roles", StringComparison.Ordinal) ||
+                 route.Contains("/role-resources/", StringComparison.Ordinal) || route.Contains("/clients", StringComparison.Ordinal) ||
+                 route.EndsWith("/role", StringComparison.Ordinal)))
+            .ToList();
+        endpoints.Should().HaveCount(12);
+        endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
+    }
+
     [Fact]
     public void GroupMinimalApi_RegistersAllOperationsAsAuthorizedEndpoints()
     {
