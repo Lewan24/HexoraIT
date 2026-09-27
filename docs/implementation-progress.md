@@ -92,6 +92,11 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 - Frontendowy Docker build używa deterministycznego `npm ci`; dodano `.dockerignore`, aby nie kopiować `node_modules`, artefaktów, lokalnych plików środowiskowych i cache TypeScript do kontekstu obrazu.
 - Eksplorator plików wyłącza tworzenie i upload bez modułowego prawa zapisu oraz ukrywa zmianę nazwy, przenoszenie i usuwanie pliku bez prawa do konkretnego zasobu. Dodano zgodne z backendem limity 100 MB, maksymalnie 20 plików w jednej partii, długości nazw oraz kontrolowaną obsługę błędów pobierania.
 - Podgląd tekstu ma limit 2 MB, DOCX 10 MB, a renderer DOCX działa w ramce `sandbox` bez `allow-scripts` i bez referrera. Usunięto także niepoprawne zagnieżdżenie interaktywnych przycisków w karcie pliku.
+- Formularze głównych modułów biznesowych otrzymały limity `maxLength` i zakresy liczbowe zgodne z backendowymi DataAnnotations (m.in. assets, passwords, contacts, networks, licenses, plans, incidents, knowledge, groups i warranties); pola tagów ograniczają także długość pojedynczej wartości i liczbę tagów po stronie UX.
+- Routing widoków jawnie odrzuca wejście do `reports` dla użytkowników innych niż Client; Client zachowuje dostęp tylko do raportów i ustawień profilu, a Admin do panelu administracyjnego. Dodano test statycznego kontraktu tej granicy.
+- Decyzję o generatorze klienta OpenAPI odroczono do zamrożenia specyfikacji i pełnego kontraktu błędów/multipart; uzasadnienie i warunki ponownej oceny zapisano w `docs/architecture/frontend-api-client-decision.md`.
+- Testowy host HTTP udostępnia Swagger JSON w środowisku `Testing`; test integracyjny pobiera dokument i potwierdza wersję OpenAPI oraz obecność ścieżek `/api/*`. Produkcyjne środowisko nadal nie publikuje Swaggera.
+- Rozszerzono frontendowe testy kontraktowe o multipart upload bez ręcznego nagłówka `Content-Type`, endpoint raportów klienta oraz organizacyjny zakres prywatnych notatek.
 
 ## Najważniejsze decyzje
 
@@ -114,8 +119,8 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 
 ## Wyniki ostatnich testów
 
-- Backend: PASS 145/145, w tym kontrakty Minimal API wszystkich modułów, polityka `AdminOnly`, ochrona ostatniego administratora, rotacja sesji, zgłoszenia klientów, cross-tenant, metadane autoryzacji, paginacja i walidacja przed akcją.
-- Frontend: PASS 32/32.
+- Backend: PASS 146/146, w tym kontrakt OpenAPI z testowego hosta, kontrakty Minimal API wszystkich modułów, polityka `AdminOnly`, ochrona ostatniego administratora, rotacja sesji, zgłoszenia klientów, cross-tenant, metadane autoryzacji, paginacja i walidacja przed akcją.
+- Frontend: PASS 35/35.
 - Frontend lint: PASS.
 - Frontend build: PASS; główny JS 1,18 MB, ExcelJS jako osobny dynamiczny chunk 0,93 MB.
 - npm audit: PASS, 0 podatności.
@@ -132,7 +137,7 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 
 ## Następne działania
 
-1. Kontynuować Etap 5: ujednolicić ograniczenia formularzy z DataAnnotations backendu, dokończyć kontrolę routingu/widoków i ocenić zasadność generowania typowanego klienta z OpenAPI.
+1. Kontynuować Etap 6: rozszerzyć testy integracji frontend–API oraz przygotować wersjonowany artefakt OpenAPI do późniejszej oceny generatora.
 2. Kontynuować Etap 6: rozszerzyć testy integracji frontend–API i przygotować wymagane dokumenty strategii oraz wyników testów.
 3. Ocenić rozmiar zagnieżdżonych kolekcji w odpowiedziach i dodać osobne limity tylko tam, gdzie nie złamią rzeczywistego UX.
 
@@ -143,3 +148,47 @@ Etapy 0–2 zakończone w wersji wstępnej. Etap 3 i P2.1 trwają: partie P0 ora
 - Docelowa ochrona kluczy Data Protection (certyfikat/KMS/secret store), malware scanner, MFA i model uprawnień produkcyjnej bazy wymagają decyzji/infrastruktury właściciela.
 - Operator musi podłączyć kategorię `HexoraIT.SecurityAudit` do zewnętrznego append-only/SIEM zgodnie z `docs/security/security-audit-operations.md` i przeprowadzić opisany odbiór; stdout kontenera nie jest trwałym sinkiem.
 - Należy potwierdzić zgodność licencji Fluent Assertions 8 dla sposobu użycia projektu.
+
+## Kontynuacja prac — 2026-09-27
+
+- Dodano `docs/testing/test-strategy.md` z kryteriami testowania zmian backendu i kontraktu frontend–API.
+- Dodano `docs/testing/regression-results.md`, który rozdziela potwierdzone wyniki od blokady środowiskowej `spawn EPERM` runnera Node.
+- Dodano `docs/api/openapi-contract.md` z zasadą wersjonowania `v1` i procedurą publikacji artefaktu po zamrożeniu kontraktu.
+- Rozszerzono `OpenApiContractTests` o sprawdzenie wersji `v1` oraz obecności operacji HTTP dla każdej ścieżki `/api/*`.
+- Weryfikacja partii OpenAPI: PASS 2/2 testów (`--filter FullyQualifiedName~OpenApiContractTests`); build nadal zgłasza NU1903 dla testowej biblioteki SQLite.
+- Uzupełniono wymagane dokumenty Etapu 7: przegląd architektury, backend, frontend, przepływ danych, baza, API, bezpieczeństwo, wdrożenie, development oraz instrukcje użytkownika i administratora.
+- Pełny backend nie zwrócił raportu po długim czasie i został zatrzymany; nie deklaruję wyniku pełnego zestawu.
+- Frontend build został ponowiony, ale środowisko zablokowało natywny binding Tailwind/Vite (`spawn EPERM`, `@tailwindcss/oxide-win32-x64-msvc`). Jest to blokada środowiskowa, nie błąd TypeScript.
+- Po `npm install --ignore-scripts` zależności frontendowe zostały odtworzone: `npm test` PASS 35/35, `npm run lint` PASS, `npm run build` PASS; lockfile nie został zmieniony.
+- Ponowiony pełny `dotnet test` nadal nie zwrócił raportu. `dotnet build` kompiluje projekty bez błędów C#, ale kończy się niespójnym komunikatem MSBuild przy ostrzeżeniu NU1903; wymaga osobnego oczyszczenia środowiska testowego.
+
+### Następny etap implementacji
+
+1. Ponowić pełny backend w czystej sesji i zapisać dokładną liczbę testów.
+2. Uruchomić testy frontendowe w środowisku bez ograniczenia tworzenia procesów potomnych Node.
+3. Po zamrożeniu kontraktu multipart i błędów wygenerować `docs/api/openapi/v1.json` z testowego hosta i dodać walidację artefaktu do CI.
+4. Zmierzyć zagnieżdżone kolekcje w odpowiedziach i dodać limity tylko dla potwierdzonych kosztownych przypadków.
+
+### Zweryfikowany wynik po wznowieniu
+
+- Backend: **PASS 147/147** przy `dotnet test HexoraITApi/HexoraIT.Tests/HexoraIT.Tests.csproj --no-build`.
+- Podział: Application **81/81**, Controllers **34/34**, Integration **32/32**.
+- Frontend: **PASS 35/35**, lint **PASS**, build **PASS** po odtworzeniu zależności z lockfile.
+- Pozostaje ostrzeżenie `NU1903` dotyczące testowej biblioteki SQLite oraz ostrzeżenie Vite o dużym głównym bundle.
+- Ocena zagnieżdżonych kolekcji zakończona: `SubnetDto.Ips` pozostaje bez cichego limitu; wymaga w przyszłości osobnego kontraktu paginacji, ponieważ ekran używa pełnej listy, a osobne operacje IP już istnieją.
+- Dodano `tools/export-openapi.ps1`, który pobiera `/swagger/v1/swagger.json`, waliduje format/version `1.0` i zapisuje artefakt `docs/api/openapi/v1.json` po zamrożeniu kontraktu.
+
+### Kontynuacja prac — kontrakt OpenAPI — 2026-09-27
+
+- Pełna walidacja po wznowieniu: backend **PASS 147/147**, frontend **PASS 35/35**, lint **PASS**, build **PASS**.
+- Zamrożono i wygenerowano `docs/api/openapi/v1.json` z testowego hosta SQLite: OpenAPI `3.0.4`, kontrakt `1.0`, 77 ścieżek `/api/*`.
+- Dodano `tools/export-openapi-from-tests.ps1`, aby eksport był reprodukowalny bez uruchamiania produkcyjnej konfiguracji i bez wymagania PostgreSQL.
+- Test `OpenApiContractTests` obsługuje opcjonalny zapis artefaktu przez `HEXORAIT_OPENAPI_OUTPUT`; domyślne uruchomienie testów pozostaje bez efektów ubocznych w repozytorium.
+- Ostrzeżenie zależności pozostaje: `NU1903` dla `SQLitePCLRaw.lib.e_sqlite3` w projekcie testowym. Nie zmieniano zależności bez potwierdzenia kompatybilności.
+
+### Pozostałe prace po tej partii
+
+1. Dodać walidację wersjonowanego artefaktu OpenAPI do procesu CI oraz kontrolę zmian kontraktu.
+2. Rozszerzyć testy frontend–API o scenariusze krytycznych ekranów na rzeczywistym testowym HTTP API, w granicach dostępnych w izolowanym środowisku.
+3. Zaplanować osobny kontrakt paginacji dla `SubnetDto.Ips`, po potwierdzeniu wpływu na UX.
+4. Wykonać Etap 9: ponowny audyt bezpieczeństwa, raport końcowy i zamknięcie/akceptacja ryzyk operacyjnych.

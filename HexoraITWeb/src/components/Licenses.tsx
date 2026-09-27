@@ -163,12 +163,12 @@ function LicenseModal({ initial, onClose, onSave }: {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("License Name *")}</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Microsoft 365 Business")} className={inp(errors.name)} autoFocus disabled={submitting} />
+              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Microsoft 365 Business")} maxLength={200} className={inp(errors.name)} autoFocus disabled={submitting} />
               {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor *")}</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Microsoft")} className={inp(errors.vendor)} disabled={submitting} />
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Microsoft")} maxLength={200} className={inp(errors.vendor)} disabled={submitting} />
               {errors.vendor && <p className="text-[10px] text-red-400 mt-1">{errors.vendor}</p>}
             </div>
             <div>
@@ -186,11 +186,11 @@ function LicenseModal({ initial, onClose, onSave }: {
             <div className="flex gap-2">
               <div className="flex-1">
                 <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Seats")}</label>
-                <input value={form.seats} onChange={e => set('seats', e.target.value)} placeholder={"1"} className={inp() + ' font-mono'} disabled={submitting} />
+                <input type="number" min={0} value={form.seats} onChange={e => set('seats', e.target.value)} placeholder={"1"} className={inp() + ' font-mono'} disabled={submitting} />
               </div>
               <div className="flex-1">
                 <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Used")}</label>
-                <input value={form.seatsUsed} onChange={e => set('seatsUsed', e.target.value)} placeholder={"0"} className={inp() + ' font-mono'} disabled={submitting} />
+                <input type="number" min={0} value={form.seatsUsed} onChange={e => set('seatsUsed', e.target.value)} placeholder={"0"} className={inp() + ' font-mono'} disabled={submitting} />
               </div>
             </div>
           </div>
@@ -219,7 +219,7 @@ function LicenseModal({ initial, onClose, onSave }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("License Key / Serial")}</label>
-            <input value={form.licenseKey} onChange={e => set('licenseKey', e.target.value)} placeholder={tr("XXXXX-XXXXX-XXXXX-XXXXX")} className={inp() + ' font-mono'} disabled={submitting} />
+            <input value={form.licenseKey} onChange={e => set('licenseKey', e.target.value)} placeholder={tr("XXXXX-XXXXX-XXXXX-XXXXX")} maxLength={10000} className={inp() + ' font-mono'} disabled={submitting} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>

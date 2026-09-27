@@ -211,7 +211,7 @@ using (var scope = app.Services.CreateScope())
     await initializer.InitializeAsync();
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

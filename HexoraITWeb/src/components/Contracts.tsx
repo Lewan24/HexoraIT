@@ -108,13 +108,13 @@ function ContractModal({ initial, onClose, onSave }: {
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contract Name *")}</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Annual Support Agreement")} className={inp(errors.name)} autoFocus disabled={submitting} />
+            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Annual Support Agreement")} maxLength={200} className={inp(errors.name)} autoFocus disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor *")}</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Acme Corp")} className={inp(errors.vendor)} disabled={submitting} />
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("Acme Corp")} maxLength={200} className={inp(errors.vendor)} disabled={submitting} />
               {errors.vendor && <p className="text-[10px] text-red-400 mt-1">{errors.vendor}</p>}
             </div>
             <div>

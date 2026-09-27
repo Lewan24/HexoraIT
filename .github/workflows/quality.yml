@@ -1,0 +1,48 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Verify backend and export OpenAPI
+        shell: pwsh
+        run: ./tools/export-openapi-from-tests.ps1
+
+      - name: Detect OpenAPI drift
+        run: git diff --exit-code -- docs/api/openapi/v1.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: HexoraITWeb/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: HexoraITWeb
+        run: npm ci
+
+      - name: Test frontend
+        working-directory: HexoraITWeb
+        run: npm test
+
+      - name: Lint frontend
+        working-directory: HexoraITWeb
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: HexoraITWeb
+        run: npm run build

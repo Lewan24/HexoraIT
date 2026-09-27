@@ -29,4 +29,6 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 | Audyt odsłonięcia hasła | `PasswordsControllerTests.Reveal_ReturnsTheOriginalPlaintext` | PASS: zdarzenie zawiera tylko typ operacji i identyfikatory użytkownika/zasobu/organizacji |
 | Zależności npm | `npm audit --json` | PASS: 0 znanych podatności |
 
-Aktualne zestawy: backend 159/159, frontend 13/13, lint i build frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.
+Aktualne zestawy historyczne: backend 159/159, frontend 13/13.
+
+Najnowszy pomiar: backend 147/147, frontend 35/35, lint i build frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.

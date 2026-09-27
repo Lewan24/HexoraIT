@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { hasPermission, MODULE_ID } from '../src/lib/permissions.ts'
+import fs from 'node:fs'
 
 const itemId = '11111111-1111-1111-1111-111111111111'
 const otherId = '22222222-2222-2222-2222-222222222222'
@@ -30,4 +31,9 @@ test('removing an individual rule restores the default and missing access denies
   assert.equal(hasPermission(access(), 'passwords'), false)
   assert.equal(hasPermission(undefined, 'passwords', true, itemId), false)
   assert.equal(hasPermission(access(rule(itemId, true, false)), 'passwords', false, itemId), true)
+})
+
+test('client-only reports view is denied to non-client users at the view gate', () => {
+  const source = fs.readFileSync(new URL('../src/components/PermissionGate.tsx', import.meta.url), 'utf8')
+  assert.match(source, /view === ['"]reports['"] && !isClient/)
 })

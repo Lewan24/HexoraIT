@@ -85,7 +85,7 @@ function AssetForm({ initial, onSave, onClose }: AssetFormProps) {
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase()
-    if (t && !form.tags.includes(t)) set('tags', [...form.tags, t])
+    if (t.length <= 100 && form.tags.length < 100 && !form.tags.includes(t)) set('tags', [...form.tags, t])
     setTagInput('')
   }
 
@@ -135,11 +135,11 @@ function AssetForm({ initial, onSave, onClose }: AssetFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <Field label={tr("Asset Name *")} error={errors.name}>
               <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)}
-                placeholder={tr("e.g. SRV-PROD-03")} className={input(errors.name)} disabled={submitting} />
+                placeholder={tr("e.g. SRV-PROD-03")} maxLength={200} className={input(errors.name)} disabled={submitting} />
             </Field>
             <Field label={tr("IP Address")} error={errors.ip}>
               <input value={form.ip} onChange={e => set('ip', e.target.value)}
-                placeholder={tr("e.g. 10.0.1.12")} className={input(errors.ip)} disabled={submitting} />
+                placeholder={tr("e.g. 10.0.1.12")} maxLength={45} className={input(errors.ip)} disabled={submitting} />
             </Field>
           </div>
 
@@ -159,17 +159,17 @@ function AssetForm({ initial, onSave, onClose }: AssetFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <Field label={tr("Location *")} error={errors.location}>
               <input value={form.location} onChange={e => set('location', e.target.value)}
-                placeholder={tr("e.g. DC-RACK-A1")} className={input(errors.location)} disabled={submitting} />
+                placeholder={tr("e.g. DC-RACK-A1")} maxLength={500} className={input(errors.location)} disabled={submitting} />
             </Field>
             <Field label={tr("Owner *")} error={errors.owner}>
               <input value={form.owner} onChange={e => set('owner', e.target.value)}
-                placeholder={tr("e.g. John Doe")} className={input(errors.owner)} disabled={submitting} />
+                placeholder={tr("e.g. John Doe")} maxLength={200} className={input(errors.owner)} disabled={submitting} />
             </Field>
           </div>
 
           <Field label={tr("Serial Number")}>
             <input value={form.serial} onChange={e => set('serial', e.target.value)}
-              placeholder={tr("e.g. BCZK1234567")} className={input() + ' font-mono'} disabled={submitting} />
+              placeholder={tr("e.g. BCZK1234567")} maxLength={200} className={input() + ' font-mono'} disabled={submitting} />
           </Field>
 
           <Field label={tr("Tags")}>
@@ -184,7 +184,7 @@ function AssetForm({ initial, onSave, onClose }: AssetFormProps) {
             <div className="flex gap-2">
               <input value={tagInput} onChange={e => setTagInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
-                placeholder={tr("Add tag and press Enter")} className={input() + ' flex-1'} disabled={submitting} />
+                placeholder={tr("Add tag and press Enter")} maxLength={100} className={input() + ' flex-1'} disabled={submitting} />
               <button type="button" onClick={addTag} disabled={submitting} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 transition-colors disabled:opacity-40">{tr("Add")}</button>
             </div>
           </Field>
@@ -192,7 +192,7 @@ function AssetForm({ initial, onSave, onClose }: AssetFormProps) {
           <Field label={tr("Notes")}>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
               placeholder={tr("Any relevant notes…")} rows={3}
-              className={input() + ' resize-none leading-relaxed'} disabled={submitting} />
+              maxLength={100000} className={input() + ' resize-none leading-relaxed'} disabled={submitting} />
           </Field>
         </div>
 

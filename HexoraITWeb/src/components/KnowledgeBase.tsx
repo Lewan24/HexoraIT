@@ -98,13 +98,14 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("Article title")} className={inp(errors.title)} autoFocus disabled={busy} />
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("Article title")} maxLength={200} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Category *")}</label>
             <input
               value={form.category}
+              maxLength={200}
               onChange={e => set('category', e.target.value)}
               list="kb-categories"
               placeholder={tr("e.g. Network")}
@@ -122,6 +123,7 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
               value={form.content}
               onChange={e => set('content', e.target.value)}
               rows={12}
+              maxLength={100000}
               placeholder={tr("# Main Title\n\n## Section\n\nWrite your article content here.\n\n- Bullet point\n- [ ] Checkbox item\n- [x] Completed item\n\n**bold text** and `inline code`")}
               className={inp() + ' resize-none font-mono leading-relaxed'}
               disabled={busy}
@@ -129,7 +131,7 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("vpn, routing, setup")} className={inp()} disabled={busy} />
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("vpn, routing, setup")} maxLength={10099} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
