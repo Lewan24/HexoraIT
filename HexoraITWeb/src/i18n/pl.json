@@ -1,4 +1,6 @@
 {
+  "Demo mode: all changes are stored only in this browser.": "Tryb demo: wszystkie zmiany są zapisywane tylko w tej przeglądarce.",
+  "Delete browser data and restore the original demo workspace and accounts.": "Usuń dane przeglądarki i przywróć początkową przestrzeń oraz konta demo.",
   "User guide": "Instrukcja obsługi",
   "Copy": "Kopiuj",
   "Client": "Klient",
@@ -557,6 +559,9 @@
   "Required": "Wymagane",
   "Reserved": "Zarezerwowane",
   "Reset": "Resetuj",
+  "Reset all demo data and restore the default accounts?": "Usunąć wszystkie dane demo i przywrócić domyślne konta?",
+  "Reset demo": "Resetuj demo",
+  "Resetting…": "Resetowanie…",
   "Reset Password": "Zresetuj hasło",
   "Reset password": "Zresetuj hasło",
   "Reset to default": "Przywróć domyślne",

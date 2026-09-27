@@ -32,4 +32,4 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 
 Aktualne zestawy historyczne: backend 159/159, frontend 13/13.
 
-Najnowszy pomiar: backend 149/149, frontend 36/36, lint i build frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.
+Najnowszy pomiar: backend 149/149, frontend 38/38, lint oraz buildy HTTP/demo frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.

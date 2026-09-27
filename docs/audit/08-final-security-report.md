@@ -45,7 +45,7 @@ Test `PostgreSqlQueryTranslationTests` używa produkcyjnego providera Npgsql i w
 |---|---|
 | Backend `.NET` | PASS 149/149 |
 | Translacja zapytań Npgsql | PASS 17/17 kształtów zapytań w jednym teście parametrycznym |
-| Frontend Node | PASS 36/36 |
+| Frontend Node | PASS 38/38 (w tym transport demo) |
 | ESLint | PASS |
 | Build frontend | PASS; główny JS ok. 400 kB, brak ostrzeżenia o dużych chunkach |
 | `npm audit --audit-level=high` | PASS, 0 podatności |

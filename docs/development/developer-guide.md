@@ -16,6 +16,7 @@ npm ci --prefix HexoraITWeb
 npm test --prefix HexoraITWeb
 npm run lint --prefix HexoraITWeb
 npm run build --prefix HexoraITWeb
+npm run build:demo --prefix HexoraITWeb
 ```
 
 Test `PostgreSqlQueryTranslationTests` używa Npgsql do generowania SQL bez połączenia z serwerem i wykrywa typowe błędy „could not be translated”. Nie zastępuje smoke testu na rzeczywistym PostgreSQL.
@@ -27,6 +28,7 @@ Test `PostgreSqlQueryTranslationTests` używa Npgsql do generowania SQL bez poł
 - Nie wykonuj metod .NET zależnych od providera, np. `enum.ToString()`, wewnątrz `IQueryable`; materializuj ograniczone dane albo użyj jawnie tłumaczalnej projekcji.
 - Zmiana DTO lub statusu HTTP wymaga aktualizacji frontendu, testów kontraktowych i artefaktu OpenAPI.
 - Ciężkie ekrany pozostawiaj za `React.lazy`, a duże parsery za importem dynamicznym.
+- Nową operację frontendu dodawaj przez wspólną fasadę `src/api`; utrzymuj zgodność transportu HTTP i mock oraz dopisz test demo dla zmiany stanu.
 
 ## OpenAPI
 

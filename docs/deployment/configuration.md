@@ -9,7 +9,8 @@
 | CORS | `AppSettings__AllowOrigins__0...n` | Dokładne originy frontendu, bez ścieżki i wildcardów. Lista nie może być pusta. |
 | Pliki | `FileStorage__RootPath` | Prywatny, trwały katalog poza statycznym rootem serwera WWW. |
 | Szyfrowanie | `FileStorage__DataProtectionKeysPath` | Trwały, chroniony i backupowany key-ring. |
-| Frontend | `HEXORAIT_API_BASE_URL` | Pełny URL HTTP(S) albo ścieżka od `/`, zwykle `/api` przy wspólnym originie. |
+| Tryb frontendu | `HEXORAIT_APP_MODE` | `http` (domyślnie) albo `mock`. `mock` jest wyłącznie publicznym demo opartym na `localStorage`. |
+| Frontend/API | `HEXORAIT_API_BASE_URL` | Pełny URL HTTP(S) albo ścieżka od `/`, zwykle `/api` przy wspólnym originie. Wymagany tylko w trybie `http`. |
 
 ## Ustawienia opcjonalne
 

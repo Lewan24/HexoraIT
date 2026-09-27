@@ -1,32 +1,66 @@
-import LanguageSwitcher from './LanguageSwitcher'
-import { tr, useLocale } from '../i18n'
-import { useState, type FormEvent } from 'react'
-import { Eye, EyeOff, Moon, Sun } from 'lucide-react'
-import { useAuth } from '../context/useAuth'
-import { ApiError } from '../api/http'
-import logo from '../../public/logo/HexoraIT_Logo.png'
-import logoDark from '../../public/logo/HexoraIT_LogoNoBg.png'
-import { getTheme, toggleTheme } from '../lib/theme'
+import LanguageSwitcher from "./LanguageSwitcher"
+
+import { tr, useLocale } from "../i18n"
+
+import { useState, type FormEvent } from "react"
+
+import { Eye, EyeOff, Moon, Sun } from "lucide-react"
+
+import { useAuth } from "../context/useAuth"
+
+import { ApiError } from "../api/http"
+
+import logo from "../../public/logo/HexoraIT_Logo.png"
+
+import logoDark from "../../public/logo/HexoraIT_LogoNoBg.png"
+
+import { getTheme, toggleTheme } from "../lib/theme"
+import { config } from "../../config"
+import { DEMO_ACCOUNTS } from "../demo"
 
 export default function Login() {
   useLocale()
+
   const { login } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+
+  const [email, setEmail] = useState("")
+
+  const [password, setPassword] = useState("")
+
   const [showPass, setShowPass] = useState(false)
+
   const [loading, setLoading] = useState(false)
+
   const [focused, setFocused] = useState<string | null>(null)
+
   const [error, setError] = useState<string | null>(null)
+
   const [theme, setThemeState] = useState(getTheme)
+  const isDemo = config.appMode === "mock"
+
+  const fillDemoAccount = (
+    account: typeof DEMO_ACCOUNTS[keyof typeof DEMO_ACCOUNTS],
+  ) => {
+    setEmail(account.email)
+    setPassword(account.password)
+    setError(null)
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+
     setError(null)
+
     setLoading(true)
+
     try {
       await login(email, password)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : tr("Unable to sign in. Please try again."))
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : tr("Unable to sign in. Please try again."),
+      )
     } finally {
       setLoading(false)
     }
@@ -34,78 +68,120 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-navy-950 relative overflow-hidden select-none">
-
       {/* Dot-grid background */}
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: 'radial-gradient(circle, var(--_edge-default, #252525) 1px, transparent 1px)',
-          backgroundSize: '80px 80px',
+          backgroundImage:
+            "radial-gradient(circle, var(--_edge-default, #252525) 1px, transparent 1px)",
+
+          backgroundSize: "80px 80px",
+
           opacity: 0.8,
         }}
       />
       {/* Subtle vignette */}
-      <div className="absolute inset-0" style={{ background: 'var(--_bg-white)' }} />
+      <div
+        className="absolute inset-0"
+        style={{ background: "var(--_bg-white)" }}
+      />
 
       <div className="relative z-10 w-full max-w-[380px] px-5">
-
-        <div className='flex flex-col items-center'>
+        <div className="flex flex-col items-center">
           <LanguageSwitcher />
           <button
-            onClick={() => { const t = toggleTheme(); setThemeState(t) }}
+            onClick={() => {
+              const t = toggleTheme()
+              setThemeState(t)
+            }}
             className="size-12 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0"
-            title={theme === 'dark' ? tr("Switch to light mode") : tr("Switch to dark mode")}
+            title={
+              theme === "dark"
+                ? tr("Switch to light mode")
+                : tr("Switch to dark mode")
+            }
           >
-            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+            {theme === "dark" ? <Sun size={24} /> : <Moon size={24} />}
           </button>
         </div>
 
         {/* Header */}
         <div className="mb-8">
           <div>
-            {(getTheme() === 'dark') && (
-              <img src={logoDark}/>
-            )}
+            {getTheme() === "dark" && <img src={logoDark} />}
 
-            {(getTheme() === 'light') && (
-              <img src={logo}/>
-            )}
+            {getTheme() === "light" && <img src={logo} />}
           </div>
           <h1 className="text-xl font-semibold text-ink-primary leading-tight">
-             {tr("Sign in to HexoraIT")} <span className="cursor-blink ml-0.5 text-blue-400">_</span>
+            {tr("Sign in to HexoraIT")}{" "}
+            <span className="cursor-blink ml-0.5 text-blue-400">_</span>
           </h1>
-          <p className="text-sm text-ink-muted mt-1">{tr("Your IT documentation workspace")}</p>
+          <p className="text-sm text-ink-muted mt-1">
+            {tr("Your IT documentation workspace")}
+          </p>
+          {isDemo && (
+            <p className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-300">
+              {tr("Demo mode: all changes are stored only in this browser.")}
+            </p>
+          )}
         </div>
+
+        {isDemo && (
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            {Object.values(DEMO_ACCOUNTS).map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => fillDemoAccount(account)}
+                className="rounded-lg border border-edge-default bg-navy-800 px-3 py-2 text-left hover:border-blue-500/50 hover:bg-navy-700"
+              >
+                <span className="block text-xs font-medium text-ink-primary">
+                  {tr(account.label)}
+                </span>
+                <span className="block truncate text-[10px] text-ink-muted">
+                  {account.email}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-               {tr("Email")} </label>
+              {tr("Email")}{" "}
+            </label>
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
-              onFocus={() => setFocused('email')}
+              onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setFocused("email")}
               onBlur={() => setFocused(null)}
               placeholder={tr("you@corp.local")}
               autoComplete="email"
               required
               maxLength={256}
               className="w-full px-3 py-2.5 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
-              style={{ borderColor: focused === 'email' ? 'var(--_blue-500)' : 'var(--_edge-default)' }}
+              style={{
+                borderColor:
+                  focused === "email"
+                    ? "var(--_blue-500)"
+                    : "var(--_edge-default)",
+              }}
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-               {tr("Password")} </label>
+              {tr("Password")}{" "}
+            </label>
             <div className="relative">
               <input
-                type={showPass ? 'text' : 'password'}
+                type={showPass ? "text" : "password"}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                onFocus={() => setFocused('pass')}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocused("pass")}
                 onBlur={() => setFocused(null)}
                 placeholder={"••••••••••••"}
                 autoComplete="current-password"
@@ -113,7 +189,12 @@ export default function Login() {
                 minLength={8}
                 maxLength={200}
                 className="w-full px-3 py-2.5 pr-10 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
-                style={{ borderColor: focused === 'pass' ? 'var(--_blue-500)' : 'var(--_edge-default)' }}
+                style={{
+                  borderColor:
+                    focused === "pass"
+                      ? "var(--_blue-500)"
+                      : "var(--_edge-default)",
+                }}
               />
               <button
                 type="button"
@@ -136,26 +217,50 @@ export default function Login() {
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <svg
+                  className="animate-spin w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 {tr("Authenticating…")}
               </span>
-            ) : tr("→ sign_in()")}
+            ) : (
+              tr("→ sign_in()")
+            )}
           </button>
         </form>
 
-        <div className='text-center mt-5'>
-          <p className="text-xs">{tr("For a new account or a forgotten password, contact the application administrator.")}</p>
+        <div className="text-center mt-5">
+          <p className="text-xs">
+            {tr(
+              "For a new account or a forgotten password, contact the application administrator.",
+            )}
+          </p>
         </div>
 
         {/* Footer */}
         <div className="mt-1 pt-5 border-t border-edge-subtle flex items-center justify-between">
-          <span className="text-[11px] font-mono text-ink-muted">{tr("v1.0.0 · self-hosted")}</span>
-          <span className="text-[11px] font-mono text-ink-muted">{tr("corp.local")}</span>
+          <span className="text-[11px] font-mono text-ink-muted">
+            {tr("v1.0.0 · self-hosted")}
+          </span>
+          <span className="text-[11px] font-mono text-ink-muted">
+            {tr("corp.local")}
+          </span>
         </div>
-
       </div>
     </div>
   )

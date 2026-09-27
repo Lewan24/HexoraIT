@@ -27,7 +27,7 @@ test('runtime configuration is present locally and mandatory in the container', 
   assert.match(defaultEnvironment, /window\.__ENV__/)
   assert.match(entrypoint, /HEXORAIT_API_BASE_URL is required/)
   assert.match(dockerfile, /RUN npm ci/)
-  assert.match(vite, /process\.env\.HOST \?\? '127\.0\.0\.1'/)
+  assert.match(vite, /process\.env\.HOST \?\? ["']127\.0\.0\.1["']/)
 })
 
 test('file write controls and client-side upload limits follow backend permissions', async () => {

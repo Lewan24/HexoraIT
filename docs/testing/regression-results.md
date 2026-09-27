@@ -6,9 +6,10 @@ Stan końcowy: 2026-09-27.
 |---|---|
 | `dotnet test HexoraITApi/HexoraIT.Tests/HexoraIT.Tests.csproj` | **PASS 149/149** |
 | Translacja 17 głównych zapytań przez Npgsql | **PASS** bez połączenia z bazą |
-| `npm test --prefix HexoraITWeb` | **PASS 36/36** |
+| `npm test --prefix HexoraITWeb` | **PASS 38/38**, w tym seed, CRUD i separacja ról transportu demo |
 | `npm run lint --prefix HexoraITWeb` | **PASS** |
 | `npm run build --prefix HexoraITWeb` | **PASS**, bez ostrzeżenia o dużych chunkach |
+| `npm run build:demo --prefix HexoraITWeb` | **PASS**, samodzielny artefakt mock bez wymaganego API |
 | `npm audit --prefix HexoraITWeb --audit-level=high` | **PASS**, 0 podatności |
 | `git diff --check` | **PASS** |
 

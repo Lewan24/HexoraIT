@@ -24,3 +24,9 @@ Obecna wersja wywołuje `Database.MigrateAsync()` podczas startu API. Przed aktu
 6. Sprawdź nagłówki bezpieczeństwa, CORS, adres klienta za proxy oraz odbiór zdarzeń audytowych.
 
 Przed publikacją wykonaj zestawy z [test-strategy.md](../testing/test-strategy.md), rotację historycznie użytych sekretów i ręczną kontrolę artefaktów. Warunki blokujące produkcję opisuje [raport końcowy](../audit/08-final-security-report.md).
+
+## Publiczna wersja demonstracyjna bez API
+
+Uruchom `npm run build:demo --prefix HexoraITWeb` i opublikuj katalog `HexoraITWeb/dist` jako statyczne SPA z fallbackiem do `index.html`. Alternatywnie uruchom sam obraz frontendu z `HEXORAIT_APP_MODE=mock`; URL API nie jest wtedy wymagany. Demo zapisuje dane tylko w pamięci przeglądarki i udostępnia w ustawieniach reset do danych startowych. Nie uruchamiaj w tym wariancie API ani bazy, jeśli nie są potrzebne innym usługom.
+
+Konta demonstracyjne są publiczne i pokazane na ekranie logowania. Nie umieszczaj w seedzie danych rzeczywistych, sekretów ani materiałów klientów. Limit `localStorage` zależy od przeglądarki, dlatego demo nie służy do przechowywania dużych plików.

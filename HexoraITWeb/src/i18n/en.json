@@ -1,4 +1,6 @@
 {
+  "Demo mode: all changes are stored only in this browser.": "Demo mode: all changes are stored only in this browser.",
+  "Delete browser data and restore the original demo workspace and accounts.": "Delete browser data and restore the original demo workspace and accounts.",
   "User guide": "User guide",
   "Copy": "Copy",
   "Client": "Client",
@@ -557,6 +559,9 @@
   "Required": "Required",
   "Reserved": "Reserved",
   "Reset": "Reset",
+  "Reset all demo data and restore the default accounts?": "Reset all demo data and restore the default accounts?",
+  "Reset demo": "Reset demo",
+  "Resetting…": "Resetting…",
   "Reset Password": "Reset Password",
   "Reset password": "Reset password",
   "Reset to default": "Reset to default",

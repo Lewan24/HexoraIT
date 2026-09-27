@@ -1,9 +1,23 @@
 #!/bin/sh
 set -e
 
-if [ -z "$HEXORAIT_API_BASE_URL" ]; then
+HEXORAIT_APP_MODE="${HEXORAIT_APP_MODE:-http}"
+
+case "$HEXORAIT_APP_MODE" in
+    http|mock) ;;
+    *)
+        echo "HEXORAIT_APP_MODE must be either http or mock." >&2
+        exit 1
+        ;;
+esac
+
+if [ "$HEXORAIT_APP_MODE" = "http" ] && [ -z "$HEXORAIT_API_BASE_URL" ]; then
     echo "HEXORAIT_API_BASE_URL is required." >&2
     exit 1
+fi
+
+if [ "$HEXORAIT_APP_MODE" = "mock" ] && [ -z "$HEXORAIT_API_BASE_URL" ]; then
+    HEXORAIT_API_BASE_URL="/api"
 fi
 
 case "$HEXORAIT_API_BASE_URL" in
@@ -21,7 +35,8 @@ case "$HEXORAIT_API_BASE_URL" in
         ;;
 esac
 
-envsubst '$HEXORAIT_API_BASE_URL' \
+export HEXORAIT_API_BASE_URL HEXORAIT_APP_MODE
+envsubst '$HEXORAIT_API_BASE_URL $HEXORAIT_APP_MODE' \
     < /usr/share/nginx/html/env.template.js \
     > /usr/share/nginx/html/env.js
 

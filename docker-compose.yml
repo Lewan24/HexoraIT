@@ -95,6 +95,7 @@ services:
     environment:
       # API url, the target domain where the ITDocs will be available at
       HEXORAIT_API_BASE_URL: http://localhost:8081/api
+      HEXORAIT_APP_MODE: ${HEXORAIT_APP_MODE:-http}
 
     depends_on:
       - api
