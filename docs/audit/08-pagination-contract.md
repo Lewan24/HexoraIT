@@ -26,9 +26,9 @@ więc komponenty nie wymagają zmiany kontraktu.
 Klient automatyczny ma bezpiecznik 100 stron, czyli 20000 rekordów. Po przekroczeniu zwraca
 kontrolowany błąd zamiast wykonywać nieograniczoną liczbę żądań.
 
-## Dalsze wdrożenie
+## Możliwa przyszła ewolucja
 
-Samodzielne listy są objęte kontraktem. Nadal trzeba ocenić kolekcje zagnieżdżone w większych
-odpowiedziach, w szczególności adresy IP wewnątrz strony podsieci. Nie należy rozdzielać tych
-kontraktów bez pomiaru i dostosowania UX. Docelowy UI może później wyświetlać strony bez
-pobierania pełnego zbioru.
+Samodzielne listy są objęte kontraktem. Kolekcje zagnieżdżone w większych odpowiedziach,
+w szczególności adresy IP wewnątrz strony podsieci, pozostają świadomie bez cichego limitu.
+Paginację IP należy wprowadzić dopiero po pomiarze danych i dostosowaniu UX; do tego czasu
+zmiana nie jest wymagana do zamknięcia refaktoryzacji.

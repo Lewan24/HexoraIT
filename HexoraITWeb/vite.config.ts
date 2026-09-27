@@ -15,6 +15,12 @@ export default defineConfig({
     },
   },
 
+  build: {
+    // ExcelJS is loaded only when an XLSX preview is opened. Its minified
+    // distribution is intentionally kept in a separate, on-demand chunk.
+    chunkSizeWarningLimit: 1000,
+  },
+
   server: {
     host: process.env.HOST ?? '127.0.0.1',
     port: Number(process.env.PORT ?? 8443),

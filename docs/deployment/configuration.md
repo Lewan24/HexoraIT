@@ -1,5 +1,20 @@
 # Konfiguracja
 
-Backend wymaga connection stringa PostgreSQL, klucza JWT oraz ścieżek prywatnego storage i kluczy Data Protection. Frontend używa `API_BASE_URL` w formacie HTTP(S) albo ścieżki względnej od korzenia.
+## Wymagane ustawienia
 
-W produkcji nie włączaj Swaggera, nie używaj przykładowych sekretów, ogranicz CORS do znanych originów i ustaw `ReverseProxy:KnownProxies` na dokładne adresy proxy. `appsettings.Development.json` jest wyłącznie lokalną konfiguracją i nie może trafić do artefaktu.
+| Obszar | Klucz / zmienna | Uwagi |
+|---|---|---|
+| PostgreSQL | `ConnectionStrings__Default` / `HEXORAIT_DB_PASSWORD` | Connection string musi wskazywać istniejącą bazę; Compose składa go z hasła. |
+| JWT | `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` | Klucz ma mieć co najmniej 32 bajty losowego materiału. Zmiana unieważnia tokeny. |
+| CORS | `AppSettings__AllowOrigins__0...n` | Dokładne originy frontendu, bez ścieżki i wildcardów. Lista nie może być pusta. |
+| Pliki | `FileStorage__RootPath` | Prywatny, trwały katalog poza statycznym rootem serwera WWW. |
+| Szyfrowanie | `FileStorage__DataProtectionKeysPath` | Trwały, chroniony i backupowany key-ring. |
+| Frontend | `HEXORAIT_API_BASE_URL` | Pełny URL HTTP(S) albo ścieżka od `/`, zwykle `/api` przy wspólnym originie. |
+
+## Ustawienia opcjonalne
+
+- `AppSettings__AllowRegister` — publiczna rejestracja; w produkcji zwykle `false`.
+- `AppSettings__HexoraITAdmin` i `AppSettings__InitialAdminPassword` — jednorazowy bootstrap pierwszego administratora; hasło min. 15 znaków trzeba usunąć po utworzeniu konta.
+- `ReverseProxy__KnownProxies__0...n` — dokładne adresy zaufanych proxy. Przy bezpośrednim dostępie lista pozostaje pusta.
+
+Środowisko `Production` nie publikuje Swaggera. `appsettings.Development.json` jest lokalną konfiguracją deweloperską i nie może trafić do obrazu, paczki ani środowiska współdzielonego. Sekrety dostarczaj przez secret store lub zmienne procesu, nie przez śledzone pliki.

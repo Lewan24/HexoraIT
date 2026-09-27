@@ -11,4 +11,4 @@ Główne mechanizmy:
 - Problem Details, correlation ID, rate limiting logowania/rejestracji i security headers;
 - osobny storage prywatny i walidacja sygnatur uploadowanych plików.
 
-Migracje EF Core są addytywne. Automatyczne wykonywanie migracji przy starcie pozostaje ryzykiem wdrożeniowym opisanym w raporcie postępu.
+Migracje EF Core są addytywne. Aktualny `AppInitializer` wykonuje `MigrateAsync()` przy starcie, dlatego konto runtime nadal potrzebuje praw do zmiany schematu. Docelowy model produkcyjny powinien przenieść migracje do kontrolowanego kroku wdrożenia i ograniczyć uprawnienia konta aplikacyjnego; ryzyko opisuje [raport końcowy](../audit/08-final-security-report.md).

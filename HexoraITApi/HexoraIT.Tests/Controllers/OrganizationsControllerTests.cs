@@ -24,7 +24,7 @@ public class OrganizationsControllerTests : IDisposable
         var result = await sut.GetAllAsync(null);
         result.Value.As<List<OrganizationSummaryDto>>()
             .Should()
-            .ContainSingle();
+            .ContainSingle(organization => organization.Role == nameof(OrgRole.Owner));
     }
 
 

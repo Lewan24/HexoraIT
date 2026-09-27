@@ -7,7 +7,7 @@ The provided `docker-compose.yml` starts:
 | Service | Description |
 |---------|-------------|
 | **frontend** | React web application served by Nginx |
-| **api** | ASP.NET Core Web API |
+| **api** | ASP.NET Core Minimal API |
 | **db** | PostgreSQL database *(optional if you already have PostgreSQL)* |
 | **adminer** | Web database manager *(optional)* |
 
@@ -15,11 +15,20 @@ The provided `docker-compose.yml` starts:
 
 ## Running
 
-Start everything:
+Before starting, create a local `.env` file (it is ignored by Git):
+
+```dotenv
+HEXORAIT_DB_PASSWORD=replace-with-a-strong-database-password
+HEXORAIT_JWT_SIGNING_KEY=replace-with-at-least-32-random-bytes
+```
+
+Start the application together with the bundled PostgreSQL and Adminer:
 
 ```bash
-docker compose up -d
+docker compose --profile database up -d
 ```
+
+Without the `database` profile, configure `ConnectionStrings__Default` to point at an external PostgreSQL server before starting `api` and `frontend`.
 
 Stop:
 
@@ -39,11 +48,7 @@ Rebuild images:
 docker compose up --build
 ```
 
-If you want to start PostgreSQL and Adminer as well:
-
-```bash
-docker compose --profile database up -d
-```
+Do not commit `.env`. In production, prefer the deployment platform's secret store over a file.
 
 ---
 
@@ -125,6 +130,7 @@ directly to the API.
 | Variable | Description |
 |----------|-------------|
 | `FileStorage__RootPath` | Directory where uploaded files are stored |
+| `FileStorage__DataProtectionKeysPath` | Directory containing the persistent encryption key ring |
 
 Example:
 
@@ -133,6 +139,8 @@ FileStorage__RootPath: /app/storage
 ```
 
 You can mount this directory as a Docker volume to persist uploaded files.
+
+The Data Protection key directory must also be persistent, access-controlled and backed up. Losing it can make password-vault entries impossible to decrypt.
 
 ---
 
@@ -202,13 +210,17 @@ Before deploying:
 - Mount persistent Docker volumes for:
   - PostgreSQL data
   - uploaded files (`/app/storage`)
+  - Data Protection keys (`/app/data-protection-keys`)
+- Back up and restore-test all three volumes together
+- Connect `HexoraIT.SecurityAudit` logs to durable append-only storage or SIEM
+- Review the remaining production conditions in `docs/audit/08-final-security-report.md`
  
 ---
 
 ## HTTPS and Reverse Proxy (Recommended)
 If you don't want only local access and hosting.
 
-For production deployments it is recommended to expose ITDocs through a reverse proxy instead of publishing the containers directly.
+For production deployments it is recommended to expose HexoraIT through a reverse proxy instead of publishing the containers directly.
 
 A common setup is:
 

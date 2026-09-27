@@ -1,10 +1,26 @@
 # Wdrożenie
 
-1. Przygotuj PostgreSQL, prywatny storage i zewnętrzny secret store.
-2. Ustaw `HEXORAIT_DB_PASSWORD` oraz `HEXORAIT_JWT_SIGNING_KEY`; nie publikuj `appsettings.Development.json`.
-3. Skonfiguruj dokładne adresy reverse proxy w `ReverseProxy:KnownProxies`.
-4. Wykonaj migracje EF Core kontrolowanym krokiem wdrożenia.
-5. Zbuduj frontend przez `npm ci` i `npm run build`, a następnie uruchom nginx.
-6. Podłącz audyt do trwałego append-only/SIEM sinka i wykonaj test odbiorczy.
+Publiczna instrukcja Docker Compose znajduje się również w [`installation.md`](../../installation.md). Ten dokument opisuje wymagania produkcyjne.
 
-Przed publikacją wykonaj testy z [test-strategy.md](../testing/test-strategy.md), rotację historycznych sekretów i ręczną kontrolę artefaktów obrazu.
+## Przygotowanie
+
+1. Przygotuj PostgreSQL, prywatny storage plików, trwały key-ring Data Protection i secret store.
+2. Ustaw co najmniej `HEXORAIT_DB_PASSWORD`, `HEXORAIT_JWT_SIGNING_KEY`, produkcyjne originy CORS i `HEXORAIT_API_BASE_URL`.
+3. Jeśli używasz reverse proxy, wpisz jego dokładne adresy IP w `ReverseProxy:KnownProxies`; nie ufaj całym sieciom klientów.
+4. Zapewnij HTTPS na publicznej granicy i nie publikuj portów PostgreSQL/Adminer do Internetu.
+5. Podłącz kategorię `HexoraIT.SecurityAudit` do trwałego append-only/SIEM sinka.
+
+## Migracje
+
+Obecna wersja wywołuje `Database.MigrateAsync()` podczas startu API. Przed aktualizacją przetestuj migracje na kopii bazy i wykonaj pełny backup. Konto runtime musi obecnie mieć prawa do zmiany schematu. Docelowo zalecane jest wydzielenie migracji do jednorazowego zadania wdrożeniowego i odebranie tych praw aplikacji.
+
+## Kolejność wdrożenia
+
+1. Zatrzymaj zapisy lub zapewnij okno serwisowe.
+2. Wykonaj backup PostgreSQL, storage oraz kluczy Data Protection.
+3. Uruchom migrację/start nowego API i sprawdź logi inicjalizacji.
+4. Wdróż zgodny frontend; obraz buduje zależności przez `npm ci`.
+5. Wykonaj smoke test: login, wybór organizacji, dwa poziomy uprawnień, CRUD, upload/download, sejf i 401 po unieważnieniu sesji.
+6. Sprawdź nagłówki bezpieczeństwa, CORS, adres klienta za proxy oraz odbiór zdarzeń audytowych.
+
+Przed publikacją wykonaj zestawy z [test-strategy.md](../testing/test-strategy.md), rotację historycznie użytych sekretów i ręczną kontrolę artefaktów. Warunki blokujące produkcję opisuje [raport końcowy](../audit/08-final-security-report.md).

@@ -68,6 +68,26 @@ public sealed class AdminControllerTests : IDisposable
         (await service.CreateUserAsync(new("USER@test.local", "Other", "valid-password-123", nameof(SystemRole.User)))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
+    [Fact]
+    public async Task GetUsers_ConvertsSystemRoleAfterDatabaseQuery()
+    {
+        _fixture.Db.Users.Add(new User
+        {
+            Email = "listed-admin@test.local",
+            DisplayName = "Listed Admin",
+            PasswordHash = [1],
+            PasswordSalt = [1],
+            SystemRole = SystemRole.Admin
+        });
+        await _fixture.Db.SaveChangesAsync();
+
+        var result = await Service(new Pbkdf2PasswordHasher()).GetUsersAsync(null);
+
+        result.StatusCode.Should().Be(StatusCodes.Status200OK);
+        result.Value.Should().BeOfType<List<AdminUserDto>>().Subject
+            .Should().ContainSingle(user => user.SystemRole == nameof(SystemRole.Admin));
+    }
+
     private AdminUserService Service(IPasswordHasher hasher) => new(
         _fixture.Db, hasher,
         new SecurityAuditLogger(NullLoggerFactory.Instance, new HttpContextAccessor()), _fixture.IdProvider);

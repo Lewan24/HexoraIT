@@ -1,33 +1,34 @@
 import { tr, useLocale } from './i18n'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { AppProvider } from './context/AppProvider'
 import Login from './components/Login'
 import Layout from './components/Layout'
-import Dashboard from './components/Dashboard'
-import AssetInventory from './components/AssetInventory'
-import AssetDetails from './components/AssetDetails'
-import PasswordVault from './components/PasswordVault'
-import Networks from './components/Networks'
-import Licenses from './components/Licenses'
-import Contacts from './components/Contacts'
-import Contracts from './components/Contracts'
-import Plans from './components/Plans'
-import IncidentLog from './components/IncidentLog'
-import KnowledgeBase from './components/KnowledgeBase'
-import Tasks from './components/Tasks'
-import Groups from './components/Groups'
-import Warranty from './components/Warranty'
-import NetworkDiagram from './components/NetworkDiagram'
-import Settings from './components/Settings'
 import ToastContainer from './components/ui/Toast'
 import { useAuth } from './context/useAuth'
-import AdminPanel from './components/AdminPanel'
-import FileExplorer from './components/FileExplorer'
 import PermissionGate from './components/PermissionGate'
-import PrivateNotes from './components/PrivateNotes'
-import ClientReports from './components/ClientReports'
-import UserGuide from './components/UserGuide'
+
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const AssetInventory = lazy(() => import('./components/AssetInventory'))
+const AssetDetails = lazy(() => import('./components/AssetDetails'))
+const PasswordVault = lazy(() => import('./components/PasswordVault'))
+const Networks = lazy(() => import('./components/Networks'))
+const Licenses = lazy(() => import('./components/Licenses'))
+const Contacts = lazy(() => import('./components/Contacts'))
+const Contracts = lazy(() => import('./components/Contracts'))
+const Plans = lazy(() => import('./components/Plans'))
+const IncidentLog = lazy(() => import('./components/IncidentLog'))
+const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'))
+const Tasks = lazy(() => import('./components/Tasks'))
+const Groups = lazy(() => import('./components/Groups'))
+const Warranty = lazy(() => import('./components/Warranty'))
+const NetworkDiagram = lazy(() => import('./components/NetworkDiagram'))
+const Settings = lazy(() => import('./components/Settings'))
+const AdminPanel = lazy(() => import('./components/AdminPanel'))
+const FileExplorer = lazy(() => import('./components/FileExplorer'))
+const PrivateNotes = lazy(() => import('./components/PrivateNotes'))
+const ClientReports = lazy(() => import('./components/ClientReports'))
+const UserGuide = lazy(() => import('./components/UserGuide'))
 
 export type View =
   | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
@@ -76,7 +77,15 @@ function AuthenticatedApp() {
   return (
     <AppProvider>
       <Layout currentView={view} navigate={navigate} onLogout={logout}>
-        <PermissionGate view={view}>{content}</PermissionGate>
+        <PermissionGate view={view}>
+          <Suspense fallback={(
+            <div className="flex min-h-64 items-center justify-center">
+              <span className="text-xs font-mono text-ink-muted">{tr('loading...')}</span>
+            </div>
+          )}>
+            {content}
+          </Suspense>
+        </PermissionGate>
       </Layout>
       <ToastContainer/>
     </AppProvider>

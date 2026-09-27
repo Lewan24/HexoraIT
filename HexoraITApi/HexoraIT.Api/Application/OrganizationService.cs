@@ -27,9 +27,11 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
         if (!Pagination.TryResolve(pagination, out var window)) return PaginationError();
         var query = db.UserOrganizations.Where(item => item.UserId == userContext.UserId);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(item => item.Organization.Name).ThenBy(item => item.OrganizationId)
+        var rows = await query.OrderBy(item => item.Organization.Name).ThenBy(item => item.OrganizationId)
             .Skip(window.Offset).Take(window.PageSize)
-            .Select(item => new OrganizationSummaryDto(item.OrganizationId, item.Organization.Name, item.Role.ToString())).ToListAsync(token);
+            .Select(item => new { item.OrganizationId, item.Organization.Name, item.Role }).ToListAsync(token);
+        var items = rows.Select(item => new OrganizationSummaryDto(
+            item.OrganizationId, item.Name, item.Role.ToString())).ToList();
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
 
@@ -38,9 +40,11 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
         if (!Pagination.TryResolve(pagination, out var window)) return PaginationError();
         var query = db.UserOrganizations.IgnoreQueryFilters().Where(item => item.UserId == userContext.UserId && item.Role == OrgRole.Owner && item.Organization.IsDeleted);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(item => item.Organization.Name).ThenBy(item => item.OrganizationId)
+        var rows = await query.OrderBy(item => item.Organization.Name).ThenBy(item => item.OrganizationId)
             .Skip(window.Offset).Take(window.PageSize)
-            .Select(item => new OrganizationSummaryDto(item.OrganizationId, item.Organization.Name, item.Role.ToString())).ToListAsync(token);
+            .Select(item => new { item.OrganizationId, item.Organization.Name, item.Role }).ToListAsync(token);
+        var items = rows.Select(item => new OrganizationSummaryDto(
+            item.OrganizationId, item.Name, item.Role.ToString())).ToList();
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
 

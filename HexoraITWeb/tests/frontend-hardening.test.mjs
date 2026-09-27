@@ -39,3 +39,20 @@ test('file write controls and client-side upload limits follow backend permissio
   assert.match(explorer, /disabled=\{uploading \|\| !canCreate\}/)
   assert.match(explorer, /maxLength=\{renameTarget\.type === 'folder' \? 200 : 260\}/)
 })
+
+test('large feature screens are loaded on demand and the XLSX exception stays bounded', async () => {
+  const [app, vite, preview] = await Promise.all([
+    read('../src/App.tsx'),
+    read('../vite.config.ts'),
+    read('../src/components/FilePreviewModal.tsx'),
+  ])
+
+  for (const screen of ['FileExplorer', 'NetworkDiagram', 'Settings', 'UserGuide']) {
+    assert.match(app, new RegExp(`const ${screen} = lazy\\(\\(\\) => import\\('./components/${screen}'\\)\\)`))
+    assert.doesNotMatch(app, new RegExp(`import ${screen} from`))
+  }
+  assert.match(app, /<Suspense /)
+  assert.match(preview, /await import\(['"]exceljs['"]\)/)
+  assert.match(preview, /await import\(['"]docx-preview['"]\)/)
+  assert.match(vite, /chunkSizeWarningLimit:\s*1000/)
+})

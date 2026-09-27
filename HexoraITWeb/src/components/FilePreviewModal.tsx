@@ -1,7 +1,6 @@
 import { tr, useLocale } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
-import { renderAsync } from 'docx-preview'
 import { filesApi } from '../api/resources'
 import { getPreviewKind } from '../lib/filePreview'
 import type { StoredFile } from '../api/types'
@@ -57,6 +56,8 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           frameDocument.open()
           frameDocument.write('<!doctype html><html><head></head><body></body></html>')
           frameDocument.close()
+          const { renderAsync } = await import('docx-preview')
+          if (cancelled) return
           await renderAsync(blob, frameDocument.body, frameDocument.head, {
             className: 'docx-preview',
             inWrapper: true,

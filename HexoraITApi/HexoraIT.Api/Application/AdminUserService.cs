@@ -21,8 +21,11 @@ public sealed class AdminUserService(AppDbContext db, IPasswordHasher hasher, IS
     {
         if (!Pagination.TryResolve(pagination, out var window)) return new(StatusCodes.Status400BadRequest, "Both page and pageSize must be supplied together.");
         var total = await db.Users.CountAsync(token);
-        var users = await db.Users.OrderBy(user => user.Email).ThenBy(user => user.Id).Skip(window.Offset).Take(window.PageSize)
-            .Select(user => new AdminUserDto(user.Id, user.Email, user.DisplayName, user.SystemRole.ToString(), user.IsBlocked, user.CreatedAt)).ToListAsync(token);
+        var rows = await db.Users.OrderBy(user => user.Email).ThenBy(user => user.Id).Skip(window.Offset).Take(window.PageSize)
+            .Select(user => new { user.Id, user.Email, user.DisplayName, user.SystemRole, user.IsBlocked, user.CreatedAt })
+            .ToListAsync(token);
+        var users = rows.Select(user => new AdminUserDto(
+            user.Id, user.Email, user.DisplayName, user.SystemRole.ToString(), user.IsBlocked, user.CreatedAt)).ToList();
         return new(StatusCodes.Status200OK, users, Pagination: new PaginationMetadata(total, window));
     }
 

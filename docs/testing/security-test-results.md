@@ -10,7 +10,7 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 | Rotacja konta | `AdminControllerTests.SecuritySensitiveAccountChanges_RotateSecurityStamp` | PASS dla blokady, roli i resetu hasła |
 | Bezpieczny podgląd XLSX | `file-preview-security.test.mjs` | PASS: brak raw HTML i starego parsera, obecne limity i tekst komórek |
 | Walidacja uploadów | `FileUploadSecurityTests` | PASS: sygnatura PDF, odrzucenie podszytego PDF, bezpieczny typ dla HTML i normalizacja nazw |
-| Upload przez kontroler | `ContractsControllerTests.UploadDocument_RejectsFileWhoseContentDoesNotMatchExtension` | PASS: 400 i brak metadanych dokumentu dla fałszywego PDF |
+| Upload dokumentu | `ContractsControllerTests.UploadDocument_RejectsFileWhoseContentDoesNotMatchExtension` | PASS: 400 i brak metadanych dokumentu dla fałszywego PDF |
 | Ochrona storage | `LocalFileStorageTests.StorageUsesGeneratedNameAndRejectsTraversal` | PASS: losowy klucz, poprawny odczyt i odrzucenie `../` |
 | Zaufane proxy | `SecurityPipelineTests.ForwardedHeaders_DoNotTrustAnyProxyByDefault` | PASS: jeden hop, puste listy proxy i sieci |
 | Walidacja kont | `SecurityPipelineTests.AuthenticationEndpoints_RejectInvalidLengthsBeforeActionExecution` | PASS: zbyt długie hasło logowania i zbyt krótkie nowe hasło dają 400 Problem Details przed akcją |
@@ -28,7 +28,8 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 | Schemat audytu | `SecurityAuditLoggerTests.EventsUseStableIdsCorrelationAndDoNotContainSensitivePayloadFields` | PASS: stabilne EventId 1001/1101/1201/1901, korelacja i brak pól hasła, tokenu, body, query oraz e-maila |
 | Audyt odsłonięcia hasła | `PasswordsControllerTests.Reveal_ReturnsTheOriginalPlaintext` | PASS: zdarzenie zawiera tylko typ operacji i identyfikatory użytkownika/zasobu/organizacji |
 | Zależności npm | `npm audit --json` | PASS: 0 znanych podatności |
+| Translacja zapytań produkcyjnych | `PostgreSqlQueryTranslationTests.ProductionProvider_TranslatesServiceListProjectionsWithoutConnectingToDatabase` | PASS: Npgsql wygenerował SQL dla 17 głównych zapytań; usunięto `enum.ToString()` z `IQueryable` list użytkowników i organizacji |
 
 Aktualne zestawy historyczne: backend 159/159, frontend 13/13.
 
-Najnowszy pomiar: backend 147/147, frontend 35/35, lint i build frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.
+Najnowszy pomiar: backend 149/149, frontend 36/36, lint i build frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.

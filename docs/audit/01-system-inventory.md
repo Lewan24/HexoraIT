@@ -71,5 +71,4 @@ Pełna liczba powyższych akcji wynosi 136. Kontrolery aplikacyjne poza wersją 
 
 ## Istniejąca dokumentacja
 
-`README.md`, `installation.md`, `instrukcja-obslugi.md`, `client-access.md` i `presentation.md` opisują funkcje oraz wdrożenie. Wymagają aktualizacji po zmianach i rozdzielenia na dokumentację techniczną, użytkownika i administratora.
-
+W chwili audytu `README.md`, `installation.md`, `instrukcja-obslugi.md`, `client-access.md` i `presentation.md` opisywały funkcje oraz wdrożenie. Po refaktoryzacji treść `client-access.md` została zaktualizowana i scalona z instrukcją administratora, a plik roboczy usunięto. Bieżący indeks dokumentacji znajduje się w `docs/README.md`.

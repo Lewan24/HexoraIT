@@ -1,5 +1,7 @@
 # Model zagrożeń STRIDE
 
+> Dokument jest historycznym modelem wejściowym z okresu audytu. Stan wdrożonych zabezpieczeń i ryzyka pozostałe opisuje `08-final-security-report.md`.
+
 ## Zasoby i aktorzy
 
 Najcenniejsze zasoby: poświadczenia sejfu, topologia i adresacja sieci, pliki i umowy, klucze licencji, incydenty, dane kontaktowe, role/uprawnienia, tokeny JWT, baza PostgreSQL i key-ring Data Protection. Aktorzy: niezalogowany napastnik, klient o ograniczonym dostępie, pracownik, administrator organizacji, administrator systemu, złośliwy upload oraz przejęta zależność/build.
@@ -27,4 +29,3 @@ Najcenniejsze zasoby: poświadczenia sejfu, topologia i adresacja sieci, pliki i
 ## Założony poziom ASVS
 
 Level 2 jest minimum, ponieważ system przetwarza poufną dokumentację przedsiębiorstwa i poświadczenia. Dla sejfu haseł, kont administratorów, kryptografii i audytu należy stosować wybrane wymagania L3 lub równoważne kontrole infrastrukturalne. Nie deklaruje się zgodności — macierz powstanie po implementacji i weryfikacji.
-

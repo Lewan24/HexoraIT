@@ -1,5 +1,7 @@
 # Plan naprawczy bezpieczeństwa
 
+> Plan został zrealizowany w zakresie opisanym w `08-final-security-report.md`. Tabela pozostaje jako ślad powiązania ustaleń audytu z pracami naprawczymi, a nie lista bieżących zadań.
+
 | Kolejność | ID | Działanie | Kryterium ukończenia |
 |---|---|---|---|
 | P0.1 | SEC-001 | usunięcie sekretów i walidacja konfiguracji | brak sekretów w śledzonych plikach; startup fail-fast; instrukcja rotacji |
@@ -15,4 +17,3 @@
 | P2.3 | wszystkie | pełne testy hosta HTTP/PostgreSQL | WebApplicationFactory + scenariusze ról i własny/cudzy zasób |
 
 Naprawy będą wdrażane małymi partiami. Każda partia otrzyma test regresyjny i aktualizację statusu w tym raporcie. Zmiany wymagające rotacji klucza JWT, ochrony key-ring, zewnętrznego skanera malware, MFA lub uprawnień DB wymagają także czynności operatora i nie mogą być uznane za zakończone samą zmianą kodu.
-
