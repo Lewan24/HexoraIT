@@ -14,7 +14,7 @@ public class ClientsTests : IDisposable
     private OrganizationRolesController Roles() => new(fx.Db, fx.UserContext);
     private async Task<User> CreateClient(Organization org)
     {
-        (await Roles().CreateClient(org.Id, new CreateClientDto("client@example.com", "Client", "password123"), new Pbkdf2PasswordHasher())).Should().BeOfType<OkObjectResult>();
+        (await Roles().CreateClient(org.Id, new CreateClientDto("client@example.com", "Client", "password123456789"), new Pbkdf2PasswordHasher())).Should().BeOfType<OkObjectResult>();
         return await fx.Db.Users.SingleAsync(u => u.SystemRole == SystemRole.Client);
     }
 
@@ -31,7 +31,7 @@ public class ClientsTests : IDisposable
         (await fx.UserContext.GetRoleAsync(org.Id)).Should().Be(OrgRole.ReadOnly);
         var organizations = new OrganizationsController(fx.Db, fx.Mapper, fx.UserContext);
         (await organizations.Create(new CreateOrganizationDto("Forbidden", "", "", ""))).Result.Should().BeOfType<ForbidResult>();
-        (await Roles().CreateClient(org.Id, new CreateClientDto("other@example.com", "Other", "password123"), new Pbkdf2PasswordHasher())).Should().BeOfType<ForbidResult>();
+        (await Roles().CreateClient(org.Id, new CreateClientDto("other@example.com", "Other", "password123456789"), new Pbkdf2PasswordHasher())).Should().BeOfType<ForbidResult>();
         var reports = new ClientReportsController(fx.Db, fx.UserContext);
         (await reports.Create(Guid.NewGuid(), new CreateClientReportDto("Title", "Description", Priority.High))).Should().BeOfType<ForbidResult>();
         (await reports.Create(org.Id, new CreateClientReportDto("Title", "Description", Priority.High))).Should().BeOfType<OkObjectResult>();
@@ -69,7 +69,7 @@ public class ClientsTests : IDisposable
         (await fx.UserContext.HasPermissionAsync(org.Id, "assets", true, first.Id)).Should().BeTrue();
         (await fx.UserContext.HasPermissionAsync(org.Id, "assets", true, second.Id)).Should().BeFalse();
         fx.ActAs(owner.Id);
-        await Roles().CreateClient(org.Id, new CreateClientDto("second@example.com", "Second client", "password123"), new Pbkdf2PasswordHasher());
+        await Roles().CreateClient(org.Id, new CreateClientDto("second@example.com", "Second client", "password123456789"), new Pbkdf2PasswordHasher());
         fx.ActAs((await fx.Db.Users.SingleAsync(u => u.Email == "second@example.com")).Id);
         (await fx.Db.Assets.ToListAsync()).Should().BeEmpty();
         fx.ActAs(owner.Id);
@@ -116,7 +116,7 @@ public class ClientsTests : IDisposable
         var membership = await fx.Db.UserOrganizations.SingleAsync(m => m.UserId == admin.Id);
         membership.Role = OrgRole.Member;
         await fx.Db.SaveChangesAsync();
-        (await Roles().CreateClient(org.Id, new CreateClientDto("denied@example.com", "Denied", "password123"), new Pbkdf2PasswordHasher())).Should().BeOfType<ForbidResult>();
+        (await Roles().CreateClient(org.Id, new CreateClientDto("denied@example.com", "Denied", "password123456789"), new Pbkdf2PasswordHasher())).Should().BeOfType<ForbidResult>();
     }
 
     [Fact]

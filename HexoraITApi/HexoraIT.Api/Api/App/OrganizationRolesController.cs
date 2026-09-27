@@ -3,6 +3,7 @@ using HexoraITApi.Application;
 using System.ComponentModel.DataAnnotations;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
+using HexoraITApi.Domain.Validation;
 using HexoraITApi.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace HexoraITApi.Api.App;
 
 public record CreateClientDto([Required, EmailAddress, StringLength(256)] string Email,
-    [Required, StringLength(200)] string DisplayName, [Required, StringLength(200, MinimumLength = 8)] string Password);
-public record CopyRoleDto([Required] List<Guid> OrganizationIds, bool Overwrite = false);
+    [Required, StringLength(200)] string DisplayName, [Required, StringLength(200, MinimumLength = 15)] string Password);
+public record CopyRoleDto([Required, CollectionCount(100)] List<Guid> OrganizationIds, bool Overwrite = false);
 
 [ApiController]
 [Route("api/organizations/{organizationId:guid}")]
@@ -41,12 +42,26 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
     }
 
     [HttpGet("roles")]
-    public async Task<ActionResult<List<OrganizationRoleDto>>> GetRoles(Guid organizationId)
+    public async Task<ActionResult<List<OrganizationRoleDto>>> GetRoles(
+        Guid organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
-        var roles = await Db.OrganizationRoles.AsNoTracking().Include(r => r.Permissions)
-            .Where(r => r.OrganizationId == organizationId).OrderBy(r => r.Name).ToListAsync();
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = Db.OrganizationRoles.AsNoTracking().Where(r => r.OrganizationId == organizationId);
+        var totalCount = await query.CountAsync();
+        var roles = await query
+            .OrderBy(r => r.Name)
+            .ThenBy(r => r.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
+            .Include(r => r.Permissions)
+            .AsSplitQuery()
+            .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(roles.Select(ToDto).ToList());
     }
 
@@ -133,11 +148,32 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
     }
 
     [HttpGet("role-resources/{resource}")]
-    public async Task<ActionResult<List<ResourceOptionDto>>> GetResources(Guid organizationId, string resource)
+    public async Task<ActionResult<List<ResourceOptionDto>>> GetResources(
+        Guid organizationId,
+        string resource,
+        [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
-        return Ok(await ResourceOptionsAsync(organizationId, resource));
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = ResourceOptionsQuery(organizationId, resource);
+        if (query is null)
+        {
+            WritePaginationHeaders(0, window);
+            return Ok(new List<ResourceOptionDto>());
+        }
+
+        var totalCount = await query.CountAsync();
+        var resources = await query
+            .OrderBy(option => option.Name)
+            .ThenBy(option => option.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
+            .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
+        return Ok(resources);
     }
 
     [HttpPost("clients")]
@@ -145,6 +181,7 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
     {
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
+        if (dto.Password.Length < 15) return BadRequest("Password must be at least 15 characters.");
         var email = dto.Email.Trim().ToLowerInvariant();
         if (await Db.Users.AnyAsync(u => u.Email.ToLower() == email)) return Conflict("An account with this email already exists.");
         var (hash, salt) = hasher.Hash(dto.Password);
@@ -157,22 +194,50 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
     }
 
     [HttpGet("clients")]
-    public async Task<IActionResult> Clients(Guid organizationId)
+    public async Task<IActionResult> Clients(Guid organizationId, [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
-        return Ok(await Db.UserOrganizations.Where(m => m.OrganizationId == organizationId && m.User.SystemRole == SystemRole.Client)
-            .Select(m => new { m.User.Id, m.User.Email, m.User.DisplayName }).ToListAsync());
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = Db.UserOrganizations
+            .Where(m => m.OrganizationId == organizationId && m.User.SystemRole == SystemRole.Client);
+        var totalCount = await query.CountAsync();
+        var clients = await query
+            .OrderBy(m => m.User.Email)
+            .ThenBy(m => m.UserId)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
+            .Select(m => new { m.User.Id, m.User.Email, m.User.DisplayName })
+            .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
+        return Ok(clients);
     }
 
     [HttpGet("clients/{clientId:guid}/permissions")]
-    public async Task<IActionResult> ClientPermissions(Guid organizationId, Guid clientId)
+    public async Task<IActionResult> ClientPermissions(
+        Guid organizationId,
+        Guid clientId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckWriteAccessAsync(organizationId, OrgRole.Admin);
         if (check is not null) return check;
         if (!await Db.UserOrganizations.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == clientId && m.User.SystemRole == SystemRole.Client)) return NotFound();
-        return Ok(await Db.ClientPermissions.Where(p => p.OrganizationId == organizationId && p.UserId == clientId)
-            .Select(p => new PermissionDto(p.Resource, p.ResourceId, p.CanRead, p.CanWrite)).ToListAsync());
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = Db.ClientPermissions.Where(p => p.OrganizationId == organizationId && p.UserId == clientId);
+        var totalCount = await query.CountAsync();
+        var permissions = await query
+            .OrderBy(p => p.Resource)
+            .ThenBy(p => p.ResourceId)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
+            .Select(p => new PermissionDto(p.Resource, p.ResourceId, p.CanRead, p.CanWrite))
+            .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
+        return Ok(permissions);
     }
 
     [HttpPut("clients/{clientId:guid}/permissions")]
@@ -230,38 +295,38 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
         return NoContent();
     }
 
-    private async Task<List<ResourceOptionDto>> ResourceOptionsAsync(Guid organizationId, string resource) =>
+    private IQueryable<ResourceOptionDto>? ResourceOptionsQuery(Guid organizationId, string resource) =>
         resource switch
         {
-            "assets" => await Db.Assets.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "passwords" => await Db.Passwords.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "networks" => await Db.Subnets.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "licenses" => await Db.Licenses.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "contacts" => await Db.Contacts.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "contracts" => await Db.Contracts.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "plans" => await Db.Plans.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Title)).ToListAsync(),
-            "incidents" => await Db.Incidents.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Title)).ToListAsync(),
-            "knowledge" => await Db.KnowledgeArticles.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Title)).ToListAsync(),
-            "tasks" => await Db.Tasks.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Title)).ToListAsync(),
-            "projects" => await Db.Projects.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "groups" => await Db.Groups.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "warranty" => await Db.WarrantyItems.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            "files" => await Db.StoredFiles.Where(x => x.OrganizationId == organizationId)
-                .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(),
-            _ => []
+            "assets" => Db.Assets.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "passwords" => Db.Passwords.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "networks" => Db.Subnets.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "licenses" => Db.Licenses.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "contacts" => Db.Contacts.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "contracts" => Db.Contracts.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "plans" => Db.Plans.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Title)),
+            "incidents" => Db.Incidents.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Title)),
+            "knowledge" => Db.KnowledgeArticles.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Title)),
+            "tasks" => Db.Tasks.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Title)),
+            "projects" => Db.Projects.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "groups" => Db.Groups.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "warranty" => Db.WarrantyItems.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            "files" => Db.StoredFiles.Where(x => x.OrganizationId == organizationId)
+                .Select(x => new ResourceOptionDto(x.Id, x.Name)),
+            _ => null
         };
 
     private async Task<string?> ValidateAsync(Guid organizationId, SaveOrganizationRoleDto dto, Guid? roleId = null, bool client = false)
@@ -280,12 +345,33 @@ public class OrganizationRolesController(AppDbContext db, ICurrentUserContext us
             return "A role with this name already exists.";
         foreach (var group in dto.Permissions.Where(p => p.ResourceId != Guid.Empty).GroupBy(p => p.Resource))
         {
-            var ids = (await ResourceOptionsAsync(organizationId, group.Key)).Select(r => r.Id).ToHashSet();
-            if (group.Any(p => !ids.Contains(p.ResourceId)))
+            var requestedIds = group.Select(p => p.ResourceId).Distinct().ToList();
+            var existingCount = await ExistingResourceCountAsync(organizationId, group.Key, requestedIds);
+            if (existingCount != requestedIds.Count)
                 return "An individual resource does not exist in this organization.";
         }
         return null;
     }
+
+    private Task<int> ExistingResourceCountAsync(Guid organizationId, string resource, List<Guid> ids) =>
+        resource switch
+        {
+            "assets" => Db.Assets.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "passwords" => Db.Passwords.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "networks" => Db.Subnets.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "licenses" => Db.Licenses.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "contacts" => Db.Contacts.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "contracts" => Db.Contracts.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "plans" => Db.Plans.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "incidents" => Db.Incidents.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "knowledge" => Db.KnowledgeArticles.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "tasks" => Db.Tasks.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "projects" => Db.Projects.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "groups" => Db.Groups.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "warranty" => Db.WarrantyItems.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            "files" => Db.StoredFiles.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id)),
+            _ => Task.FromResult(0)
+        };
 
     private static PermissionDto ToDto(RolePermission p) => new(p.Resource, p.ResourceId, p.CanRead, p.CanWrite);
     private static OrganizationRoleDto ToDto(OrganizationRole r) => new(r.Id, r.Name, r.Permissions.Select(ToDto).ToList());

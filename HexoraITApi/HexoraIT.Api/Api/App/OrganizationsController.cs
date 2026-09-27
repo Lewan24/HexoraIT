@@ -1,5 +1,6 @@
 using AutoMapper;
 using HexoraITApi.Api.Auth;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -15,22 +16,41 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
     private readonly ICurrentUserContext _userContext = userContext;
 
     [HttpGet]
-    public async Task<ActionResult<List<OrganizationSummaryDto>>> GetAll()
+    public async Task<ActionResult<List<OrganizationSummaryDto>>> GetAll([FromQuery] PaginationParameters? pagination = null)
     {
-        var orgs = await Db.UserOrganizations
-            .Where(uo => uo.UserId == _userContext.UserId)
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = Db.UserOrganizations.Where(uo => uo.UserId == _userContext.UserId);
+        var totalCount = await query.CountAsync();
+        var orgs = await query
+            .OrderBy(uo => uo.Organization.Name)
+            .ThenBy(uo => uo.OrganizationId)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(uo => new OrganizationSummaryDto(uo.OrganizationId, uo.Organization.Name, uo.Role.ToString()))
             .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(orgs);
     }
 
     [HttpGet("deleted")]
-    public async Task<ActionResult<List<OrganizationSummaryDto>>> GetDeleted()
+    public async Task<ActionResult<List<OrganizationSummaryDto>>> GetDeleted([FromQuery] PaginationParameters? pagination = null)
     {
-        var orgs = await Db.UserOrganizations.IgnoreQueryFilters()
-            .Where(uo => uo.UserId == _userContext.UserId && uo.Role == OrgRole.Owner && uo.Organization.IsDeleted)
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
+        var query = Db.UserOrganizations.IgnoreQueryFilters()
+            .Where(uo => uo.UserId == _userContext.UserId && uo.Role == OrgRole.Owner && uo.Organization.IsDeleted);
+        var totalCount = await query.CountAsync();
+        var orgs = await query
+            .OrderBy(uo => uo.Organization.Name)
+            .ThenBy(uo => uo.OrganizationId)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(uo => new OrganizationSummaryDto(uo.OrganizationId, uo.Organization.Name, uo.Role.ToString()))
             .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(orgs);
     }
 
@@ -70,17 +90,25 @@ public class OrganizationsController(AppDbContext db, IMapper mapper, ICurrentUs
     }
 
     [HttpGet("{id:guid}/members")]
-    public async Task<ActionResult<List<OrgMemberDto>>> GetMembers(Guid id)
+    public async Task<ActionResult<List<OrgMemberDto>>> GetMembers(Guid id, [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckReadAccessAsync(id);
         if (check is not null) return check;
         if (!await _userContext.HasPermissionAsync(id, "settings")) return Forbid();
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
 
-        var members = await Db.UserOrganizations
-            .Where(uo => uo.OrganizationId == id)
+        var query = Db.UserOrganizations.Where(uo => uo.OrganizationId == id);
+        var totalCount = await query.CountAsync();
+        var members = await query
+            .OrderBy(uo => uo.User.Email)
+            .ThenBy(uo => uo.UserId)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(uo => new OrgMemberDto(uo.UserId, uo.User.Email, uo.User.DisplayName, uo.Role,
                 uo.CustomRoleId, uo.CustomRole == null ? null : uo.CustomRole.Name, uo.User.SystemRole))
             .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(members);
     }
 

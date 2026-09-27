@@ -18,6 +18,7 @@
     "@xyflow/react": "^12.11.2",
     "clsx": "^2.1.1",
     "docx-preview": "^0.4.0",
+    "exceljs": "^4.4.0",
     "i18next": "^26.4.2",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
@@ -26,8 +27,7 @@
     "react-router": "^7.18.1",
     "sonner": "2.0.3",
     "tailwindcss": "^4.2.4",
-    "uuid": "^14.0.1",
-    "xlsx": "^0.18.5"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -43,5 +43,10 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }

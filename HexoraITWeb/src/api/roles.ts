@@ -3,11 +3,11 @@ import type { OrganizationAccess, OrganizationRole, OrgRole, ResourcePermission 
 
 export const rolesApi = {
   createClient: (orgId: string, data: { email: string; displayName: string; password: string }) => http.post(`/organizations/${orgId}/clients`, data),
-  clientPermissions: (orgId: string, clientId: string) => http.get<ResourcePermission[]>(`/organizations/${orgId}/clients/${clientId}/permissions`),
+  clientPermissions: (orgId: string, clientId: string) => http.getAllPages<ResourcePermission>(`/organizations/${orgId}/clients/${clientId}/permissions`),
   saveClientPermissions: (orgId: string, clientId: string, data: Omit<OrganizationRole, 'id'>) => http.put(`/organizations/${orgId}/clients/${clientId}/permissions`, data),
   copy: (orgId: string, roleId: string, organizationIds: string[], overwrite = false) => http.post(`/organizations/${orgId}/roles/${roleId}/copy`, { organizationIds, overwrite }),
   access: (orgId: string) => http.get<OrganizationAccess>(`/organizations/${orgId}/permissions`),
-  list: (orgId: string) => http.get<OrganizationRole[]>(`/organizations/${orgId}/roles`),
+  list: (orgId: string) => http.getAllPages<OrganizationRole>(`/organizations/${orgId}/roles`),
   create: (orgId: string, role: Omit<OrganizationRole, 'id'>) =>
     http.post<OrganizationRole>(`/organizations/${orgId}/roles`, role),
   update: (orgId: string, role: OrganizationRole) =>
@@ -16,5 +16,5 @@ export const rolesApi = {
   assign: (orgId: string, userId: string, role: OrgRole, customRoleId?: string) =>
     http.put<void>(`/organizations/${orgId}/members/${userId}/role`, { role, customRoleId }),
   resources: (orgId: string, resource: string) =>
-    http.get<{ id: string; name: string }[]>(`/organizations/${orgId}/role-resources/${resource}`),
+    http.getAllPages<{ id: string; name: string }>(`/organizations/${orgId}/role-resources/${resource}`),
 }

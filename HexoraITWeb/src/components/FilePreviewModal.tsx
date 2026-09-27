@@ -2,7 +2,6 @@ import { tr, useLocale } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
 import { renderAsync } from 'docx-preview'
-import * as XLSX from 'xlsx'
 import { filesApi } from '../api/resources'
 import { getPreviewKind } from '../lib/filePreview'
 import type { StoredFile } from '../api/types'
@@ -12,15 +11,23 @@ interface Props {
   onClose: () => void
 }
 
+interface SpreadsheetPreview {
+  name: string
+  rows: string[][]
+}
+
+const MAX_SPREADSHEET_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_PREVIEW_ROWS = 1_000
+const MAX_PREVIEW_COLUMNS = 100
+
 export default function FilePreviewModal({ file, onClose }: Props) {
   useLocale()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const [textContent, setTextContent] = useState<string | null>(null)
-  const [sheetNames, setSheetNames] = useState<string[]>([])
   const [activeSheet, setActiveSheet] = useState(0)
-  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
+  const [sheets, setSheets] = useState<SpreadsheetPreview[]>([])
 
   const docxContainerRef = useRef<HTMLDivElement>(null)
   const kind = getPreviewKind(file.name, file.mimeType)
@@ -57,11 +64,25 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           })
         } else if (kind === 'xlsx') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_SPREADSHEET_PREVIEW_BYTES) throw new Error('Spreadsheet is too large to preview safely.')
           const buffer = await blob.arrayBuffer()
-          const wb = XLSX.read(buffer, { type: 'array', cellStyles: true })
+          const { Workbook } = await import('exceljs')
+          const workbook = new Workbook()
+          await workbook.xlsx.load(buffer)
           if (cancelled) return
-          setWorkbook(wb)
-          setSheetNames(wb.SheetNames)
+          setSheets(workbook.worksheets.map(worksheet => {
+            const rows: string[][] = []
+            const rowCount = Math.min(worksheet.actualRowCount, MAX_PREVIEW_ROWS)
+            const columnCount = Math.min(worksheet.actualColumnCount, MAX_PREVIEW_COLUMNS)
+            for (let rowNumber = 1; rowNumber <= rowCount; rowNumber++) {
+              const row: string[] = []
+              for (let columnNumber = 1; columnNumber <= columnCount; columnNumber++) {
+                row.push(worksheet.getCell(rowNumber, columnNumber).text)
+              }
+              rows.push(row)
+            }
+            return { name: worksheet.name, rows }
+          }))
           setActiveSheet(0)
         } else if (kind === 'text') {
           const blob = await filesApi.getContentBlob(file.id)
@@ -103,9 +124,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  const sheetHtml = workbook
-    ? XLSX.utils.sheet_to_html(workbook.Sheets[workbook.SheetNames[activeSheet]!]!, { id: 'preview-sheet', editable: false })
-    : null
+  const activeSpreadsheet = sheets[activeSheet]
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={onClose}>
@@ -121,12 +140,12 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           </div>
         </div>
 
-        {kind === 'xlsx' && sheetNames.length > 1 && (
+        {kind === 'xlsx' && sheets.length > 1 && (
           <div className="flex items-center gap-1 px-3 py-1.5 border-b border-edge-subtle bg-navy-900/40 flex-shrink-0 overflow-x-auto">
-            {sheetNames.map((name, i) => (
-              <button key={name} onClick={() => setActiveSheet(i)}
+            {sheets.map((sheet, i) => (
+              <button key={sheet.name} onClick={() => setActiveSheet(i)}
                 className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${activeSheet === i ? 'bg-blue-500 text-white' : 'text-ink-muted hover:text-ink-secondary hover:bg-navy-700'}`}>
-                {name}
+                {sheet.name}
               </button>
             ))}
           </div>
@@ -165,8 +184,18 @@ export default function FilePreviewModal({ file, onClose }: Props) {
             </div>
           )}
 
-          {!loading && !error && kind === 'xlsx' && sheetHtml && (
-            <div className="p-4 bg-white overflow-auto h-full spreadsheet-preview" dangerouslySetInnerHTML={{ __html: sheetHtml }}/>
+          {!loading && !error && kind === 'xlsx' && activeSpreadsheet && (
+            <div className="p-4 bg-white overflow-auto h-full spreadsheet-preview">
+              <table id="preview-sheet">
+                <tbody>
+                  {activeSpreadsheet.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, columnIndex) => <td key={columnIndex}>{cell}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {!loading && !error && kind === 'text' && textContent !== null && (

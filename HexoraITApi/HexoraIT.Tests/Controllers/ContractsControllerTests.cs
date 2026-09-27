@@ -245,7 +245,7 @@ public class ContractsControllerTests : IDisposable
             .As<ContractDto>()
             .Id;
 
-        await using var stream = new MemoryStream("hello world"u8.ToArray());
+        await using var stream = new MemoryStream("%PDF-1.7\nhello world"u8.ToArray());
 
         var file = new FormFile(
             stream,
@@ -272,6 +272,27 @@ public class ContractsControllerTests : IDisposable
         contract.Document!.Name.Should().Be("contract.pdf");
         contract.Document.MimeType.Should().Be("application/pdf");
         contract.Document.Size.Should().Be(stream.Length);
+    }
+
+    [Fact]
+    public async Task UploadDocument_RejectsFileWhoseContentDoesNotMatchExtension()
+    {
+        var (_, org) = _fx.SeedUserWithOrg();
+        var sut = Controller();
+        var create = await sut.Create(org.Id, CreateDto());
+        var id = (create.Result as CreatedAtActionResult)!.Value.As<ContractDto>().Id;
+        await using var stream = new MemoryStream("not a pdf"u8.ToArray());
+        var file = new FormFile(stream, 0, stream.Length, "file", "contract.pdf")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/pdf"
+        };
+
+        var response = await sut.UploadDocument(id, file);
+
+        response.Should().BeOfType<BadRequestObjectResult>();
+        var contract = await _fx.Db.Contracts.FindAsync(id);
+        contract!.DocumentBlobPath.Should().BeNull();
     }
 
     [Fact]

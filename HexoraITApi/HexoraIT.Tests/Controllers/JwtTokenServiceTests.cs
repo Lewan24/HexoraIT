@@ -25,19 +25,22 @@ public class JwtTokenServiceTests
     public void CreateToken_EmbedsSystemRoleClaim()
     {
         var userId = Guid.NewGuid();
-        var token = _sut.CreateToken(userId, "user@test.local", SystemRole.Admin);
+        var stamp = Guid.NewGuid();
+        var token = _sut.CreateToken(userId, "user@test.local", SystemRole.Admin, stamp);
 
         var parsed = new JwtSecurityTokenHandler().ReadJwtToken(token);
         parsed.Claims.Should().Contain(c => c.Type == "sys_role" && c.Value == "Admin");
         parsed.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == userId.ToString());
+        parsed.Claims.Should().Contain(c => c.Type == "security_stamp" && c.Value == stamp.ToString());
     }
 
     [Fact]
     public void CreateToken_DifferentCalls_ProduceDifferentJtiClaims()
     {
         var userId = Guid.NewGuid();
-        var token1 = _sut.CreateToken(userId, "u@test.local", SystemRole.User);
-        var token2 = _sut.CreateToken(userId, "u@test.local", SystemRole.User);
+        var stamp = Guid.NewGuid();
+        var token1 = _sut.CreateToken(userId, "u@test.local", SystemRole.User, stamp);
+        var token2 = _sut.CreateToken(userId, "u@test.local", SystemRole.User, stamp);
         token1.Should().NotBe(token2);
     }
 }

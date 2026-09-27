@@ -1,6 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HexoraITApi.Api.Auth;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -14,8 +15,14 @@ namespace HexoraITApi.Api.App;
 public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<WorkTaskDto>>> GetAll([FromQuery] Guid? organizationId, [FromQuery] Guid? projectId)
+    public async Task<ActionResult<List<WorkTaskDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] Guid? projectId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -26,7 +33,9 @@ public class TasksController(AppDbContext db, IMapper mapper, ICurrentUserContex
         if (organizationId is { } id) query = query.Where(t => t.OrganizationId == id);
         if (projectId is { } pid) query = query.Where(t => t.ProjectId == pid);
 
-        return Ok(await query.ProjectTo<WorkTaskDto>(mapper.ConfigurationProvider).ToListAsync());
+        WritePaginationHeaders(await query.CountAsync(), window);
+        return Ok(await query.OrderBy(t => t.Id).Skip(window.Offset).Take(window.PageSize)
+            .ProjectTo<WorkTaskDto>(mapper.ConfigurationProvider).ToListAsync());
     }
 
     [HttpGet("{id:guid}")]

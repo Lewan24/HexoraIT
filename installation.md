@@ -93,7 +93,7 @@ Host=db;
 Port=5432;
 Database=HexoraITApp;
 Username=HexoraIT;
-Password=HexoraIT;
+Password=${HEXORAIT_DB_PASSWORD};
 ```
 
 If you're using an external PostgreSQL server simply replace `Host=db` with your server address.
@@ -108,7 +108,15 @@ If you're using an external PostgreSQL server simply replace `Host=db` with your
 | `Jwt__Audience` | JWT audience |
 | `Jwt__SigningKey` | Secret key used to sign JWT tokens |
 
-> Use a random secret key with at least **32 characters** in production.
+> Provide `HEXORAIT_JWT_SIGNING_KEY` through the deployment secret store. Use at least **32 bytes** of cryptographically random material and never commit the value.
+
+### Trusted reverse proxy
+
+If the API is published behind a reverse proxy, configure each trusted proxy IP as
+`ReverseProxy__KnownProxies__0`, `ReverseProxy__KnownProxies__1`, and so on. Only
+these exact proxies may supply `X-Forwarded-For` and `X-Forwarded-Proto`; do not add
+client networks or a catch-all address. Leave the list empty when clients connect
+directly to the API.
 
 ---
 
@@ -133,6 +141,7 @@ You can mount this directory as a Docker volume to persist uploaded files.
 | Variable | Description |
 |----------|-------------|
 | `AppSettings__HexoraITAdmin` | Initial administrator email |
+| `AppSettings__InitialAdminPassword` | One-time initial administrator password (minimum 15 characters) |
 | `AppSettings__AllowRegister` | Enable/disable public registration |
 | `AppSettings__AllowOrigins__0` | Allowed frontend origin (CORS) |
 | `AppSettings__AllowOrigins__1` | Additional allowed origin |
@@ -144,20 +153,23 @@ AppSettings__AllowRegister: false
 AppSettings__AllowOrigins__0: http://localhost
 ```
 
+When bootstrap email is set and the account does not exist, the one-time password is required. Remove it from runtime configuration immediately after the account is created and change the password after the first login. The application never prints this password to logs.
+
 ---
 
 ## PostgreSQL (optional)
 
 If you already have PostgreSQL installed, you can remove the `db` service and update the API connection string accordingly.
 
-Default credentials:
+Default non-secret identifiers:
 
 | Setting | Value |
 |---------|-------|
 | Database | `HexoraITApp` |
 | Username | `HexoraIT` |
-| Password | `HexoraIT` |
 | Port | `5432` |
+
+Set the database password through `HEXORAIT_DB_PASSWORD`; there is no default password.
 
 ---
 
@@ -173,7 +185,7 @@ Login using:
 
 - Server: `db`
 - Username: `HexoraIT`
-- Password: `HexoraIT`
+- Password: the value supplied through `HEXORAIT_DB_PASSWORD`
 - Database: `HexoraITApp`
 
 ---
@@ -182,7 +194,7 @@ Login using:
 
 Before deploying:
 
-- Change `Jwt__SigningKey`
+- Generate and securely inject `HEXORAIT_JWT_SIGNING_KEY`
 - Disable registration if required
 - Configure correct CORS origins
 - Use HTTPS

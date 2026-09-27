@@ -1,5 +1,6 @@
 using HexoraITApi.Api.Auth;
 using HexoraITApi.Api.Interfaces;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -13,20 +14,32 @@ namespace HexoraITApi.Api.App;
 
 [ApiController]
 [Route("api/files")]
-public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage)
+public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage,
+    ILogger<FilesExplorerController>? logger = null)
     : OrgScopedController(db, userContext)
 {
     [HttpGet("folders")]
-    public async Task<ActionResult<List<FileFolderDto>>> GetFolders([FromQuery] Guid organizationId, [FromQuery] Guid? parentFolderId)
+    public async Task<ActionResult<List<FileFolderDto>>> GetFolders(
+        [FromQuery] Guid organizationId,
+        [FromQuery] Guid? parentFolderId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckReadAccessAsync(organizationId);
         if (check is not null) return check;
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
 
-        var folders = await Db.FileFolders
-            .Where(f => f.OrganizationId == organizationId && f.ParentFolderId == parentFolderId)
+        var query = Db.FileFolders
+            .Where(f => f.OrganizationId == organizationId && f.ParentFolderId == parentFolderId);
+        var totalCount = await query.CountAsync();
+        var folders = await query
             .OrderBy(f => f.Name)
+            .ThenBy(f => f.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ProjectTo<FileFolderDto>(mapper.ConfigurationProvider)
             .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(folders);
     }
 
@@ -81,33 +94,47 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
             if (!await userContext.HasPermissionAsync(folder.OrganizationId, "files", true, file.Id)) return Forbid();
         }
 
-        foreach (var file in filesToDelete)
-        {
-            try { await storage.DeleteAsync(file.BlobPath); }
-            catch { }
-        }
-
         Db.StoredFiles.RemoveRange(filesToDelete);
         Db.FileFolders.RemoveRange(await Db.FileFolders.Where(f => folderIds.Contains(f.Id)).ToListAsync());
         await Db.SaveChangesAsync();
         await tx.CommitAsync();
 
+        foreach (var file in filesToDelete)
+        {
+            try { await storage.DeleteAsync(file.BlobPath); }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(exception, "Unable to remove blob {BlobPath} after deleting its metadata.", file.BlobPath);
+            }
+        }
+
         return NoContent();
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<StoredFileDto>>> GetFiles([FromQuery] Guid organizationId, [FromQuery] Guid? folderId)
+    public async Task<ActionResult<List<StoredFileDto>>> GetFiles(
+        [FromQuery] Guid organizationId,
+        [FromQuery] Guid? folderId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
         var check = await CheckReadAccessAsync(organizationId);
         if (check is not null) return check;
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
 
-        var files = await Db.StoredFiles
+        var query = Db.StoredFiles
             .Where(f => f.OrganizationId == organizationId &&
                 (f.FolderId == folderId || (folderId == null &&
-                    !Db.FileFolders.Any(folder => folder.Id == f.FolderId && folder.OrganizationId == organizationId))))
+                    !Db.FileFolders.Any(folder => folder.Id == f.FolderId && folder.OrganizationId == organizationId))));
+        var totalCount = await query.CountAsync();
+        var files = await query
             .OrderBy(f => f.Name)
+            .ThenBy(f => f.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ProjectTo<StoredFileDto>(mapper.ConfigurationProvider)
             .ToListAsync();
+        WritePaginationHeaders(totalCount, window);
         return Ok(files);
     }
 
@@ -118,23 +145,34 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var check = await CheckWriteAccessAsync(organizationId);
         if (check is not null) return check;
 
-        if (file.Length == 0) return BadRequest("File is empty.");
+        ValidatedUpload validated;
+        try { validated = await FileUploadSecurity.ValidateAsync(file, 100_000_000, HttpContext?.RequestAborted ?? CancellationToken.None); }
+        catch (InvalidDataException exception) { return BadRequest(exception.Message); }
 
         if (folderId is { } fid && !await Db.FileFolders.AnyAsync(f => f.Id == fid && f.OrganizationId == organizationId))
             return BadRequest("Target folder does not exist.");
 
-        var blobPath = await storage.SaveAsync(file.OpenReadStream(), file.FileName, file.ContentType);
+        var blobPath = await storage.SaveAsync(file.OpenReadStream(), validated.FileName, validated.ContentType);
         var stored = new StoredFile
         {
             OrganizationId = organizationId,
-            Name = file.FileName,
-            MimeType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
+            Name = validated.FileName,
+            MimeType = validated.ContentType,
             Size = file.Length,
             BlobPath = blobPath,
             FolderId = folderId,
         };
         Db.StoredFiles.Add(stored);
-        await Db.SaveChangesAsync();
+        try { await Db.SaveChangesAsync(); }
+        catch
+        {
+            try { await storage.DeleteAsync(blobPath); }
+            catch (Exception cleanupException)
+            {
+                logger?.LogWarning(cleanupException, "Unable to remove new blob {BlobPath} after a database failure.", blobPath);
+            }
+            throw;
+        }
         return Ok(mapper.Map<StoredFileDto>(stored));
     }
 
@@ -145,9 +183,11 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         if (file is null) return NotFound();
 
         var stream = await storage.OpenAsync(file.BlobPath);
+        var inline = FileUploadSecurity.CanRenderInline(file.Name, file.MimeType);
         Response.Headers[HeaderNames.ContentDisposition] =
-            new ContentDispositionHeaderValue("inline") { FileName = file.Name }.ToString();
-        return File(stream, file.MimeType);
+            new ContentDispositionHeaderValue(inline ? "inline" : "attachment")
+            { FileName = FileUploadSecurity.SafeDownloadName(file.Name) }.ToString();
+        return File(stream, inline ? file.MimeType : "application/octet-stream");
     }
 
     [HttpGet("{id:guid}/download")]
@@ -158,8 +198,12 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
 
         var stream = await storage.OpenAsync(file.BlobPath);
         Response.Headers[HeaderNames.ContentDisposition] =
-            new ContentDispositionHeaderValue("attachment") { FileName = file.Name }.ToString();
-        return File(stream, file.MimeType);
+            new ContentDispositionHeaderValue("attachment")
+            { FileName = FileUploadSecurity.SafeDownloadName(file.Name) }.ToString();
+        var contentType = FileUploadSecurity.CanRenderInline(file.Name, file.MimeType)
+            ? file.MimeType
+            : "application/octet-stream";
+        return File(stream, contentType);
     }
 
     [HttpDelete("{id:guid}")]
@@ -171,11 +215,13 @@ public class FilesExplorerController(AppDbContext db, IMapper mapper, ICurrentUs
         var check = await CheckWriteAccessAsync(file.OrganizationId, resourceId: file.Id);
         if (check is not null) return check;
 
-        try { await storage.DeleteAsync(file.BlobPath); }
-        catch {  }
-
         Db.StoredFiles.Remove(file);
         await Db.SaveChangesAsync();
+        try { await storage.DeleteAsync(file.BlobPath); }
+        catch (Exception exception)
+        {
+            logger?.LogWarning(exception, "Unable to remove blob {BlobPath} after deleting its metadata.", file.BlobPath);
+        }
         return NoContent();
     }
 

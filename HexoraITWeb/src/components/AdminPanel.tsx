@@ -31,7 +31,7 @@ export default function AdminPanel() {
         if (
             createForm.email === '' ||
             createForm.displayName === '' ||
-            createForm.password.length < 8
+            createForm.password.length < 15
         )
             return
 
@@ -94,7 +94,7 @@ export default function AdminPanel() {
     }
 
     const submitReset = async () => {
-        if (!resetTarget || newPassword.length < 8) return
+        if (!resetTarget || newPassword.length < 15) return
         setBusyUserId(resetTarget.id)
         setError(null)
         try {
@@ -179,11 +179,11 @@ export default function AdminPanel() {
                     <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
                         <h3 className="text-sm font-semibold text-ink-primary mb-1 flex items-center gap-2"><Shield size={14} />  {tr("Reset Password")}</h3>
                         <p className="text-xs text-ink-muted mb-4">{tr("Set a new password for")} {resetTarget.email}{tr(". They'll need to use it on their next sign-in.")}</p>
-                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={tr("At least 8 characters")}
+                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={tr("At least 15 characters")} minLength={15} maxLength={200}
                             className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none focus:border-blue-500 mb-4" />
                         <div className="flex gap-2">
                             <button onClick={() => setResetTarget(null)} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors">{tr("Cancel")}</button>
-                            <button onClick={submitReset} disabled={newPassword.length < 8 || busyUserId === resetTarget.id}
+                            <button onClick={submitReset} disabled={newPassword.length < 15 || busyUserId === resetTarget.id}
                                 className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50">
                                 {busyUserId === resetTarget.id ? tr("Saving…") : tr("Set Password")}
                             </button>
@@ -238,6 +238,8 @@ export default function AdminPanel() {
                             <input
                                 placeholder={tr("Password")}
                                 type="password"
+                                minLength={15}
+                                maxLength={200}
                                 value={createForm.password}
                                 onChange={e =>
                                     setCreateForm(f => ({
@@ -277,7 +279,7 @@ export default function AdminPanel() {
                                 disabled={
                                     !createForm.email ||
                                     !createForm.displayName ||
-                                    createForm.password.length < 8
+                                    createForm.password.length < 15
                                 }
                                 className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-50"
                             >

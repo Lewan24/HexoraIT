@@ -8,7 +8,7 @@ namespace HexoraITApi.Application;
 
 public class JwtTokenService(IConfiguration config) : IJwtTokenService
 {
-    public string CreateToken(Guid userId, string email, SystemRole systemRole)
+    public string CreateToken(Guid userId, string email, SystemRole systemRole, Guid securityStamp)
     {
         var jwt = config.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
@@ -18,6 +18,7 @@ public class JwtTokenService(IConfiguration config) : IJwtTokenService
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim("sys_role", systemRole.ToString()),
+            new Claim("security_stamp", securityStamp.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
         var token = new JwtSecurityToken(jwt["Issuer"], jwt["Audience"], claims,

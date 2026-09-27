@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -21,10 +22,27 @@ public class PrivateNotesController(AppDbContext db, ICurrentUserContext userCon
         .Where(n => n.OrganizationId == organizationId && n.UserId == userContext.UserId);
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(Guid organizationId)
+    public async Task<IActionResult> GetAll(Guid organizationId, [FromQuery] PaginationParameters? pagination = null)
     {
         if (!await userContext.HasAccessAsync(organizationId) || await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client)) return Forbid();
-        return Ok(await OwnedNotes(organizationId).AsNoTracking().OrderByDescending(n => n.UpdatedAt).ToListAsync());
+        if (!Pagination.TryResolve(pagination, out var window))
+            return BadRequest("Both page and pageSize must be supplied together.");
+
+        var query = OwnedNotes(organizationId).AsNoTracking();
+        var totalCount = await query.CountAsync();
+        var notes = await query
+            .OrderByDescending(n => n.UpdatedAt)
+            .ThenBy(n => n.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
+            .ToListAsync();
+        if (ControllerContext.HttpContext is { } context)
+        {
+            Pagination.WriteHeaders(context.Response, totalCount, window.Page, window.PageSize);
+            if (window.IsLegacy && totalCount > window.PageSize)
+                context.Response.Headers["X-Result-Capped"] = "true";
+        }
+        return Ok(notes);
     }
 
     [HttpPost]

@@ -1,6 +1,7 @@
 using AutoMapper;
 using HexoraITApi.Api.Auth;
 using HexoraITApi.Api.Interfaces;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -11,11 +12,17 @@ namespace HexoraITApi.Api.App;
 
 [ApiController]
 [Route("api/contracts")]
-public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage) : OrgScopedController(db, userContext)
+public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage,
+    ILogger<ContractsController>? logger = null) : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<ContractDto>>> GetAll([FromQuery] Guid? organizationId)
+    public async Task<ActionResult<List<ContractDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -25,7 +32,11 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var query = Db.Contracts.AsQueryable();
         if (organizationId is { } id) query = query.Where(c => c.OrganizationId == id);
 
+        WritePaginationHeaders(await query.CountAsync(), window);
         return Ok(await query
+            .OrderBy(c => c.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(c => new ContractDto(
                 c.Id,
                 c.Name,
@@ -95,8 +106,17 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var check = await CheckWriteAccessAsync(contract.OrganizationId, resourceId: contract.Id);
         if (check is not null) return check;
 
+        var documentPath = contract.DocumentBlobPath;
         Db.Contracts.Remove(contract);
         await Db.SaveChangesAsync();
+        if (documentPath is not null)
+        {
+            try { await storage.DeleteAsync(documentPath); }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(exception, "Unable to remove contract blob {BlobPath} after deleting its metadata.", documentPath);
+            }
+        }
         return NoContent();
     }
 
@@ -126,15 +146,34 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         if (check is not null) 
             return check;
 
-        if (contract.DocumentBlobPath is not null) 
-            await storage.DeleteAsync(contract.DocumentBlobPath);
+        ValidatedUpload validated;
+        try { validated = await FileUploadSecurity.ValidateAsync(file, 20_000_000, HttpContext?.RequestAborted ?? CancellationToken.None); }
+        catch (InvalidDataException exception) { return BadRequest(exception.Message); }
 
-        var path = await storage.SaveAsync(file.OpenReadStream(), file.FileName, file.ContentType);
-        contract.DocumentName = file.FileName;
-        contract.DocumentMimeType = file.ContentType;
+        var oldPath = contract.DocumentBlobPath;
+        var path = await storage.SaveAsync(file.OpenReadStream(), validated.FileName, validated.ContentType);
+        contract.DocumentName = validated.FileName;
+        contract.DocumentMimeType = validated.ContentType;
         contract.DocumentSize = file.Length;
         contract.DocumentBlobPath = path;
-        await Db.SaveChangesAsync();
+        try { await Db.SaveChangesAsync(); }
+        catch
+        {
+            try { await storage.DeleteAsync(path); }
+            catch (Exception cleanupException)
+            {
+                logger?.LogWarning(cleanupException, "Unable to remove new contract blob {BlobPath} after a database failure.", path);
+            }
+            throw;
+        }
+        if (oldPath is not null)
+        {
+            try { await storage.DeleteAsync(oldPath); }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(exception, "Unable to remove replaced contract blob {BlobPath}.", oldPath);
+            }
+        }
         
         return Ok(mapper.Map<ContractDto>(contract));
     }
@@ -146,7 +185,10 @@ public class ContractsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         if (contract?.DocumentBlobPath is null) return NotFound();
 
         var stream = await storage.OpenAsync(contract.DocumentBlobPath);
-        return File(stream, contract.DocumentMimeType ?? "application/octet-stream", contract.DocumentName);
+        var contentType = FileUploadSecurity.CanRenderInline(contract.DocumentName ?? "", contract.DocumentMimeType ?? "")
+            ? contract.DocumentMimeType!
+            : "application/octet-stream";
+        return File(stream, contentType, FileUploadSecurity.SafeDownloadName(contract.DocumentName ?? "download"));
     }
 
     private static ContractStatus CalcStatus(DateOnly end)

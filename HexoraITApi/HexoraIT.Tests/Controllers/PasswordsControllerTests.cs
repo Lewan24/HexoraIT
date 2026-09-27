@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using HexoraITApi.Api.App;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -10,8 +11,8 @@ public class PasswordsControllerTests : IDisposable
 {
     private readonly TestFixture _fx = new();
 
-    private PasswordsController Controller()
-        => new(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher);
+    private PasswordsController Controller(ISecurityAuditLogger? securityAudit = null)
+        => new(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher, securityAudit);
 
     [Fact]
     public async Task GetAll_NeverExposesTheSecret()
@@ -41,8 +42,9 @@ public class PasswordsControllerTests : IDisposable
     [Fact]
     public async Task Reveal_ReturnsTheOriginalPlaintext()
     {
-        var (_, org) = _fx.SeedUserWithOrg();
-        var sut = Controller();
+        var (user, org) = _fx.SeedUserWithOrg();
+        var audit = new RecordingSecurityAuditLogger();
+        var sut = Controller(audit);
 
         var create = await sut.Create(org.Id, new CreatePasswordDto(
             "Entry",
@@ -67,6 +69,7 @@ public class PasswordsControllerTests : IDisposable
         revealResult.Value.As<string>()
             .Should()
             .Be("correct-horse-battery");
+        audit.SensitiveAccess.Should().Be(("password_revealed", user.Id, created.Id, org.Id));
     }
 
     [Fact]
@@ -156,4 +159,16 @@ public class PasswordsControllerTests : IDisposable
 
     public void Dispose()
         => _fx.Dispose();
+
+    private sealed class RecordingSecurityAuditLogger : ISecurityAuditLogger
+    {
+        public (string Action, Guid UserId, Guid ResourceId, Guid OrganizationId)? SensitiveAccess { get; private set; }
+
+        public void AuthenticationSucceeded(Guid userId) { }
+        public void AccountChanged(string action, Guid actorUserId, Guid targetUserId) { }
+        public void RequestRejected(int statusCode, string method, string path, Guid? userId, string traceId, string? remoteAddress) { }
+
+        public void SensitiveResourceAccessed(string action, Guid userId, Guid resourceId, Guid organizationId) =>
+            SensitiveAccess = (action, userId, resourceId, organizationId);
+    }
 }

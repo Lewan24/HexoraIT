@@ -91,6 +91,7 @@ export default function Login() {
               placeholder={tr("you@corp.local")}
               autoComplete="email"
               required
+              maxLength={256}
               className="w-full px-3 py-2.5 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
               style={{ borderColor: focused === 'email' ? 'var(--_blue-500)' : 'var(--_edge-default)' }}
             />
@@ -110,6 +111,7 @@ export default function Login() {
                 autoComplete="current-password"
                 required
                 minLength={8}
+                maxLength={200}
                 className="w-full px-3 py-2.5 pr-10 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
                 style={{ borderColor: focused === 'pass' ? 'var(--_blue-500)' : 'var(--_edge-default)' }}
               />

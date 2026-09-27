@@ -1,6 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HexoraITApi.Api.Auth;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -14,8 +15,13 @@ namespace HexoraITApi.Api.App;
 public class ProjectsController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<ProjectDto>>> GetAll([FromQuery] Guid? organizationId)
+    public async Task<ActionResult<List<ProjectDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -28,9 +34,11 @@ public class ProjectsController(AppDbContext db, IMapper mapper, ICurrentUserCon
         if (organizationId is { } id)
             query = query.Where(p => p.OrganizationId == id);
 
-        query.Include(p => p.Tasks);
-        
+        WritePaginationHeaders(await query.CountAsync(), window);
         var projects = await query
+            .OrderBy(p => p.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ProjectTo<ProjectDto>(mapper.ConfigurationProvider)
             .ToListAsync();
 

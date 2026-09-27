@@ -1,6 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HexoraITApi.Api.Auth;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -14,8 +15,13 @@ namespace HexoraITApi.Api.App;
 public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<SubnetDto>>> GetAll([FromQuery] Guid? organizationId)
+    public async Task<ActionResult<List<SubnetDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -25,7 +31,9 @@ public class SubnetsController(AppDbContext db, IMapper mapper, ICurrentUserCont
         var query = Db.Subnets.Include(s => s.Ips).AsQueryable();
         if (organizationId is { } id) query = query.Where(s => s.OrganizationId == id);
 
-        return Ok(await query.ProjectTo<SubnetDto>(mapper.ConfigurationProvider).ToListAsync());
+        WritePaginationHeaders(await query.CountAsync(), window);
+        return Ok(await query.OrderBy(s => s.Id).Skip(window.Offset).Take(window.PageSize)
+            .ProjectTo<SubnetDto>(mapper.ConfigurationProvider).ToListAsync());
     }
 
     [HttpGet("{id:guid}")]

@@ -5,10 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HexoraITApi.Api.Auth;
 
+using HexoraITApi.Application;
+
 [Authorize]
 public abstract class OrgScopedController(AppDbContext db, ICurrentUserContext userContext) : ControllerBase
 {
     protected AppDbContext Db => db;
+    protected Guid? CurrentUserId => userContext.UserId;
 
     private string? Resource => GetType().Name switch
     {
@@ -34,5 +37,19 @@ public abstract class OrgScopedController(AppDbContext db, ICurrentUserContext u
             return Forbid();
         
         return null;
+    }
+
+    protected ActionResult? ResolvePagination(PaginationParameters? parameters, out PaginationWindow window) =>
+        Pagination.TryResolve(parameters, out window)
+            ? null
+            : BadRequest("Both page and pageSize must be supplied together.");
+
+    protected void WritePaginationHeaders(int totalCount, PaginationWindow window)
+    {
+        if (ControllerContext.HttpContext is not { } context) return;
+
+        Pagination.WriteHeaders(context.Response, totalCount, window.Page, window.PageSize);
+        if (window.IsLegacy && totalCount > window.PageSize)
+            context.Response.Headers["X-Result-Capped"] = "true";
     }
 }

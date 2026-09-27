@@ -260,7 +260,7 @@ public class WarrantiesControllerTests : IDisposable
             .As<WarrantyItemDto>();
 
         await using var stream =
-            new MemoryStream("hello world"u8.ToArray());
+            new MemoryStream("%PDF-1.7\nhello world"u8.ToArray());
 
         IFormFile file = new FormFile(
             stream,
@@ -316,7 +316,7 @@ public class WarrantiesControllerTests : IDisposable
             .As<WarrantyItemDto>();
 
         await using var stream =
-            new MemoryStream([1, 2, 3]);
+            new MemoryStream("%PDF-1.7\ndocument"u8.ToArray());
 
         var file = new FormFile(
             stream,

@@ -673,7 +673,7 @@ function SecuritySection() {
   const [error, setError] = useState<string | null>(null)
 
   const submitPasswordChange = async () => {
-    if (!currentPw || newPw.length < 8 || saving) return
+    if (!currentPw || newPw.length < 15 || saving) return
     setSaving(true)
     setError(null)
     try {
@@ -701,13 +701,13 @@ function SecuritySection() {
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("New Password")}</label>
-              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder={tr("At least 8 characters")} className={inp()} disabled={saving} minLength={8} />
+              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder={tr("At least 15 characters")} className={inp()} disabled={saving} minLength={15} maxLength={200} />
             </div>
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex items-center justify-between">
             {pwChanged && <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle2 size={12} />  {tr("Password updated")}</span>}
-            <button onClick={submitPasswordChange} disabled={saving || !currentPw || newPw.length < 8}
+            <button onClick={submitPasswordChange} disabled={saving || !currentPw || newPw.length < 15}
               className="ml-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all disabled:opacity-50">
               {saving ? <Loader2 size={11} className="animate-spin" /> : <Key size={11} />}
               {saving ? tr("Updating…") : tr("Update Password")}

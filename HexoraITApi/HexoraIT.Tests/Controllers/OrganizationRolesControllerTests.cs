@@ -1,5 +1,6 @@
 using FluentAssertions;
 using HexoraITApi.Api.App;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -58,12 +59,12 @@ public class OrganizationRolesControllerTests : IDisposable
             new PermissionDto("assets", Guid.Empty, true, true),
             new PermissionDto("assets", hidden.Id, false, false),
             new PermissionDto("assets", readOnly.Id, true, false));
-        var assets = new AssetsController(_fx.Db, _fx.Mapper, _fx.UserContext);
+        var assets = new AssetService(_fx.Db, _fx.Mapper, _fx.UserContext);
 
         (await _fx.Db.Assets.Select(a => a.Id).ToListAsync()).Should().BeEquivalentTo([readOnly.Id, writable.Id]);
-        (await assets.GetById(hidden.Id)).Result.Should().BeOfType<NotFoundResult>();
-        (await assets.Delete(readOnly.Id)).Should().BeOfType<ForbidResult>();
-        (await assets.ToggleStar(writable.Id)).Should().BeOfType<OkObjectResult>();
+        (await assets.GetByIdAsync(hidden.Id)).StatusCode.Should().Be(404);
+        (await assets.DeleteAsync(readOnly.Id)).StatusCode.Should().Be(403);
+        (await assets.ToggleStarAsync(writable.Id)).StatusCode.Should().Be(200);
     }
 
     [Fact]

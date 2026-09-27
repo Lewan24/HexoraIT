@@ -230,7 +230,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           <legend>{tr('Create client account')}</legend>
           <label className="block text-xs">{tr('Email')}<input required type="email" maxLength={256} className={inputClass} value={client.email} onChange={e => setClient({ ...client, email: e.target.value })} /></label>
           <label className="block text-xs">{tr('Display name')}<input required maxLength={200} className={inputClass} value={client.displayName} onChange={e => setClient({ ...client, displayName: e.target.value })} /></label>
-          <label className="block text-xs">{tr('Password')}<input required type="password" autoComplete="new-password" minLength={8} maxLength={200} className={inputClass} value={client.password} onChange={e => setClient({ ...client, password: e.target.value })} /></label>
+          <label className="block text-xs">{tr('Password')}<input required type="password" autoComplete="new-password" minLength={15} maxLength={200} className={inputClass} value={client.password} onChange={e => setClient({ ...client, password: e.target.value })} /></label>
           <button className={buttonClass}>{tr('Create client account')}</button>
         </fieldset>
       </form>

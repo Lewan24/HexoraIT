@@ -27,10 +27,14 @@ public class DiagramController(AppDbContext db, IMapper mapper, ICurrentUserCont
     }
 
     [HttpPut]
+    [RequestSizeLimit(4_000_000)]
     public async Task<IActionResult> Save([FromQuery] Guid organizationId, SaveDiagramDto dto)
     {
         var check = await CheckWriteAccessAsync(organizationId);
         if (check is not null) return check;
+
+        if (dto.Nodes.Count > 2000 || dto.Edges.Count > 4000)
+            return BadRequest("Diagram exceeds the maximum number of nodes or edges.");
 
         // Replacing a diagram must not silently delete nodes hidden by asset permissions.
         if (await Db.DiagramNodes.AnyAsync(n => n.OrganizationId == organizationId && n.AssetId != null &&

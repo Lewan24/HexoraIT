@@ -2,6 +2,7 @@ using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HexoraITApi.Api.Auth;
 using HexoraITApi.Api.Interfaces;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -12,12 +13,22 @@ namespace HexoraITApi.Api.App;
 
 [ApiController]
 [Route("api/passwords")]
-public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IPasswordCipher cipher)
+public class PasswordsController(
+    AppDbContext db,
+    IMapper mapper,
+    ICurrentUserContext userContext,
+    IPasswordCipher cipher,
+    ISecurityAuditLogger? securityAudit = null)
     : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<PasswordListDto>>> GetAll([FromQuery] Guid? organizationId)
+    public async Task<ActionResult<List<PasswordListDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -27,7 +38,9 @@ public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserCo
         var query = Db.Passwords.AsQueryable();
         if (organizationId is { } id) query = query.Where(p => p.OrganizationId == id);
 
-        return Ok(await query.ProjectTo<PasswordListDto>(mapper.ConfigurationProvider).ToListAsync());
+        WritePaginationHeaders(await query.CountAsync(), window);
+        return Ok(await query.OrderBy(p => p.Id).Skip(window.Offset).Take(window.PageSize)
+            .ProjectTo<PasswordListDto>(mapper.ConfigurationProvider).ToListAsync());
     }
 
     [HttpGet("{id:guid}/reveal")]
@@ -35,8 +48,10 @@ public class PasswordsController(AppDbContext db, IMapper mapper, ICurrentUserCo
     {
         var entry = await Db.Passwords.FirstOrDefaultAsync(p => p.Id == id);
         if (entry is null) return NotFound();
-        // TODO: audit log entry — who revealed what, when
-        return Ok(cipher.Decrypt(entry.EncryptedPassword));
+        var plaintext = cipher.Decrypt(entry.EncryptedPassword);
+        securityAudit?.SensitiveResourceAccessed(
+            "password_revealed", CurrentUserId ?? Guid.Empty, entry.Id, entry.OrganizationId);
+        return Ok(plaintext);
     }
 
     [HttpPost]

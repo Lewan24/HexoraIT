@@ -1,6 +1,7 @@
 using AutoMapper;
 using HexoraITApi.Api.Auth;
 using HexoraITApi.Api.Interfaces;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
@@ -11,12 +12,18 @@ namespace HexoraITApi.Api.App;
 
 [ApiController]
 [Route("api/warranties")]
-public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage)
+public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, IFileStorage storage,
+    ILogger<WarrantiesController>? logger = null)
     : OrgScopedController(db, userContext)
 {
     [HttpGet]
-    public async Task<ActionResult<List<WarrantyItemDto>>> GetAll([FromQuery] Guid? organizationId)
+    public async Task<ActionResult<List<WarrantyItemDto>>> GetAll(
+        [FromQuery] Guid? organizationId,
+        [FromQuery] PaginationParameters? pagination = null)
     {
+        var paginationError = ResolvePagination(pagination, out var window);
+        if (paginationError is not null) return paginationError;
+
         if (organizationId is { } orgId)
         {
             var check = await CheckReadAccessAsync(orgId);
@@ -26,7 +33,11 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         var query = Db.WarrantyItems.AsQueryable();
         if (organizationId is { } id) query = query.Where(w => w.OrganizationId == id);
 
+        WritePaginationHeaders(await query.CountAsync(), window);
         return Ok(await query
+            .OrderBy(w => w.Id)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(w => new WarrantyItemDto(
                 w.Id,
                 w.Name,
@@ -105,14 +116,17 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         if (check is not null) 
             return check;
 
-        if (item.DocumentBlobPath is not null)
-        {
-            try { await storage.DeleteAsync(item.DocumentBlobPath); }
-            catch {  }
-        }
-        
+        var documentPath = item.DocumentBlobPath;
         Db.WarrantyItems.Remove(item);
         await Db.SaveChangesAsync();
+        if (documentPath is not null)
+        {
+            try { await storage.DeleteAsync(documentPath); }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(exception, "Unable to remove warranty blob {BlobPath} after deleting its metadata.", documentPath);
+            }
+        }
         return NoContent();
     }
 
@@ -142,19 +156,34 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         if (check is not null)
             return check;
 
-        if (item.DocumentBlobPath is not null)
-        {
-            try { await storage.DeleteAsync(item.DocumentBlobPath); }
-            catch {  }
-        }
+        ValidatedUpload validated;
+        try { validated = await FileUploadSecurity.ValidateAsync(file, 20_000_000, HttpContext?.RequestAborted ?? CancellationToken.None); }
+        catch (InvalidDataException exception) { return BadRequest(exception.Message); }
 
-        var path = await storage.SaveAsync(file.OpenReadStream(), file.FileName, file.ContentType);
-        item.DocumentName = file.FileName;
-        item.DocumentMimeType = file.ContentType;
+        var oldPath = item.DocumentBlobPath;
+        var path = await storage.SaveAsync(file.OpenReadStream(), validated.FileName, validated.ContentType);
+        item.DocumentName = validated.FileName;
+        item.DocumentMimeType = validated.ContentType;
         item.DocumentSize = file.Length;
         item.DocumentBlobPath = path;
-        
-        await Db.SaveChangesAsync();
+        try { await Db.SaveChangesAsync(); }
+        catch
+        {
+            try { await storage.DeleteAsync(path); }
+            catch (Exception cleanupException)
+            {
+                logger?.LogWarning(cleanupException, "Unable to remove new warranty blob {BlobPath} after a database failure.", path);
+            }
+            throw;
+        }
+        if (oldPath is not null)
+        {
+            try { await storage.DeleteAsync(oldPath); }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(exception, "Unable to remove replaced warranty blob {BlobPath}.", oldPath);
+            }
+        }
         
         return Ok(mapper.Map<WarrantyItemDto>(item));
     }
@@ -166,7 +195,10 @@ public class WarrantiesController(AppDbContext db, IMapper mapper, ICurrentUserC
         if (item?.DocumentBlobPath is null) return NotFound();
 
         var stream = await storage.OpenAsync(item.DocumentBlobPath);
-        return File(stream, item.DocumentMimeType ?? "application/octet-stream", item.DocumentName);
+        var contentType = FileUploadSecurity.CanRenderInline(item.DocumentName ?? "", item.DocumentMimeType ?? "")
+            ? item.DocumentMimeType!
+            : "application/octet-stream";
+        return File(stream, contentType, FileUploadSecurity.SafeDownloadName(item.DocumentName ?? "download"));
     }
 
     private static WarrantyStatus CalcStatus(DateOnly end)

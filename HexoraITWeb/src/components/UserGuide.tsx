@@ -22,7 +22,7 @@ const clientTopics = [
   { id: 'client-access', title: 'Dostęp do dokumentacji', body: 'Domyślnie masz dostęp do **Zgłoś problem**, osobistych **Ustawień** i **Instrukcji obsługi**. Dodatkowe zakładki i dane udostępnia opiekun Twojej organizacji.\n\nJeśli nie widzisz potrzebnych informacji albo nie możesz zapisać zmian, skontaktuj się z opiekunem. Instrukcja obsługi nie nadaje uprawnień do modułów.\n\nJeśli nie masz przypisanej organizacji, poproś opiekuna o sprawdzenie konta. Jeśli nie pamiętasz hasła, skontaktuj się z administratorem systemu.' },
 ].map(topic => topic.title === 'Pierwsze logowanie i orientacja na ekranie' ? {
   ...topic,
-  body: 'Po zalogowaniu otwiera się **Zgłoś problem**. Twoje konto jest przypisane do jednej organizacji. Na telefonie otwórz menu przyciskiem w górnym pasku.\n\nW **Ustawienia → Profil** zmienisz swoją nazwę, w **Ustawienia → Wygląd** język i motyw, a w **Ustawienia → Bezpieczeństwo** hasło. Podaj obecne i nowe hasło (co najmniej 8 znaków).\n\nPrzycisk wylogowania znajduje się przy danych użytkownika i w górnym pasku.',
+  body: 'Po zalogowaniu otwiera się **Zgłoś problem**. Twoje konto jest przypisane do jednej organizacji. Na telefonie otwórz menu przyciskiem w górnym pasku.\n\nW **Ustawienia → Profil** zmienisz swoją nazwę, w **Ustawienia → Wygląd** język i motyw, a w **Ustawienia → Bezpieczeństwo** hasło. Podaj obecne i nowe hasło (co najmniej 15 znaków).\n\nPrzycisk wylogowania znajduje się przy danych użytkownika i w górnym pasku.',
 } : topic)
 
 function inline(text: string): ReactNode {

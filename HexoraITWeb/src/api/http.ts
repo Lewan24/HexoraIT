@@ -1,6 +1,8 @@
 import { config } from "../../config"
 
 const BASE_URL = config.apiBaseUrl
+const PAGINATION_PAGE_SIZE = 200
+const MAX_AUTOMATIC_PAGES = 100
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details?: unknown) {
@@ -61,6 +63,21 @@ async function request<T>(path: string, options: RequestInit = {}, getString: bo
   return res.text() as Promise<T>
 }
 
+async function getAllPages<T>(path: string): Promise<T[]> {
+  const results: T[] = []
+  const separator = path.includes('?') ? '&' : '?'
+
+  for (let page = 1; page <= MAX_AUTOMATIC_PAGES; page += 1) {
+    const batch = await request<T[]>(
+      `${path}${separator}page=${page}&pageSize=${PAGINATION_PAGE_SIZE}`,
+    )
+    results.push(...batch)
+    if (batch.length < PAGINATION_PAGE_SIZE) return results
+  }
+
+  throw new ApiError(0, 'The result set exceeds the safe client-side pagination limit.')
+}
+
 export function qs(params: Record<string, string | undefined | null>): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null) as [string, string][]
   if (entries.length === 0) return ''
@@ -69,6 +86,7 @@ export function qs(params: Record<string, string | undefined | null>): string {
 
 export const http = {
   get: <T>(path: string) => request<T>(path),
+  getAllPages,
   getString: (path: string) => request<string>(path, {}, true),
   getBlob: async (path: string): Promise<Blob> => {
     const res = await fetch(`${BASE_URL}${path}`, {
