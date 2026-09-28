@@ -10,4 +10,5 @@ public sealed class AppSettings
 
     public string[] AllowOrigins { get; init; } = [];
     public string? CurrentVersion { get; set; }
+    public string PublicUrl { get; init; } = "";
 }

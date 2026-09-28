@@ -17,6 +17,7 @@ Compose obsługuje tor NPM → frontend → API. Ustaw `HEXORAIT_PUBLIC_ORIGIN` 
 ## Ustawienia opcjonalne
 
 - `AppSettings__AllowRegister` — publiczna rejestracja; w produkcji zwykle `false`.
+- `AppSettings__PublicUrl` — publiczny adres frontendu używany w linkach potwierdzenia konta i resetu hasła; musi wskazywać zaufany adres HTTPS w produkcji.
 - `AppSettings__HexoraITAdmin` i `AppSettings__InitialAdminPassword` — jednorazowy bootstrap pierwszego administratora; hasło min. 15 znaków trzeba usunąć po utworzeniu konta.
 - `ReverseProxy__KnownProxies__0...n` — dokładne adresy zaufanych proxy. Przy bezpośrednim dostępie lista pozostaje pusta.
 

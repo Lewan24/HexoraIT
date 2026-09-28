@@ -91,6 +91,7 @@ services:
       AppSettings__AllowRegister: false
       # Public browser origin, including https:// and no trailing slash or /api.
       AppSettings__AllowOrigins__0: ${HEXORAIT_PUBLIC_ORIGIN:?Set HEXORAIT_PUBLIC_ORIGIN}
+      AppSettings__PublicUrl: ${HEXORAIT_PUBLIC_ORIGIN:?Set HEXORAIT_PUBLIC_ORIGIN}
       # Trust the frontend hop and the exact NPM source IP seen by the frontend.
       ReverseProxy__KnownProxies__0: ${HEXORAIT_FRONTEND_IP:-172.40.0.21}
       # ReverseProxy__KnownProxies__1: ${HEXORAIT_NPM_IP:?Set HEXORAIT_NPM_IP}

@@ -150,7 +150,7 @@ public sealed class SecurityPipelineTests
         var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
             .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/admin", StringComparison.Ordinal) == true).ToList();
-        endpoints.Should().HaveCount(8);
+        endpoints.Should().HaveCount(11);
         endpoints.Should().AllSatisfy(endpoint =>
             endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Should().Contain(item => item.Policy == "AdminOnly"));
     }
@@ -178,7 +178,7 @@ public sealed class SecurityPipelineTests
                 !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
                 !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
             .ToList();
-        endpoints.Should().HaveCount(10);
+        endpoints.Should().HaveCount(12);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 
@@ -262,9 +262,12 @@ public sealed class SecurityPipelineTests
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/auth", StringComparison.Ordinal) == true)
             .ToList();
 
-        routes.Should().HaveCount(6);
+        routes.Should().HaveCount(9);
         routes.Select(endpoint => endpoint.RoutePattern.RawText).Distinct().Should().BeEquivalentTo(
             "/api/auth/register",
+            "/api/auth/confirm-email",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/api/auth/login",
             "/api/auth/switch-org",
             "/api/auth/me",
@@ -275,6 +278,8 @@ public sealed class SecurityPipelineTests
         routes.Single(endpoint => endpoint.RoutePattern.RawText == "/api/auth/login")
             .Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName
             .Should().Be("authentication");
+        routes.Where(endpoint => endpoint.RoutePattern.RawText is "/api/auth/confirm-email" or "/api/auth/forgot-password" or "/api/auth/reset-password")
+            .Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName.Should().Be("authentication"));
         routes.Where(endpoint => endpoint.RoutePattern.RawText is
                 "/api/auth/me" or "/api/auth/switch-org" or "/api/auth/change-password")
             .Should().AllSatisfy(endpoint =>

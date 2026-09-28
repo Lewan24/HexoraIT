@@ -1,8 +1,9 @@
 import AuditLog from './AuditLog'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect } from 'react'
-import { Shield, Loader2, Ban, KeyRound, ShieldCheck, Plus } from 'lucide-react'
-import { adminApi } from '../api/resources'
+import { Shield, Loader2, Ban, KeyRound, ShieldCheck, Plus, Mail } from 'lucide-react'
+import { adminApi, emailSettingsApi } from '../api/resources'
+import type { GlobalEmailSettings } from '../api/resources'
 import type { AdminUser, SystemRole } from '../api/types'
 import { useAuth } from '../context/useAuth'
 import { ApiError } from '../api/http'
@@ -295,14 +296,52 @@ function UserManagement() {
     )
 }
 
+function EmailConfiguration() {
+  useLocale()
+  const [settings, setSettings] = useState<GlobalEmailSettings | null>(null)
+  const [password, setPassword] = useState('')
+  const [recipient, setRecipient] = useState('')
+  const [status, setStatus] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { emailSettingsApi.getGlobal().then(setSettings).catch(() => setStatus(tr('Failed to load email settings'))) }, [])
+  if (!settings) return <div className="p-8"><Loader2 className="animate-spin" size={20} /></div>
+  const field = (key: keyof GlobalEmailSettings, value: string | number | boolean) => setSettings(s => s ? { ...s, [key]: value } : s)
+  const save = async () => {
+    setBusy(true); setStatus('')
+    try { setSettings(await emailSettingsApi.updateGlobal({ ...settings, password: password || undefined })); setPassword(''); setStatus(tr('Email settings saved')) }
+    catch (error) { setStatus(error instanceof ApiError ? error.message : tr('Failed to save email settings')) } finally { setBusy(false) }
+  }
+  const test = async () => {
+    setBusy(true); setStatus('')
+    try { await emailSettingsApi.test(recipient); setStatus(tr('Test email sent')) }
+    catch (error) { setStatus(error instanceof ApiError ? error.message : tr('Failed to send test email')) } finally { setBusy(false) }
+  }
+  return <div className="p-4 sm:p-6 max-w-[760px] space-y-4">
+    <div><h2 className="text-xl font-semibold flex items-center gap-2"><Mail size={18} className="text-blue-400" />{tr('Email service')}</h2><p className="text-xs text-ink-muted mt-1">{tr('Configure the global SMTP service. The password is encrypted and never returned by the API.')}</p></div>
+    <div className="bg-navy-800 border border-edge-subtle rounded-xl p-5 grid sm:grid-cols-2 gap-3">
+      <label className="sm:col-span-2 text-xs flex items-center gap-2"><input type="checkbox" checked={settings.enabled} onChange={e => field('enabled', e.target.checked)} />{tr('Enable email service')}</label>
+      <input aria-label={tr('SMTP host')} placeholder={tr('SMTP host')} value={settings.host} onChange={e => field('host', e.target.value)} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <input aria-label={tr('SMTP port')} type="number" min={1} max={65535} value={settings.port} onChange={e => field('port', Number(e.target.value))} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <input aria-label={tr('Username')} placeholder={tr('Username')} value={settings.username} onChange={e => field('username', e.target.value)} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <input aria-label={tr('SMTP password')} type="password" placeholder={settings.hasPassword ? tr('Password is configured') : tr('SMTP password')} value={password} onChange={e => setPassword(e.target.value)} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <input aria-label={tr('From address')} type="email" placeholder={tr('From address')} value={settings.fromAddress} onChange={e => field('fromAddress', e.target.value)} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <input aria-label={tr('From name')} placeholder={tr('From name')} value={settings.fromName} onChange={e => field('fromName', e.target.value)} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" />
+      <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={settings.useTls} onChange={e => field('useTls', e.target.checked)} />{tr('Use TLS')}</label>
+      <button onClick={save} disabled={busy} className="px-4 py-2 rounded-lg bg-blue-500 text-white text-xs disabled:opacity-50">{tr('Save')}</button>
+      <div className="sm:col-span-2 border-t border-edge-subtle pt-3 flex gap-2"><input type="email" placeholder={tr('Test recipient')} value={recipient} onChange={e => setRecipient(e.target.value)} className="flex-1 px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-sm" /><button onClick={test} disabled={busy || !recipient} className="px-4 py-2 rounded-lg border border-edge-default text-xs disabled:opacity-50">{tr('Send test')}</button></div>
+      {status && <p className="sm:col-span-2 text-xs text-ink-muted">{status}</p>}
+    </div>
+  </div>
+}
+
 export default function AdminPanel() {
   useLocale()
-  const [tab, setTab] = useState<'users' | 'audit'>('users')
+  const [tab, setTab] = useState<'users' | 'audit' | 'email'>('users')
   return <div className="p-4 sm:p-8 max-w-[1440px] mx-auto admin-workspace">
     <div className="mb-7"><p className="text-[10px] uppercase tracking-[.2em] text-blue-400 mb-2">{tr('Workspace control')}</p><h1 className="text-2xl font-semibold tracking-tight">{tr('Administration')}</h1><p className="text-sm text-ink-muted mt-2">{tr('Manage access and investigate security activity.')}</p></div>
     <div className="inline-flex gap-1 rounded-xl border border-edge-subtle bg-navy-800 p-1 mb-6" role="tablist" aria-label={tr('Administration')}>
-      {(['users', 'audit'] as const).map(value => <button key={value} id={`tab-${value}`} aria-controls={`panel-${value}`} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-5 py-2.5 text-xs font-medium transition-colors ${tab === value ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-ink-muted hover:text-ink-primary'}`}>{tr(value === 'users' ? 'Users' : 'Security audit')}</button>)}
+      {(['users', 'audit', 'email'] as const).map(value => <button key={value} id={`tab-${value}`} aria-controls={`panel-${value}`} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-5 py-2.5 text-xs font-medium transition-colors ${tab === value ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-ink-muted hover:text-ink-primary'}`}>{tr(value === 'users' ? 'Users' : value === 'audit' ? 'Security audit' : 'Email service')}</button>)}
     </div>
-    <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>{tab === 'audit' ? <AuditLog /> : <UserManagement />}</div>
+    <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>{tab === 'audit' ? <AuditLog /> : tab === 'email' ? <EmailConfiguration /> : <UserManagement />}</div>
   </div>
 }

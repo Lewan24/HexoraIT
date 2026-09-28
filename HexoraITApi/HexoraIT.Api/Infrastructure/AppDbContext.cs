@@ -58,6 +58,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserOrganization> UserOrganizations => Set<UserOrganization>();
+    public DbSet<GlobalEmailSettings> GlobalEmailSettings => Set<GlobalEmailSettings>();
+    public DbSet<OrganizationNotificationSettings> OrganizationNotificationSettings => Set<OrganizationNotificationSettings>();
+    public DbSet<AccountActionToken> AccountActionTokens => Set<AccountActionToken>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<OrganizationRole> OrganizationRoles => Set<OrganizationRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Organization> Organizations => Set<Organization>();
@@ -264,6 +268,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
             e.HasIndex(u => u.Email).IsUnique();
             e.Property(u => u.Email).HasMaxLength(256).IsRequired();
             e.Property(u => u.DisplayName).HasMaxLength(200);
+        });
+
+        b.Entity<GlobalEmailSettings>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Host).HasMaxLength(255);
+            e.Property(x => x.Username).HasMaxLength(255);
+            e.Property(x => x.FromAddress).HasMaxLength(256);
+            e.Property(x => x.FromName).HasMaxLength(200);
+        });
+        b.Entity<OrganizationNotificationSettings>(e =>
+        {
+            e.HasKey(x => x.OrganizationId);
+            e.HasOne(x => x.Organization).WithOne().HasForeignKey<OrganizationNotificationSettings>(x => x.OrganizationId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AccountActionToken>(e =>
+        {
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Purpose, x.ExpiresAt });
+            e.Property(x => x.Purpose).HasMaxLength(40);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<NotificationDelivery>(e =>
+        {
+            e.HasIndex(x => new { x.OrganizationId, x.EventType, x.ResourceId, x.EffectiveDate }).IsUnique();
+            e.Property(x => x.EventType).HasMaxLength(40);
         });
 
         b.Entity<UserOrganization>(e =>

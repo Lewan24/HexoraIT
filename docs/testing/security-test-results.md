@@ -1,6 +1,6 @@
 # Wyniki testów bezpieczeństwa
 
-Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
+Stan po wdrożeniu poczty i powiadomień: 2026-09-28.
 
 | Kontrola | Test/dowód | Wynik |
 |---|---|---|
@@ -21,7 +21,10 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 | Paginacja assets | `SecurityPipelineTests.AssetEndpoint_ReturnsStableBoundedPagesWithMetadata` | PASS: strony 200+5, brak duplikatów, total 205, zgodny tryb legacy oraz 400 dla niepełnych/nadmiernych parametrów |
 | Paginacja klienta | `pagination-security.test.mjs` | PASS: strony po 200, maksymalnie 100 automatycznych stron; wspólnego klienta używają główne moduły oraz listy plików, organizacji, administracji, ról i prywatnych notatek |
 | Minimal API wersji | `SecurityPipelineTests.VersionMinimalApi_PreservesThePublicContract` | PASS: `/api/version` zachowuje JSON i status 200, a trasa `/api/version/latest` jest zarejestrowana |
-| Minimal API Auth | `SecurityPipelineTests.AuthMinimalApi_RegistersEveryRouteWithRequiredSecurityMetadata` oraz testy hosta JWT/limitera/walidacji | PASS: sześć tras zarejestrowanych, chronione trasy wymagają autoryzacji, login/register zachowują limiter |
+| Minimal API Auth | `SecurityPipelineTests.AuthMinimalApi_RegistersEveryRouteWithRequiredSecurityMetadata` oraz testy hosta JWT/limitera/walidacji | PASS: dziewięć tras zarejestrowanych; chronione trasy wymagają autoryzacji, a login/rejestracja/potwierdzenie/reset zachowują limiter |
+| Tokeny e-mail | `AuthServiceTests.ConfirmEmail_ConsumesTokenAndEnablesLogin`, `PasswordReset_IsEnumerationSafeAndTokenIsSingleUse` | PASS: potwierdzenie wymagane przed loginem; tokeny wygasające, jednokrotne i przechowywane jako SHA-256; reset odporny na enumerację |
+| Izolacja odbiorców | `EmailNotificationServiceTests.Notification_OnlyTargetsActiveConfirmedOrganizationMembers` | PASS: wiadomości trafiają wyłącznie do aktywnych, potwierdzonych członków właściwej organizacji |
+| Sekrety SMTP i RBAC | `EmailNotificationServiceTests.GlobalSettings_DoesNotExposePasswordAndCanClearIt`, `OrganizationSettings_RequireAdminOrOwner` | PASS: hasło chronione i nieujawniane; preferencje organizacji tylko Owner/Admin; globalne trasy wyłącznie AdminOnly |
 | Minimal API assets | `SecurityPipelineTests.AssetMinimalApi_RegistersAllOperationsAsAuthorizedEndpoints`, testy paginacji i walidacji hosta oraz `AssetServiceTests` | PASS: sześć chronionych tras, jawne uprawnienia zasobowe, strony 200+5, limity DTO i zgodne operacje CRUD |
 | Minimal API contacts/groups | testy metadanych tras, `ContactServiceTests`, `GroupServiceTests` | PASS: wszystkie trasy chronione, zapis tylko z uprawnieniem modułu/zasobu, zgodne CRUD i paginacja |
 | Integralność powiązań grup | `GroupServiceTests.Create_WithAssetFromAnotherOrganization_IsRejectedWithoutSavingGroup` | PASS: ID assetu innej organizacji daje 400, a grupa nie zostaje zapisana |
@@ -30,6 +33,4 @@ Stan częściowy na 2026-09-27; dokument będzie rozszerzany w Etapie 6.
 | Zależności npm | `npm audit --json` | PASS: 0 znanych podatności |
 | Translacja zapytań produkcyjnych | `PostgreSqlQueryTranslationTests.ProductionProvider_TranslatesServiceListProjectionsWithoutConnectingToDatabase` | PASS: Npgsql wygenerował SQL dla 17 głównych zapytań; usunięto `enum.ToString()` z `IQueryable` list użytkowników i organizacji |
 
-Aktualne zestawy historyczne: backend 159/159, frontend 13/13.
-
-Najnowszy pomiar: backend 149/149, frontend 38/38, lint oraz buildy HTTP/demo frontendu PASS. Pozostaje NU1903/high w testowej natywnej bibliotece SQLite; nie jest dostarczana z aplikacją produkcyjną, lecz wymaga aktualizacji.
+Najnowszy pomiar: backend **172/172**, frontend **42/42**, lint i produkcyjny build frontendu PASS. `npm audit` oraz `dotnet list package --vulnerable --include-transitive` nie wykazały podatnych pakietów. Podatna testowa biblioteka `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 została zastąpiona wersją 2.1.13.

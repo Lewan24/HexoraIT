@@ -16,7 +16,7 @@ public interface IWorkTaskService
     Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
-public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : IWorkTaskService
+public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, INotificationService? notifications = null) : IWorkTaskService
 {
     public async Task<ApiOperationResult> GetAllAsync(Guid? organizationId, Guid? projectId, PaginationParameters? pagination, CancellationToken cancellationToken = default)
     {
@@ -48,6 +48,9 @@ public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUse
         item.CreatedByName = await db.Users.Where(user => user.Id == userContext.UserId).Select(user => user.DisplayName).SingleAsync(cancellationToken);
         db.Tasks.Add(item);
         await db.SaveChangesAsync(cancellationToken);
+        if (notifications is not null && await db.Users.AnyAsync(user => user.Id == userContext.UserId && user.SystemRole == SystemRole.Client, cancellationToken))
+            await notifications.NotifyAsync(organizationId, "client_task_created", $"New client task: {item.Title}",
+                $"Client {item.CreatedByName} created task '{item.Title}'.", cancellationToken);
         return new(StatusCodes.Status201Created, mapper.Map<WorkTaskDto>(item), $"/api/tasks/{item.Id}");
     }
 

@@ -196,3 +196,23 @@ export const versionApi = {
   getLatestVersion: () => 
     http.getString(`/version/latest`)
 }
+
+export interface GlobalEmailSettings {
+  enabled: boolean; host: string; port: number; useTls: boolean; username: string
+  hasPassword: boolean; fromAddress: string; fromName: string
+}
+
+export interface OrganizationNotificationSettings {
+  emailServiceAvailable: boolean; licenseExpiring: boolean; clientTaskCreated: boolean
+  incidentCreated: boolean; contractExpiring: boolean; warrantyExpiring: boolean
+  roleOrMembershipChanged: boolean; expiryWarningDays: number
+}
+
+export const emailSettingsApi = {
+  getGlobal: () => http.get<GlobalEmailSettings>('/admin/email-settings'),
+  updateGlobal: (data: GlobalEmailSettings & { password?: string }) => http.put<GlobalEmailSettings>('/admin/email-settings', data),
+  test: (recipient: string) => http.post<void>('/admin/email-settings/test', { recipient }),
+  getOrganization: (organizationId: string) => http.get<OrganizationNotificationSettings>(`/organizations/${organizationId}/notification-settings`),
+  updateOrganization: (organizationId: string, data: Omit<OrganizationNotificationSettings, 'emailServiceAvailable'>) =>
+    http.put<void>(`/organizations/${organizationId}/notification-settings`, data),
+}

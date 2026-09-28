@@ -4,6 +4,7 @@ using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 
 namespace HexoraITApi.Application;
 
@@ -15,6 +16,9 @@ public interface IAuthService
     Task<ApiOperationResult> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<ApiOperationResult> UpdateProfileAsync(Guid userId, UpdateProfileDto dto, CancellationToken cancellationToken = default);
     Task<ApiOperationResult> ChangePasswordAsync(Guid userId, ChangePasswordDto dto, CancellationToken cancellationToken = default);
+    Task<ApiOperationResult> ConfirmEmailAsync(ConfirmEmailDto dto, CancellationToken cancellationToken = default);
+    Task<ApiOperationResult> RequestPasswordResetAsync(EmailAddressDto dto, CancellationToken cancellationToken = default);
+    Task<ApiOperationResult> ResetPasswordAsync(ResetPasswordWithTokenDto dto, CancellationToken cancellationToken = default);
 }
 
 public sealed class AuthService(
@@ -22,6 +26,7 @@ public sealed class AuthService(
     IPasswordHasher hasher,
     IJwtTokenService jwt,
     IOptions<AppSettings> appSettings,
+    IEmailSender? emailSender = null,
     ISecurityAuditLogger? securityAudit = null) : IAuthService
 {
     public async Task<ApiOperationResult> RegisterAsync(
@@ -48,13 +53,22 @@ public sealed class AuthService(
             DisplayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? email : dto.DisplayName,
             PasswordHash = hash,
             PasswordSalt = salt,
+            EmailConfirmed = false,
         };
         db.Users.Add(user);
+        var rawToken = CreateToken();
+        db.AccountActionTokens.Add(NewActionToken(user.Id, "confirm_email", rawToken, TimeSpan.FromHours(24)));
         await db.SaveChangesAsync(cancellationToken);
+        var sent = emailSender is not null && await emailSender.SendAsync(user.Email, "Confirm your HexoraIT account",
+            $"Confirm your email by opening: {BuildActionUrl("confirm-email", rawToken)}\nThis link expires in 24 hours.", cancellationToken);
+        if (!sent)
+        {
+            db.Users.Remove(user);
+            await db.SaveChangesAsync(cancellationToken);
+            return new(StatusCodes.Status503ServiceUnavailable, "Confirmation email could not be sent. Try again later or contact an administrator.");
+        }
         securityAudit?.AccountChanged("account_registered", user.Id, user.Id);
-
-        return new(StatusCodes.Status200OK,
-            await BuildAuthResponseAsync(user, requestedOrgId: null, cancellationToken));
+        return new(StatusCodes.Status202Accepted, "Check your email to confirm your account.");
     }
 
     public async Task<ApiOperationResult> LoginAsync(
@@ -64,7 +78,7 @@ public sealed class AuthService(
         var email = dto.Email.Trim().ToLowerInvariant();
         var user = await db.Users.FirstOrDefaultAsync(candidate => candidate.Email == email, cancellationToken);
 
-        if (user is null || !user.IsActive || !hasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt))
+        if (user is null || !user.IsActive || !user.EmailConfirmed || !hasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt))
         {
             securityAudit?.AuthenticationFailed(email, user?.Id);
             return new(StatusCodes.Status401Unauthorized, "Invalid email or password.");
@@ -158,6 +172,70 @@ public sealed class AuthService(
         securityAudit?.AccountChanged("password_changed", user.Id, user.Id);
         return new(StatusCodes.Status204NoContent);
     }
+
+    public async Task<ApiOperationResult> ConfirmEmailAsync(ConfirmEmailDto dto, CancellationToken cancellationToken = default)
+    {
+        var action = await FindValidTokenAsync(dto.Token, "confirm_email", cancellationToken);
+        if (action is null) return new(StatusCodes.Status400BadRequest, "The confirmation token is invalid or expired.");
+        action.User.EmailConfirmed = true;
+        action.UsedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        securityAudit?.AccountChanged("email_confirmed", action.UserId, action.UserId);
+        return new(StatusCodes.Status204NoContent);
+    }
+
+    public async Task<ApiOperationResult> RequestPasswordResetAsync(EmailAddressDto dto, CancellationToken cancellationToken = default)
+    {
+        var email = dto.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Email == email && x.IsActive && !x.IsBlocked && x.EmailConfirmed, cancellationToken);
+        if (user is not null && emailSender is not null)
+        {
+            var oldTokens = await db.AccountActionTokens.Where(x => x.UserId == user.Id && x.Purpose == "reset_password" && x.UsedAt == null).ToListAsync(cancellationToken);
+            foreach (var old in oldTokens) old.UsedAt = DateTime.UtcNow;
+            var rawToken = CreateToken();
+            db.AccountActionTokens.Add(NewActionToken(user.Id, "reset_password", rawToken, TimeSpan.FromHours(1)));
+            await db.SaveChangesAsync(cancellationToken);
+            await emailSender.SendAsync(user.Email, "Reset your HexoraIT password",
+                $"Reset your password by opening: {BuildActionUrl("reset-password", rawToken)}\nThis link expires in 1 hour.", cancellationToken);
+        }
+        return new(StatusCodes.Status202Accepted, "If the account exists, a password reset email has been sent.");
+    }
+
+    public async Task<ApiOperationResult> ResetPasswordAsync(ResetPasswordWithTokenDto dto, CancellationToken cancellationToken = default)
+    {
+        if (dto.NewPassword.Length < 15)
+            return new(StatusCodes.Status400BadRequest, "New password must be at least 15 characters.");
+        var action = await FindValidTokenAsync(dto.Token, "reset_password", cancellationToken);
+        if (action is null) return new(StatusCodes.Status400BadRequest, "The reset token is invalid or expired.");
+        var (hash, salt) = hasher.Hash(dto.NewPassword);
+        action.User.PasswordHash = hash; action.User.PasswordSalt = salt; action.User.SecurityStamp = Guid.NewGuid(); action.UsedAt = DateTime.UtcNow;
+        var otherTokens = await db.AccountActionTokens.Where(x => x.UserId == action.UserId && x.Purpose == "reset_password" && x.UsedAt == null && x.Id != action.Id).ToListAsync(cancellationToken);
+        foreach (var other in otherTokens) other.UsedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        securityAudit?.AccountChanged("password_reset", action.UserId, action.UserId);
+        return new(StatusCodes.Status204NoContent);
+    }
+
+    private async Task<AccountActionToken?> FindValidTokenAsync(string rawToken, string purpose, CancellationToken cancellationToken)
+    {
+        byte[] hash;
+        try { hash = SHA256.HashData(Convert.FromBase64String(rawToken.Replace('-', '+').Replace('_', '/') + new string('=', (4 - rawToken.Length % 4) % 4))); }
+        catch (FormatException) { return null; }
+        var candidate = await db.AccountActionTokens.Include(x => x.User)
+            .SingleOrDefaultAsync(x => x.Purpose == purpose && x.UsedAt == null && x.ExpiresAt > DateTime.UtcNow && x.TokenHash == hash,
+                cancellationToken);
+        return candidate is not null && CryptographicOperations.FixedTimeEquals(candidate.TokenHash, hash) ? candidate : null;
+    }
+
+    private static string CreateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    private static AccountActionToken NewActionToken(Guid userId, string purpose, string rawToken, TimeSpan lifetime) => new()
+    {
+        UserId = userId, Purpose = purpose,
+        TokenHash = SHA256.HashData(Convert.FromBase64String(rawToken.Replace('-', '+').Replace('_', '/') + new string('=', (4 - rawToken.Length % 4) % 4))),
+        ExpiresAt = DateTime.UtcNow.Add(lifetime)
+    };
+    private string BuildActionUrl(string path, string token) =>
+        $"{appSettings.Value.PublicUrl.TrimEnd('/')}/{path}?token={Uri.EscapeDataString(token)}";
 
     private async Task<AuthResponseDto> BuildAuthResponseAsync(
         User user,

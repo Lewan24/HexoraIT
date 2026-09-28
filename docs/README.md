@@ -5,7 +5,7 @@ HexoraIT jest samoobsługową aplikacją do dokumentowania infrastruktury IT, si
 ## Dokumentacja bieżąca
 
 - [Przegląd architektury](architecture/overview.md), [backend](architecture/backend.md), [frontend](architecture/frontend.md), [przepływ danych](architecture/data-flow.md) i [baza danych](architecture/database.md).
-- [API](api/overview.md), [kontrakt OpenAPI](api/openapi-contract.md) i [paginacja](audit/08-pagination-contract.md).
+- [API](api/overview.md), [kontrakt OpenAPI](api/openapi-contract.md), [poczta i powiadomienia](api/email-notifications.md) i [paginacja](audit/08-pagination-contract.md).
 - [Architektura bezpieczeństwa](security/security-architecture.md), [uwierzytelnianie](security/authentication.md), [autoryzacja](security/authorization.md) oraz [macierz OWASP](security/owasp-compliance-matrix.md).
 - [Wdrożenie](deployment/deployment-guide.md), [konfiguracja](deployment/configuration.md) i [przewodnik deweloperski](development/developer-guide.md).
 - [Strategia testów](testing/test-strategy.md), [wyniki regresji](testing/regression-results.md) i [testy bezpieczeństwa](testing/security-test-results.md).
@@ -15,4 +15,4 @@ HexoraIT jest samoobsługową aplikacją do dokumentowania infrastruktury IT, si
 
 Katalog [`audit/`](audit/) zawiera historyczny stan sprzed refaktoryzacji, model zagrożeń, plan naprawczy i [raport końcowy](audit/08-final-security-report.md). Dokumenty `01`–`06` są materiałem audytowym i nie powinny być używane jako opis bieżącej architektury.
 
-Stan dokumentacji: 2026-09-27. Otwarte wymagania infrastrukturalne i warunki przed produkcją znajdują się w raporcie końcowym.
+Stan dokumentacji: 2026-09-28, API 2.0.0 / aplikacja v1.3.0. Otwarte wymagania infrastrukturalne i warunki przed produkcją znajdują się w raporcie końcowym.

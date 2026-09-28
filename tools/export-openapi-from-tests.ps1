@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string]$OutputPath = "docs/api/openapi/v1.json"
+    [string]$OutputPath = "docs/api/openapi/v2.json"
 )
 
 $repoRoot = (Get-Location).Path

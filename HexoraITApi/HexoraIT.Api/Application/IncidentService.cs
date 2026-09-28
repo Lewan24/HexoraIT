@@ -16,7 +16,7 @@ public interface IIncidentService
     Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
-public sealed class IncidentService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : IIncidentService
+public sealed class IncidentService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, INotificationService? notifications = null) : IIncidentService
 {
     public async Task<ApiOperationResult> GetAllAsync(Guid? organizationId, PaginationParameters? pagination, CancellationToken cancellationToken = default)
     {
@@ -47,6 +47,9 @@ public sealed class IncidentService(AppDbContext db, IMapper mapper, ICurrentUse
         item.OrganizationId = organizationId;
         db.Incidents.Add(item);
         await db.SaveChangesAsync(cancellationToken);
+        if (notifications is not null)
+            await notifications.NotifyAsync(organizationId, "incident_created", $"New incident: {item.Title}",
+                $"A new {item.Severity} incident '{item.Title}' was created.", cancellationToken);
         return new(StatusCodes.Status201Created, mapper.Map<IncidentDto>(item), $"/api/incidents/{item.Id}");
     }
 
