@@ -12,6 +12,8 @@
 | Tryb frontendu | `HEXORAIT_APP_MODE` | `http` (domyślnie) albo `mock`. `mock` jest wyłącznie publicznym demo opartym na `localStorage`. |
 | Frontend/API | `HEXORAIT_API_BASE_URL` | Pełny URL HTTP(S) albo ścieżka od `/`, zwykle `/api` przy wspólnym originie. Wymagany tylko w trybie `http`. |
 
+Compose obsługuje tor NPM → frontend → API. Ustaw `HEXORAIT_PUBLIC_ORIGIN` (HTTPS, bez końcowego `/`), `HEXORAIT_NPM_IP` (adres źródłowy widoczny we frontendzie) i `HEXORAIT_FRONTEND_BIND_IP` (adres hosta osiągalny z NPM). Port frontendu to domyślnie 8080, a API nie publikuje portu. `appsettings.Production.json` ustawia limit dwóch proxy; Compose dostarcza ich dokładne IP. Instrukcja NPM i zmiany podsieci: [installation.md](../../installation.md#nginx-proxy-manager-setup).
+
 ## Ustawienia opcjonalne
 
 - `AppSettings__AllowRegister` — publiczna rejestracja; w produkcji zwykle `false`.

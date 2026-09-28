@@ -92,11 +92,11 @@ builder.Services.AddProblemDetails(options =>
             Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
     };
 });
-var trustedProxyAddresses = builder.Configuration
-    .GetSection("ReverseProxy:KnownProxies")
-    .Get<string[]>() ?? [];
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
+    var trustedProxyAddresses = builder.Configuration
+        .GetSection("ReverseProxy:KnownProxies")
+        .Get<string[]>() ?? [];
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.ForwardLimit = builder.Configuration.GetValue<int?>("ReverseProxy:ForwardLimit") ?? 1;
     if (options.ForwardLimit < 1 || options.ForwardLimit > 10) throw new InvalidOperationException("ReverseProxy:ForwardLimit must be between 1 and 10.");

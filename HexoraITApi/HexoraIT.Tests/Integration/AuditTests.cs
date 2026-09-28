@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HexoraIT.Tests.Integration;
@@ -125,6 +126,41 @@ public sealed class AuditTests
         using var read = factory.Services.CreateScope();
         var entry = await read.ServiceProvider.GetRequiredService<AppDbContext>().AuditEvents.SingleAsync(a => a.Path == "/api/multi-hop");
         entry.ClientIp.Should().Be("198.51.100.45");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FrontendProxyChain_RestoresHttpsAndClientOnlyForTrustedNpm(bool trustNpm)
+    {
+        using var root = new SecurityWebApplicationFactory();
+        using var factory = root.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ReverseProxy:ForwardLimit"] = "2",
+                ["ReverseProxy:KnownProxies:0"] = "10.20.0.2",
+                ["ReverseProxy:KnownProxies:1"] = trustNpm ? "10.20.0.3" : "10.20.0.9"
+            }));
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<IStartupFilter, PeerFilter>();
+                services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(options => options.HttpsPort = 443);
+            });
+        });
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+        // NPM appends the real browser address; frontend appends the NPM address
+        // and its HTTP hop. A browser-supplied leftmost IP must never be used.
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", "1.2.3.4, 198.51.100.45, 10.20.0.3");
+        client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https, http");
+        var response = await client.GetAsync("/api/frontend-proxy-check");
+        response.StatusCode.Should().Be(trustNpm ? HttpStatusCode.NotFound : HttpStatusCode.TemporaryRedirect);
+        using var read = factory.Services.CreateScope();
+        var entry = await read.ServiceProvider.GetRequiredService<AppDbContext>().AuditEvents.SingleAsync(a => a.Path == "/api/frontend-proxy-check");
+        entry.ClientIp.Should().Be(trustNpm ? "198.51.100.45" : "10.20.0.3");
+        entry.PeerIp.Should().Be("10.20.0.2");
     }
 
     [Fact]
