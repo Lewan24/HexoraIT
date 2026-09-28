@@ -1,5 +1,6 @@
+import { auditApi } from './api/audit'
 import { tr, useLocale } from './i18n'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { AppProvider } from './context/AppProvider'
 import Login from './components/Login'
@@ -43,6 +44,7 @@ function AuthenticatedApp() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
   const navigate = (v: View, id?: string) => {
+    auditApi.report('navigation', '/' + v)
     setView(v)
     if (id !== undefined) setSelectedAssetId(id)
   }
@@ -95,6 +97,13 @@ function AuthenticatedApp() {
 function Gate() {
   useLocale()
   const { isAuthenticated, isLoading } = useAuth()
+  useEffect(() => {
+    const path = window.location.pathname
+    if (path !== '/') {
+      const probe = /\/(?:\.env|\.git|wp-admin|wp-login|phpmyadmin|actuator|server-status)|\.\.%2f|\.\.\//i.test(path)
+      auditApi.report(probe ? 'security_probe' : 'client_not_found', path)
+    }
+  }, [])
 
   if (isLoading) {
     return (

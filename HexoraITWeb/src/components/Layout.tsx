@@ -15,7 +15,6 @@ import type { Organization } from '../api/types'
 import { toggleTheme, getTheme } from '../lib/theme'
 import { buildSearchResults, type SearchResult } from '../lib/search'
 import logo from '../../public/logo/HexoraIT_LogoNoBg.png'
-import logoWhite from '../../public/logo/HexoraIT_LogoGray.png'
 import logoHex from '../../public/logo/HexoraIT_HexLogoNoBg.png'
 import UpdateDialog from './updateDialog'
 import { useVersionCheck } from '../context/useVersionCheck'
@@ -187,27 +186,11 @@ function Sidebar({
         )}
       </div>
 
-      {(getTheme() === 'dark') && (
-        (!collapsed || isMobile) && (
-        <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logo} width='75%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
-        </div>
-        )
-      )}
-
-      {(getTheme() === 'light') && (
-        (!collapsed || isMobile) && (
-        <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logoWhite} width='75%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
-        </div>
-        )
-      )}
-
-      {(collapsed) && (
-        <div className='mt-5 flex justify-center cursor-pointer hover:scale-[1.05] transition transition-all duration-300'>
-          <img src={logoHex} width='65%' onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')} />
-        </div>
-      )}
+      <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')}
+        aria-label="HexoraIT" className={`flex items-center gap-3 py-5 ${collapsed && !isMobile ? 'justify-center' : 'px-5'}`}>
+        <img src={logoHex} alt="" className="h-9 w-9 object-contain" />
+        {(!collapsed || isMobile) && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}
+      </button>
 
       {/* Org switcher */}
       {(!collapsed || isMobile) ? (
@@ -456,7 +439,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
   }
 
   return (
-    <div className="flex h-screen bg-navy-950 overflow-hidden font-sans">
+    <div className="app-shell flex h-screen bg-navy-950 overflow-hidden font-sans">
       <UpdateDialog
                 open={updateAvailable}
                 currentVersion={currentVersion}
@@ -467,7 +450,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
       {/* Desktop sidebar */}
       <aside
         className="hidden md:block flex-shrink-0 border-r border-edge-subtle transition-all duration-200"
-        style={{ width: collapsed ? 60 : 224 }}>
+        style={{ width: collapsed ? 68 : 244 }}>
         <Sidebar {...sidebarProps} />
       </aside>
 
@@ -486,7 +469,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* Topbar */}
-        <header className="h-14 border-b border-edge-subtle bg-navy-900 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 flex-shrink-0">
+        <header className="workspace-header h-16 border-b border-edge-subtle bg-navy-900 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 flex-shrink-0">
 
           {/* Hamburger */}
           <button onClick={() => setMobileOpen(true)}
@@ -562,7 +545,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-navy-950">{children}</main>
+        <main className="workspace-main flex-1 overflow-y-auto">{children}</main>
       </div>
 
       {/* Search overlay */}

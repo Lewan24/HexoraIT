@@ -104,7 +104,7 @@ public sealed class SecurityPipelineTests
         var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
             .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/admin", StringComparison.Ordinal) == true).ToList();
-        endpoints.Should().HaveCount(5);
+        endpoints.Should().HaveCount(7);
         endpoints.Should().AllSatisfy(endpoint =>
             endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Should().Contain(item => item.Policy == "AdminOnly"));
     }
@@ -267,6 +267,7 @@ public sealed class SecurityPipelineTests
         var options = factory.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
 
         options.ForwardLimit.Should().Be(1);
+        options.ForwardedHeaders.Should().Be(ForwardedHeaders.None);
         options.KnownProxies.Should().BeEmpty();
         options.KnownIPNetworks.Should().BeEmpty();
     }

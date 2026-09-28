@@ -21,7 +21,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   return (
     <div
       className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${borders[toast.type]} shadow-2xl min-w-[260px] max-w-[340px] transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
-      style={{ background: '#141d2b' }}
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      style={{ background: 'var(--_bg-800)' }}
     >
       {icons[toast.type]}
       <span className="text-xs text-ink-primary flex-1">{toast.message}</span>

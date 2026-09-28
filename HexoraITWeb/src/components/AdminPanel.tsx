@@ -1,3 +1,4 @@
+import AuditLog from './AuditLog'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect } from 'react'
 import { Shield, Loader2, Ban, KeyRound, ShieldCheck, Plus } from 'lucide-react'
@@ -6,7 +7,7 @@ import type { AdminUser, SystemRole } from '../api/types'
 import { useAuth } from '../context/useAuth'
 import { ApiError } from '../api/http'
 
-export default function AdminPanel() {
+function UserManagement() {
   useLocale()
     const { user: currentUser } = useAuth()
     const [users, setUsers] = useState<AdminUser[] | null>(null)
@@ -24,7 +25,7 @@ export default function AdminPanel() {
     })
 
     useEffect(() => {
-        adminApi.getUsers().then(setUsers)
+        adminApi.getUsers().then(setUsers).catch(() => { setUsers([]); setError(tr("Failed to load users")) })
     }, [])
 
     const submitCreate = async () => {
@@ -292,4 +293,16 @@ export default function AdminPanel() {
             )}
         </div>
     )
+}
+
+export default function AdminPanel() {
+  useLocale()
+  const [tab, setTab] = useState<'users' | 'audit'>('users')
+  return <div className="p-4 sm:p-8 max-w-[1440px] mx-auto admin-workspace">
+    <div className="mb-7"><p className="text-[10px] uppercase tracking-[.2em] text-blue-400 mb-2">{tr('Workspace control')}</p><h1 className="text-2xl font-semibold tracking-tight">{tr('Administration')}</h1><p className="text-sm text-ink-muted mt-2">{tr('Manage access and investigate security activity.')}</p></div>
+    <div className="inline-flex gap-1 rounded-xl border border-edge-subtle bg-navy-800 p-1 mb-6" role="tablist" aria-label={tr('Administration')}>
+      {(['users', 'audit'] as const).map(value => <button key={value} id={`tab-${value}`} aria-controls={`panel-${value}`} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-5 py-2.5 text-xs font-medium transition-colors ${tab === value ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-ink-muted hover:text-ink-primary'}`}>{tr(value === 'users' ? 'Users' : 'Security audit')}</button>)}
+    </div>
+    <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>{tab === 'audit' ? <AuditLog /> : <UserManagement />}</div>
+  </div>
 }

@@ -56,7 +56,8 @@ export interface AppContextValue {
   deleteContact: (id: string) => Promise<void>
   toggleStarContact: (id: string) => Promise<void>
 
-  addContract: (c: Omit<Contract, 'id' | 'status'>) => Promise<void>
+  addContract: (c: Omit<Contract, 'id' | 'status'>) => Promise<Contract>
+  uploadContractDocument: (id: string, file: File) => Promise<Contract>
   updateContract: (c: Contract) => Promise<void>
   deleteContract: (id: string) => Promise<void>
   toggleStarContract: (id: string) => Promise<void>

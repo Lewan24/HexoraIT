@@ -67,7 +67,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-navy-950 relative overflow-hidden select-none">
+    <div className="login-page min-h-screen flex items-center justify-center bg-navy-950 relative overflow-hidden p-5">
       {/* Dot-grid background */}
       <div
         className="absolute inset-0"
@@ -83,38 +83,38 @@ export default function Login() {
       {/* Subtle vignette */}
       <div
         className="absolute inset-0"
-        style={{ background: "var(--_bg-white)" }}
+        style={{ background: "radial-gradient(ellipse at top, color-mix(in srgb, var(--_blue-500) 12%, transparent), transparent 65%)" }}
       />
 
-      <div className="relative z-10 w-full max-w-[380px] px-5">
-        <div className="flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-[440px] rounded-3xl border border-edge-default bg-navy-800 p-7 sm:p-9 shadow-2xl shadow-black/5">
+        <div className="flex items-center justify-between mb-6">
           <LanguageSwitcher />
           <button
             onClick={() => {
               const t = toggleTheme()
               setThemeState(t)
             }}
-            className="size-12 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0"
+            className="size-9 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0"
             title={
               theme === "dark"
                 ? tr("Switch to light mode")
                 : tr("Switch to dark mode")
             }
           >
-            {theme === "dark" ? <Sun size={24} /> : <Moon size={24} />}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
 
         {/* Header */}
         <div className="mb-8">
           <div>
-            {getTheme() === "dark" && <img src={logoDark} />}
+            {getTheme() === "dark" && <img src={logoDark} alt="HexoraIT" className="w-52 sm:w-60 max-w-full mx-auto mb-7" />}
 
-            {getTheme() === "light" && <img src={logo} />}
+            {getTheme() === "light" && <img src={logo} alt="HexoraIT" className="w-52 sm:w-60 max-w-full mx-auto mb-7" />}
           </div>
-          <h1 className="text-xl font-semibold text-ink-primary leading-tight">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-primary leading-tight">
             {tr("Sign in to HexoraIT")}{" "}
-            <span className="cursor-blink ml-0.5 text-blue-400">_</span>
+
           </h1>
           <p className="text-sm text-ink-muted mt-1">
             {tr("Your IT documentation workspace")}
@@ -149,10 +149,11 @@ export default function Login() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+            <label htmlFor="login-email" className="block text-xs font-medium text-ink-secondary mb-1.5">
               {tr("Email")}{" "}
             </label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -162,7 +163,7 @@ export default function Login() {
               autoComplete="email"
               required
               maxLength={256}
-              className="w-full px-3 py-2.5 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
+              className="w-full px-3 py-2.5 rounded-xl bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors"
               style={{
                 borderColor:
                   focused === "email"
@@ -173,11 +174,12 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+            <label htmlFor="login-password" className="block text-xs font-medium text-ink-secondary mb-1.5">
               {tr("Password")}{" "}
             </label>
             <div className="relative">
               <input
+                id="login-password"
                 type={showPass ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -188,7 +190,7 @@ export default function Login() {
                 required
                 minLength={8}
                 maxLength={200}
-                className="w-full px-3 py-2.5 pr-10 rounded-md bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors font-mono"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors"
                 style={{
                   borderColor:
                     focused === "pass"
@@ -199,6 +201,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
+                aria-label={tr(showPass ? "Hide password" : "Show password")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary transition-colors"
               >
                 {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -213,7 +216,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-md bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-1 font-mono"
+            className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-1"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -239,7 +242,7 @@ export default function Login() {
                 {tr("Authenticating…")}
               </span>
             ) : (
-              tr("→ sign_in()")
+              tr("Sign in")
             )}
           </button>
         </form>
@@ -252,15 +255,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Footer */}
-        <div className="mt-1 pt-5 border-t border-edge-subtle flex items-center justify-between">
-          <span className="text-[11px] font-mono text-ink-muted">
-            {tr("v1.0.0 · self-hosted")}
-          </span>
-          <span className="text-[11px] font-mono text-ink-muted">
-            {tr("corp.local")}
-          </span>
-        </div>
+
       </div>
     </div>
   )

@@ -65,16 +65,25 @@ public sealed class AuthService(
         var user = await db.Users.FirstOrDefaultAsync(candidate => candidate.Email == email, cancellationToken);
 
         if (user is null || !user.IsActive || !hasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt))
+        {
+            securityAudit?.AuthenticationFailed(email, user?.Id);
             return new(StatusCodes.Status401Unauthorized, "Invalid email or password.");
+        }
 
         if (user.IsBlocked)
-            return new(StatusCodes.Status401Unauthorized, "This account has been disabled. Contact your administrator.");
+        {
+            securityAudit?.AuthenticationFailed(email, user.Id);
+            return new(StatusCodes.Status401Unauthorized, "Invalid email or password.");
+        }
 
         if (dto.OrganizationId is { } organizationId &&
             !await db.UserOrganizations.AnyAsync(
                 membership => membership.UserId == user.Id && membership.OrganizationId == organizationId,
                 cancellationToken))
+        {
+            securityAudit?.AuthenticationFailed(email, user?.Id);
             return new(StatusCodes.Status401Unauthorized, "Invalid email or password.");
+        }
 
         securityAudit?.AuthenticationSucceeded(user.Id);
         return new(StatusCodes.Status200OK,

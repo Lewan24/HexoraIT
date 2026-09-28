@@ -1,55 +1,43 @@
+using HexoraITApi.Domain.Entities;
+
 namespace HexoraITApi.Application;
 
 public interface ISecurityAuditLogger
 {
     void AuthenticationSucceeded(Guid userId);
+    void AuthenticationFailed(string account, Guid? targetUserId) { }
     void AccountChanged(string action, Guid actorUserId, Guid targetUserId);
     void SensitiveResourceAccessed(string action, Guid userId, Guid resourceId, Guid organizationId);
     void RequestRejected(int statusCode, string method, string path, Guid? userId, string traceId, string? remoteAddress);
 }
 
-public sealed class SecurityAuditLogger(
-    ILoggerFactory loggerFactory,
-    IHttpContextAccessor httpContextAccessor) : ISecurityAuditLogger
+// Request-scoped buffer. Middleware persists with a separate DbContext, even when the
+// business transaction fails. No bodies, credentials, cookies or authorization headers.
+public sealed class SecurityAuditLogger(ILoggerFactory loggerFactory, IHttpContextAccessor accessor) : ISecurityAuditLogger
 {
-    private readonly ILogger _logger = loggerFactory.CreateLogger("HexoraIT.SecurityAudit");
-    private const int AuthenticationEventId = 1001;
-    private const int AccountEventId = 1101;
-    private const int SensitiveAccessEventId = 1201;
-    private const int RejectionEventId = 1901;
-
-    public void AuthenticationSucceeded(Guid userId) =>
-        _logger.LogInformation(
-            new EventId(AuthenticationEventId, "AuthenticationSucceeded"),
-            "SecurityAudit EventType={EventType} UserId={UserId} TraceId={TraceId} RemoteAddress={RemoteAddress}",
-            "authentication_succeeded", userId, TraceId(), RemoteAddress());
-
-    public void AccountChanged(string action, Guid actorUserId, Guid targetUserId) =>
-        _logger.LogInformation(
-            new EventId(AccountEventId, "AccountChanged"),
-            "SecurityAudit EventType={EventType} ActorUserId={ActorUserId} TargetUserId={TargetUserId} TraceId={TraceId} RemoteAddress={RemoteAddress}",
-            action, actorUserId, targetUserId, TraceId(), RemoteAddress());
-
-    public void SensitiveResourceAccessed(string action, Guid userId, Guid resourceId, Guid organizationId) =>
-        _logger.LogWarning(
-            new EventId(SensitiveAccessEventId, "SensitiveResourceAccessed"),
-            "SecurityAudit EventType={EventType} UserId={UserId} ResourceId={ResourceId} OrganizationId={OrganizationId} TraceId={TraceId} RemoteAddress={RemoteAddress}",
-            action, userId, resourceId, organizationId, TraceId(), RemoteAddress());
-
-    public void RequestRejected(
-        int statusCode,
-        string method,
-        string path,
-        Guid? userId,
-        string traceId,
-        string? remoteAddress) =>
-        _logger.LogWarning(
-            new EventId(RejectionEventId, "RequestRejected"),
-            "SecurityAudit EventType={EventType} StatusCode={StatusCode} Method={Method} Path={Path} UserId={UserId} TraceId={TraceId} RemoteAddress={RemoteAddress}",
-            "request_rejected", statusCode, method, path, userId, traceId, remoteAddress);
-
-    private string? TraceId() => httpContextAccessor.HttpContext?.TraceIdentifier;
-
-    private string? RemoteAddress() =>
-        httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+    private void Record(AuditEvent item)
+    {
+        Events.Add(item);
+        var eventId = item.EventType switch { "authentication_succeeded" => 1001, "authentication_failed" => 1002,
+            "request_rejected" => 1901, _ => item.ResourceId.HasValue ? 1201 : 1101 };
+        loggerFactory.CreateLogger("HexoraIT.SecurityAudit").Log(
+            item.Severity == "info" ? LogLevel.Information : LogLevel.Warning,
+            new EventId(eventId, item.EventType),
+            "SecurityAudit EventType={EventType} UserId={UserId} TargetUserId={TargetUserId} ResourceId={ResourceId} TraceId={TraceId}",
+            item.EventType, item.UserId, item.TargetUserId, item.ResourceId,
+            string.IsNullOrEmpty(item.TraceId) ? accessor.HttpContext?.TraceIdentifier : item.TraceId);
+    }
+    public List<AuditEvent> Events { get; } = [];
+    public void AuthenticationSucceeded(Guid userId) => Record(new() { EventType = "authentication_succeeded", UserId = userId });
+    public void AuthenticationFailed(string account, Guid? targetUserId) => Record(new()
+    {
+        EventType = "authentication_failed", Severity = "warning",
+        Account = AuditCapture.Clean(account, 256), TargetUserId = targetUserId
+    });
+    public void AccountChanged(string action, Guid actorUserId, Guid targetUserId) => Record(new()
+    { EventType = action, UserId = actorUserId, TargetUserId = targetUserId, Severity = "warning" });
+    public void SensitiveResourceAccessed(string action, Guid userId, Guid resourceId, Guid organizationId) => Record(new()
+    { EventType = action, UserId = userId, ResourceId = resourceId, OrganizationId = organizationId, Severity = "warning" });
+    public void RequestRejected(int statusCode, string method, string path, Guid? userId, string traceId, string? remoteAddress) => Record(new()
+    { EventType = "request_rejected", Severity = "warning", UserId = userId, TraceId = traceId });
 }

@@ -1,3 +1,4 @@
+import AssetForm from './AssetForm'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import { ArrowLeft, Edit2, Star, MoreHorizontal, Server, MapPin, User, Clock, HardDrive, Network, Tag, FileText, History, Link2, Trash2, X, Loader2 } from 'lucide-react'
@@ -16,9 +17,10 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 export default function AssetDetails({ assetId, navigate }: Props) {
   useLocale()
-  const { assets, isLoading, updateAsset, deleteAsset, toggleStarAsset } = useApp()
+  const { assets, isLoading, updateAsset, deleteAsset, toggleStarAsset, canWrite } = useApp()
   const asset = assets.find(a => a.id === assetId)
 
+  const [editing, setEditing] = useState(false)
   const [tab, setTab] = useState<Tab>('overview')
   const [moreOpen, setMoreOpen] = useState(false)
   const [editNotes, setEditNotes] = useState(false)
@@ -109,7 +111,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
             className={`p-2 rounded-lg border transition-all ${asset.starred ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-navy-800 border-edge-default text-ink-muted hover:text-yellow-400 hover:border-yellow-500/30'}`}>
             <Star size={15} fill={asset.starred ? 'currentColor' : 'none'} />
           </button>
-          <button onClick={() => navigate('assets')}
+          <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditing(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors">
             <Edit2 size={13} />  {tr("Edit")} </button>
           <div className="relative">
@@ -270,6 +272,17 @@ export default function AssetDetails({ assetId, navigate }: Props) {
           ))}
         </div>
       )}
+
+      {editing && canWrite('assets', asset.id) && <AssetForm
+        key={asset.id}
+        initial={asset}
+        onClose={() => setEditing(false)}
+        onSave={async data => {
+          await updateAsset({ ...asset, ...data })
+          setEditing(false)
+          setEditNotes(false)
+        }}
+      />}
 
       {/* Delete confirm */}
       {confirmDelete && (

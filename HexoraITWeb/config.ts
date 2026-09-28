@@ -5,7 +5,7 @@ export type AppMode = "http" | "mock"
 export function normalizeAppMode(value?: string): AppMode {
   const normalized = value?.trim().toLowerCase() || "http"
   if (normalized === "http" || normalized === "mock") 
-    return "mock"
+    return normalized
   throw new Error('APP_MODE must be either "http" or "mock".')
 }
 

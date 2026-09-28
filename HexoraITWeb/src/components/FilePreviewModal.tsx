@@ -1,4 +1,5 @@
-import { tr, useLocale } from '../i18n'
+import { buildSpreadsheetPreview, MAX_PREVIEW_CELLS, type SpreadsheetPreview } from '../lib/spreadsheetPreview'
+import { tr, useLocale, locale } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
 import { filesApi } from '../api/resources'
@@ -10,16 +11,9 @@ interface Props {
   onClose: () => void
 }
 
-interface SpreadsheetPreview {
-  name: string
-  rows: string[][]
-}
-
 const MAX_SPREADSHEET_PREVIEW_BYTES = 10 * 1024 * 1024
 const MAX_DOCUMENT_PREVIEW_BYTES = 10 * 1024 * 1024
 const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
-const MAX_PREVIEW_ROWS = 1_000
-const MAX_PREVIEW_COLUMNS = 100
 
 export default function FilePreviewModal({ file, onClose }: Props) {
   useLocale()
@@ -31,6 +25,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
   const [sheets, setSheets] = useState<SpreadsheetPreview[]>([])
 
   const docxFrameRef = useRef<HTMLIFrameElement>(null)
+  const language = locale()
   const kind = getPreviewKind(file.name, file.mimeType)
 
   useEffect(() => {
@@ -68,22 +63,16 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           const blob = await filesApi.getContentBlob(file.id)
           if (blob.size > MAX_SPREADSHEET_PREVIEW_BYTES) throw new Error('Spreadsheet is too large to preview safely.')
           const buffer = await blob.arrayBuffer()
-          const { Workbook } = await import('exceljs')
+          const { default: ExcelJS } = await import('exceljs')
+          const { Workbook } = ExcelJS
           const workbook = new Workbook()
           await workbook.xlsx.load(buffer)
           if (cancelled) return
-          setSheets(workbook.worksheets.map(worksheet => {
-            const rows: string[][] = []
-            const rowCount = Math.min(worksheet.actualRowCount, MAX_PREVIEW_ROWS)
-            const columnCount = Math.min(worksheet.actualColumnCount, MAX_PREVIEW_COLUMNS)
-            for (let rowNumber = 1; rowNumber <= rowCount; rowNumber++) {
-              const row: string[] = []
-              for (let columnNumber = 1; columnNumber <= columnCount; columnNumber++) {
-                row.push(worksheet.getCell(rowNumber, columnNumber).text)
-              }
-              rows.push(row)
-            }
-            return { name: worksheet.name, rows }
+          let remaining = MAX_PREVIEW_CELLS
+          setSheets(workbook.worksheets.filter(sheet => sheet.state === 'visible').map(worksheet => {
+            const preview = buildSpreadsheetPreview(worksheet, language, remaining)
+            remaining -= preview.rows.length * preview.columns.length
+            return preview
           }))
           setActiveSheet(0)
         } else if (kind === 'text') {
@@ -109,7 +98,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           URL.revokeObjectURL(createdUrl);
       }
     }
-  }, [file.id, file.mimeType, kind])
+  }, [file.id, file.mimeType, kind, language])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -193,18 +182,20 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           )}
 
           {!loading && !error && kind === 'xlsx' && activeSpreadsheet && (
-            <div className="p-4 bg-white overflow-auto h-full spreadsheet-preview">
-              <table id="preview-sheet">
-                <tbody>
-                  {activeSpreadsheet.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex}>
-                      {row.map((cell, columnIndex) => <td key={columnIndex}>{cell}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="spreadsheet-preview h-full overflow-auto">
+              {activeSpreadsheet.truncated && <p role="status" className="spreadsheet-notice">{tr('This sheet exceeds the preview limit. Download the file to view all cells.')}</p>}
+              {activeSpreadsheet.rows.length === 0 ? <p className="spreadsheet-notice">{tr('No cells to preview')}</p> : <table id="preview-sheet" aria-label={activeSpreadsheet.name}>
+                <colgroup><col style={{ width: 48 }} />{activeSpreadsheet.columns.map(column => <col key={column.number} style={{ width: column.width }} />)}</colgroup>
+                <thead><tr><th aria-label={tr('Row')} />{activeSpreadsheet.columns.map(column => <th key={column.number} scope="col">{column.label}</th>)}</tr></thead>
+                <tbody>{activeSpreadsheet.rows.map(row => <tr key={row.number} style={{ height: row.height }}>
+                  <th scope="row">{row.number}</th>
+                  {row.cells.map((cell, index) => cell.hidden ? null : <td key={index} rowSpan={cell.rowSpan} colSpan={cell.colSpan} style={cell.style}>{cell.text}</td>)}
+                </tr>)}</tbody>
+              </table>}
             </div>
           )}
+
+          {!loading && !error && kind === 'xlsx' && !activeSpreadsheet && <p className="p-5 text-sm text-ink-muted">{tr('No cells to preview')}</p>}
 
           {!loading && !error && kind === 'text' && textContent !== null && (
             <pre className="p-5 text-xs text-ink-secondary whitespace-pre-wrap font-mono">

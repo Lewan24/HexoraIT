@@ -68,7 +68,9 @@ builder.Services.AddScoped<IClientReportService, ClientReportService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
-builder.Services.AddSingleton<ISecurityAuditLogger, SecurityAuditLogger>();
+builder.Services.AddScoped<SecurityAuditLogger>();
+builder.Services.AddHostedService<AuditRetentionService>();
+builder.Services.AddScoped<ISecurityAuditLogger>(sp => sp.GetRequiredService<SecurityAuditLogger>());
 builder.Services.AddScoped<ICurrentUserIdProvider, HttpCurrentUserIdProvider>();
 builder.Services.AddScoped<ICurrentUserContext, DbCurrentUserContext>();
 
@@ -96,9 +98,19 @@ var trustedProxyAddresses = builder.Configuration
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
+    options.ForwardLimit = builder.Configuration.GetValue<int?>("ReverseProxy:ForwardLimit") ?? 1;
+    if (options.ForwardLimit < 1 || options.ForwardLimit > 10) throw new InvalidOperationException("ReverseProxy:ForwardLimit must be between 1 and 10.");
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+    // An empty trust list means trust nobody, not everybody.
+    if (trustedProxyAddresses.Length == 0 && !(builder.Configuration.GetSection("ReverseProxy:KnownNetworks").Get<string[]>() ?? []).Any())
+        options.ForwardedHeaders = ForwardedHeaders.None;
+    foreach (var network in builder.Configuration.GetSection("ReverseProxy:KnownNetworks").Get<string[]>() ?? [])
+    {
+        if (!System.Net.IPNetwork.TryParse(network, out var parsed) || parsed.PrefixLength == 0)
+            throw new InvalidOperationException("ReverseProxy:KnownNetworks must contain specific valid CIDR networks.");
+        options.KnownIPNetworks.Add(parsed);
+    }
     foreach (var configuredAddress in trustedProxyAddresses)
     {
         if (!IPAddress.TryParse(configuredAddress, out var address))
@@ -109,6 +121,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 builder.Services.AddRateLimiter(options =>
 {
+    options.AddPolicy("client-audit", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("authentication", context =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -141,6 +156,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
         opt.Events = new JwtBearerEvents
         {
+            OnAuthenticationFailed = context =>
+            {
+                context.HttpContext.RequestServices.GetRequiredService<SecurityAuditLogger>().Events.Add(new()
+                { EventType = "token_validation_failed", Severity = "warning", Signal = "invalid_or_expired_token" });
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var subject = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
@@ -203,7 +224,13 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 ValidateStartupConfiguration(app.Configuration);
 
+app.Use(async (context, next) =>
+{
+    context.Items["AuditPeerIp"] = AuditCapture.Address(context.Connection.RemoteIpAddress);
+    await next();
+});
 app.UseForwardedHeaders();
+app.Use(AuditCapture.InvokeAsync);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -245,23 +272,6 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
-app.Use(async (context, next) =>
-{
-    await next();
-    if (context.Response.StatusCode is StatusCodes.Status401Unauthorized or
-        StatusCodes.Status403Forbidden or StatusCodes.Status429TooManyRequests)
-    {
-        var subject = context.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
-        var userId = Guid.TryParse(subject, out var parsedUserId) ? parsedUserId : (Guid?)null;
-        context.RequestServices.GetRequiredService<ISecurityAuditLogger>().RequestRejected(
-            context.Response.StatusCode,
-            context.Request.Method,
-            context.Request.Path.Value ?? "/",
-            userId,
-            context.TraceIdentifier,
-            context.Connection.RemoteIpAddress?.ToString());
-    }
-});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -286,6 +296,7 @@ app.MapWarrantyEndpoints();
 app.MapFileExplorerEndpoints();
 app.MapClientReportEndpoints();
 app.MapAdminEndpoints();
+app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
 app.MapOrganizationRoleEndpoints();
 

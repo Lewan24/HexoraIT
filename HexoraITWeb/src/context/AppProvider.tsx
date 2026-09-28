@@ -407,7 +407,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const created = await guarded(() => contractsApi.create(currentOrgId, c), 'Failed to add contract')
     setData(d => ({ ...d, contracts: [created, ...d.contracts] }))
     toast(tr("Contract \"{{value1}}\" added", { value1: c.name }))
+    return created
   }, [currentOrgId, guarded, toast])
+
+  const uploadContractDocument = useCallback(async (id: string, file: File) => {
+    const updated = await guarded(() => contractsApi.uploadDocument(id, file), 'Failed to upload document')
+    setData(d => ({ ...d, contracts: d.contracts.map(c => c.id === id ? updated : c) }))
+    return updated
+  }, [guarded])
 
   const updateContract = useCallback(async (c: Contract) => {
     await guarded(() => contractsApi.update(c.id, c), 'Failed to update contract')
@@ -614,7 +621,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry,
     addLicense, updateLicense, deleteLicense, toggleStarLicense,
     addContact, updateContact, deleteContact, toggleStarContact,
-    reloadContracts, addContract, updateContract, deleteContract, toggleStarContract,
+    reloadContracts, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract,
     addPlan, updatePlan, deletePlan,
     addIncident, updateIncident, deleteIncident,
     addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge,

@@ -1,5 +1,5 @@
 import { tr, useLocale, locale } from '../i18n'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Plus, Search, X, Edit2, Trash2, Star, ArrowLeft,
   Calendar, DollarSign, Building2, FileText, RefreshCw,
@@ -11,7 +11,7 @@ import DocumentAttachment from '../components/DocumentAttachment'
 import { contractsApi } from '../api/resources'
 
 const CATEGORIES: ContractCategory[] = ['Service', 'Support', 'Maintenance', 'Lease', 'NDA', 'SLA', 'Software', 'Other']
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CZK']
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'CZK', 'PLN']
 
 const STATUS_CONFIG: Record<ContractStatus, { cls: string; icon: React.ReactNode; label: string }> = {
   active:   { cls: 'bg-green-500/15 text-green-400 border-green-500/30',   icon: <CheckCircle2 size={11} />, label: 'Active' },
@@ -157,6 +157,8 @@ function ContractModal({ initial, onClose, onSave }: {
             <DocumentAttachment
               doc={initial?.document}
               entityId={initial?.id}
+              disabled={submitting}
+              deferUpload
               pendingFileName={pendingFile?.name}
               onPendingFile={setPendingFile}
               uploadFn={contractsApi.uploadDocument}
@@ -201,6 +203,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
   onToggleStar: () => void
 }) {
   useLocale()
+  const { uploadContractDocument } = useApp()
   const sc = STATUS_CONFIG[contract.status]
   const days = daysUntil(contract.endDate)
 
@@ -228,7 +231,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
               className={`p-1.5 rounded-md transition-colors hover:bg-navy-700 ${contract.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-yellow-400'}`}>
               <Star size={13} className={contract.starred ? 'fill-yellow-400' : ''} />
             </button>
-            <button onClick={onEdit} className="p-1.5 rounded-md hover:bg-navy-700 text-ink-muted hover:text-ink-primary transition-colors"><Edit2 size={13} /></button>
+            <button aria-label={tr("Edit Contract")} onClick={onEdit} className="p-1.5 rounded-md hover:bg-navy-700 text-ink-muted hover:text-ink-primary transition-colors"><Edit2 size={13} /></button>
             <button onClick={onDelete} className="p-1.5 rounded-md hover:bg-navy-700 text-ink-muted hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
           </div>
         </div>
@@ -269,7 +272,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
         <DocumentAttachment
           doc={contract.document}
           entityId={contract.id}
-          uploadFn={contractsApi.uploadDocument}
+          uploadFn={uploadContractDocument}
           downloadFn={contractsApi.downloadDocument}
         />
       </div>
@@ -281,7 +284,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
 
 export default function Contracts() {
   useLocale()
-  const { contracts, isLoading, addContract, updateContract, deleteContract, toggleStarContract, toast } = useApp()
+  const { contracts, isLoading, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract, toast } = useApp()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ContractStatus | 'All'>('All')
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -289,6 +292,7 @@ export default function Contracts() {
   )
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [modal, setModal] = useState<{ open: boolean; initial?: Contract }>({ open: false })
+  const savedContract = useRef<Contract | null>(null)
   const [catOpen, setCatOpen] = useState(false)
   const [catFilter, setCatFilter] = useState<ContractCategory | 'All'>('All')
 
@@ -308,21 +312,25 @@ export default function Contracts() {
   const expired = contracts.filter(c => c.status === 'expired').length
 
   const handleSave = async (data: Omit<Contract, 'id' | 'status' | 'document'>, pendingFile?: File) => {
-    if (modal.initial) {
-      await updateContract({ ...modal.initial, ...data })
+    let saved = savedContract.current ?? modal.initial
+    if (saved) {
+      await updateContract({ ...saved, ...data })
+      saved = { ...saved, ...data }
     } else {
-      await addContract(data)
-      if (pendingFile) {
-        const latest = contracts[0]
-        if (latest) {
-          try {
-            await contractsApi.uploadDocument(latest.id, pendingFile)
-          } catch {
-            toast(tr("Contract saved, but the document failed to upload"), 'error')
-          }
-        }
+      saved = await addContract(data)
+    }
+    // Retain the server ID after partial success so retries never create duplicates.
+    savedContract.current = saved
+    setSelectedId(saved.id)
+    if (pendingFile) {
+      try {
+        savedContract.current = await uploadContractDocument(saved.id, pendingFile)
+      } catch {
+        toast(tr("Contract saved, but the document failed to upload. Retry saving to attach it."), 'error')
+        throw new Error('Document upload failed')
       }
     }
+    savedContract.current = null
     setModal({ open: false })
   }
 
@@ -348,7 +356,7 @@ export default function Contracts() {
           <h1 className="text-xl font-semibold text-ink-primary">{tr("Contracts")}</h1>
           <p className="text-xs text-ink-muted mt-0.5">{contracts.length}  {tr("contracts ·")} {totalValue.toLocaleString(locale())}  {tr("total value")}</p>
         </div>
-        <button onClick={() => setModal({ open: true })}
+        <button onClick={() => { savedContract.current = null; setModal({ open: true }) }}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
           <Plus size={14} />  {tr("Add Contract")} </button>
@@ -471,7 +479,7 @@ export default function Contracts() {
             <div className="sticky top-4">
               <ContractDetail
                 contract={selected}
-                onEdit={() => setModal({ open: true, initial: selected })}
+                onEdit={() => { savedContract.current = null; setModal({ open: true, initial: selected }) }}
                 onDelete={() => handleDelete(selected.id)}
                 onToggleStar={() => toggleStarContract(selected.id)}
               />
