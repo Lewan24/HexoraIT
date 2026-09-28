@@ -1,6 +1,8 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
+RUN mkdir -p /app/storage /app/data-protection-keys /app/App_Data/storage/files /app/App_Data/storage/data-protection-keys \
+    && chown -R "$APP_UID:$APP_UID" /app/storage /app/data-protection-keys /app/App_Data
+USER $APP_UID
 EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build

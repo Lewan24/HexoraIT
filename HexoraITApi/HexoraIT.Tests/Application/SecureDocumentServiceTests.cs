@@ -52,6 +52,7 @@ public sealed class SecureDocumentServiceTests : IDisposable
         await using var content = new MemoryStream("%PDF-1.7\ndocument"u8.ToArray());
         var upload = await service.UploadDocumentAsync(item.Id, File(content, "contract.pdf", "application/pdf"));
         upload.Value.Should().BeOfType<ContractDto>().Subject.Document!.Name.Should().Be("contract.pdf");
+        (await service.GetAllAsync(organization.Id, null)).Value.Should().BeOfType<List<ContractDto>>().Subject.Single().Document!.Name.Should().Be("contract.pdf");
         var download = (await service.DownloadDocumentAsync(item.Id)).Value.Should().BeOfType<DocumentDownload>().Subject;
         download.ContentType.Should().Be("application/pdf");
         download.FileName.Should().Be("contract.pdf");
@@ -93,6 +94,7 @@ public sealed class SecureDocumentServiceTests : IDisposable
         var item = created.Value.Should().BeOfType<WarrantyItemDto>().Subject;
         await using var content = new MemoryStream("%PDF-1.7\ndocument"u8.ToArray());
         (await service.UploadDocumentAsync(item.Id, File(content, "warranty.pdf", "application/pdf"))).StatusCode.Should().Be(StatusCodes.Status200OK);
+        (await service.GetAllAsync(organization.Id, null)).Value.Should().BeOfType<List<WarrantyItemDto>>().Subject.Single().Document!.Name.Should().Be("warranty.pdf");
         (await service.DownloadDocumentAsync(item.Id)).Value.Should().BeOfType<DocumentDownload>().Subject.FileName.Should().Be("warranty.pdf");
         (await service.DeleteAsync(item.Id)).StatusCode.Should().Be(StatusCodes.Status204NoContent);
     }

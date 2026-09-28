@@ -193,6 +193,18 @@ public class OrganizationRolesControllerTests : IDisposable
         (await _fx.Db.StoredFiles.IgnoreQueryFilters().AnyAsync(f => f.Id == file.Id)).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ResourcePicker_SortsAndPaginatesResources()
+    {
+        var (_, org) = _fx.SeedUserWithOrg();
+        _fx.Db.Contracts.AddRange(new Contract { OrganizationId = org.Id, Name = "Zebra" },
+            new Contract { OrganizationId = org.Id, Name = "Alpha" });
+        await _fx.Db.SaveChangesAsync();
+        var result = await Roles().GetResourcesAsync(org.Id, "contracts", new PaginationParameters { Page = 2, PageSize = 1 });
+        result.Value.Should().BeOfType<List<ResourceOptionDto>>().Subject.Select(r => r.Name)
+            .Should().Equal("Zebra");
+    }
+
     private PasswordVaultService Passwords() => new(
         _fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher,
         new SecurityAuditLogger(NullLoggerFactory.Instance, new HttpContextAccessor()));
