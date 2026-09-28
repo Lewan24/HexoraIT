@@ -51,6 +51,7 @@ public interface ICurrentOrgAccessor
 
 public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserIdProvider currentUser) : DbContext(options)
 {
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     private Guid? CurrentUserId => currentUser.UserId;
     public DbSet<ClientPermission> ClientPermissions => Set<ClientPermission>();
     public DbSet<PrivateNote> PrivateNotes => Set<PrivateNote>();
@@ -83,6 +84,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<AuditEvent>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.EventType).HasMaxLength(80);
+            e.Property(a => a.Severity).HasMaxLength(16);
+            e.Property(a => a.Source).HasMaxLength(16);
+            e.Property(a => a.Account).HasMaxLength(256);
+            e.Property(a => a.SessionId).HasMaxLength(80);
+            e.Property(a => a.ClientIp).HasMaxLength(45);
+            e.Property(a => a.PeerIp).HasMaxLength(45);
+            e.Property(a => a.Method).HasMaxLength(16);
+            e.Property(a => a.Path).HasMaxLength(2048);
+            e.Property(a => a.Route).HasMaxLength(512);
+            e.Property(a => a.TraceId).HasMaxLength(128);
+            e.Property(a => a.UserAgent).HasMaxLength(512);
+            e.Property(a => a.RedirectPath).HasMaxLength(2048);
+            e.Property(a => a.Signal).HasMaxLength(128);
+            e.HasIndex(a => new { a.OccurredAt, a.Id });
+            e.HasIndex(a => new { a.ClientIp, a.OccurredAt });
+            e.HasIndex(a => new { a.UserId, a.OccurredAt });
+            e.HasIndex(a => new { a.TargetUserId, a.OccurredAt });
+            e.HasIndex(a => new { a.Account, a.OccurredAt });
+            e.HasIndex(a => a.TraceId);
+            e.HasIndex(a => a.SessionId);
+        });
         b.Entity<ClientPermission>(e =>
         {
             e.Property(p => p.Resource).HasMaxLength(40);

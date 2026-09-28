@@ -1,6 +1,6 @@
 import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { authApi, type UserDto } from '../api/auth'
-import { setUnauthorizedHandler } from '../api/http'
+import { authTokenStorage, setUnauthorizedHandler } from '../api/http'
 import type { OrganizationSummary } from '../api/types'
 
 interface AuthContextValue {
@@ -18,12 +18,10 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserDto | null>(null)
-  const [isLoading, setIsLoading] = useState(() =>
-    Boolean(localStorage.getItem('auth_token'))
-  )
+  const [isLoading, setIsLoading] = useState(() => Boolean(authTokenStorage.get()))
 
   const logout = useCallback(() => {
-    localStorage.removeItem('auth_token')
+    authTokenStorage.clear()
     setUser(null)
   }, [])
 
@@ -31,12 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // unauthorized drops the session, no matter which component triggered it.
   useEffect(() => {
     setUnauthorizedHandler(() => logout())
+    return () => setUnauthorizedHandler(null)
   }, [logout])
+
+  useEffect(() => {
+    const synchronizeLogout = (event: StorageEvent) => {
+      if (event.key === 'auth_token' && event.newValue === null) setUser(null)
+    }
+    window.addEventListener('storage', synchronizeLogout)
+    return () => window.removeEventListener('storage', synchronizeLogout)
+  }, [])
 
   // On mount, if a token is already stored, validate it against /auth/me
   // rather than trusting it blindly (it may have expired since last visit).
   useEffect(() => {
-    const token = localStorage.getItem('auth_token')
+    const token = authTokenStorage.get()
 
     if (!token) {
       return
@@ -44,19 +51,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     authApi.me()
       .then(setUser)
-      .catch(() => localStorage.removeItem('auth_token'))
+      .catch(() => authTokenStorage.clear())
       .finally(() => setIsLoading(false))
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password)
-    localStorage.setItem('auth_token', res.token)
+    authTokenStorage.set(res.token)
     setUser(res.user)
   }, [])
 
   const register = useCallback(async (email: string, password: string, displayName: string) => {
     const res = await authApi.register(email, password, displayName)
-    localStorage.setItem('auth_token', res.token)
+    authTokenStorage.set(res.token)
     setUser(res.user)
   }, [])
 

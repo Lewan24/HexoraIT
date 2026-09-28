@@ -13,8 +13,9 @@ export default function PermissionGate({ view, children }: { view: View; childre
   // Static application help is available independently of organization access.
   if (view === 'help') return children
   if (view === 'settings' && isClient) return children
-  if (view === 'adminpanel' && user?.systemRole === 'Admin' || (!currentOrg && view === 'settings')) return children
+  if ((view === 'adminpanel' && user?.systemRole === 'Admin') || (!currentOrg && view === 'settings')) return children
   if (isClient && ['dashboard', 'private-notes', 'adminpanel'].includes(view)) return <p className="p-6">{tr('Access forbidden')}</p>
+  if (view === 'reports' && !isClient) return <p className="p-6">{tr('Access forbidden')}</p>
   if (!currentOrg) return <div className="p-6 text-ink-muted">{isClient ? tr('No organization is assigned. Contact your caretaker.') : tr("Select or create an organization in Settings.")}</div>
   if (accessError) return <div role="alert" className="p-6 text-red-400">{accessError}</div>
   if (!access) return <div className="p-6 text-ink-muted">{tr("Loading organization permissions…")}</div>

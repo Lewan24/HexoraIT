@@ -34,7 +34,7 @@ function inp(error?: string) {
 
 interface PwFormProps {
   initial?: PasswordEntry
-  onSave: (d: Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password?: string }) => Promise<void>
+  onSave: (d: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password?: string }) => Promise<void>
   onClose: () => void
 }
 
@@ -62,7 +62,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
   }, [onClose, submitting])
 
   const set = (k: string, v: unknown) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })) }
-  const addTag = () => { const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set('tags', [...form.tags, t]); setTagInput('') }
+  const addTag = () => { const t = tagInput.trim().toLowerCase(); if (t.length <= 100 && form.tags.length < 100 && t && !form.tags.includes(t)) set('tags', [...form.tags, t]); setTagInput('') }
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -110,13 +110,13 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
             <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. AWS Root Account")}
-              className={inp(errors.name)} disabled={submitting} />
+              maxLength={200} className={inp(errors.name)} disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Username *")}</label>
             <input value={form.username} onChange={e => set('username', e.target.value)} placeholder={tr("e.g. admin@corp.com")}
-              className={inp(errors.username) + ' font-mono'} disabled={submitting} />
+              maxLength={500} className={inp(errors.username) + ' font-mono'} disabled={submitting} />
             {errors.username && <p className="text-[10px] text-red-400 mt-1">{errors.username}</p>}
           </div>
           <div>
@@ -131,7 +131,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
             <div className="relative">
               <input type={showPw ? 'text' : 'password'} value={form.password} onChange={e => set('password', e.target.value)}
                 placeholder={initial ? tr("Leave blank to keep current password") : tr("Enter or generate a password")}
-                className={inp(errors.password) + ' font-mono pr-10'} disabled={submitting} />
+                maxLength={10000} className={inp(errors.password) + ' font-mono pr-10'} disabled={submitting} />
               <button type="button" onClick={() => setShowPw(!showPw)} disabled={submitting} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary transition-colors disabled:opacity-40">
                 {showPw ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
@@ -169,14 +169,14 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
             </div>
             <div className="flex gap-2">
               <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
-                placeholder={tr("Add tag…")} className={inp() + ' flex-1'} disabled={submitting} />
+                placeholder={tr("Add tag…")} maxLength={100} className={inp() + ' flex-1'} disabled={submitting} />
               <button type="button" onClick={addTag} disabled={submitting} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 transition-colors disabled:opacity-40"><Tag size={11} /></button>
             </div>
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder={tr("Any notes…")}
-              className={inp() + ' resize-none leading-relaxed'} disabled={submitting} />
+              maxLength={100000} className={inp() + ' resize-none leading-relaxed'} disabled={submitting} />
           </div>
         </div>
 
@@ -360,7 +360,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4">
           <h3 className="text-xs font-semibold text-ink-primary mb-3 flex items-center gap-2"><Clock size={12} className="text-cyan-400" />  {tr("Metadata")}</h3>
           <div className="space-y-1.5 text-[11px]">
-            <div className="flex justify-between"><span className="text-ink-muted">{tr("Last updated")}</span><span className="text-ink-secondary font-mono">{selected.updated}</span></div>
+            <div className="flex justify-between"><span className="text-ink-muted">{tr("Last updated")}</span><span className="text-ink-secondary font-mono">{selected.updatedAt}</span></div>
             <div className="flex justify-between"><span className="text-ink-muted">{tr("Strength")}</span><span className={`font-mono ${selected.strength === 'strong' ? 'text-green-400' : selected.strength === 'medium' ? 'text-orange-400' : 'text-red-400'}`}>{tr(selected.strength)}</span></div>
           </div>
         </div>
@@ -504,7 +504,7 @@ export default function PasswordVault() {
       {/* Modals */}
       {addOpen && canWrite('passwords') && (
         <PasswordForm
-          onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updated' | 'strength'> & { password: string }); setAddOpen(false) }}
+          onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }); setAddOpen(false) }}
           onClose={() => setAddOpen(false)}
         />
       )}

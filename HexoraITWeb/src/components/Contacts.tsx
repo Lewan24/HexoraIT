@@ -102,37 +102,37 @@ function ContactModal({ initial, onClose, onSave }: {
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Full Name *")}</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("Jane Smith")} className={inp(errors.name)} autoFocus disabled={submitting} />
+            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("Jane Smith")} maxLength={200} className={inp(errors.name)} autoFocus disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Company")}</label>
-              <input value={form.company} onChange={e => set('company', e.target.value)} placeholder={tr("Acme Corp")} className={inp()} disabled={submitting} />
+              <input value={form.company} onChange={e => set('company', e.target.value)} placeholder={tr("Acme Corp")} maxLength={200} className={inp()} disabled={submitting} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Role / Title")}</label>
-              <input value={form.role} onChange={e => set('role', e.target.value)} placeholder={tr("Account Manager")} className={inp()} disabled={submitting} />
+              <input value={form.role} onChange={e => set('role', e.target.value)} placeholder={tr("Account Manager")} maxLength={200} className={inp()} disabled={submitting} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Phone")}</label>
-              <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder={"+1 555-000-0000"} className={inp()} disabled={submitting} />
+              <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder={"+1 555-000-0000"} maxLength={100} className={inp()} disabled={submitting} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Email")}</label>
-              <input value={form.email} onChange={e => set('email', e.target.value)} placeholder={tr("jane@example.com")} className={inp()} disabled={submitting} />
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={tr("jane@example.com")} maxLength={256} className={inp()} disabled={submitting} />
             </div>
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description / Notes")}</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
-              placeholder={tr("Context, relationship notes…")} className={inp() + ' resize-none'} disabled={submitting} />
+              placeholder={tr("Context, relationship notes…")} maxLength={100000} className={inp() + ' resize-none'} disabled={submitting} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("vendor, support, billing")} className={inp()} disabled={submitting} />
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("vendor, support, billing")} maxLength={10099} className={inp()} disabled={submitting} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">

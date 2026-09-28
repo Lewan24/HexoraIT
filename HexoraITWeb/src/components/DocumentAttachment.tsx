@@ -18,11 +18,14 @@ interface Props {
   onUploaded?: (doc: WarrantyDocument) => void
   uploadFn: (id: string, file: File) => Promise<{ document?: WarrantyDocument }>
   downloadFn: (id: string) => Promise<Blob>
+  disabled?: boolean
+  deferUpload?: boolean
   accept?: string
 }
 
 export default function DocumentAttachment({
   doc, entityId, pendingFileName, onPendingFile, onUploaded, uploadFn, downloadFn,
+  disabled = false, deferUpload = false,
   accept = '.pdf,.png,.jpg,.jpeg,.webp',
 }: Props) {
   useLocale()
@@ -33,11 +36,16 @@ export default function DocumentAttachment({
   const { toast } = useApp()
 
   const handleFile = async (file: File) => {
+    if (disabled || uploading) return
     setWarning('')
+    if (file.size > 20_000_000) {
+      setWarning(tr('Maximum document size is 20 MB.'))
+      return
+    }
     if (file.size > 5 * 1024 * 1024) {
       setWarning(tr('File is large ({{size}}). Large files may affect performance.', { size: formatSize(file.size) }))
     }
-    if (entityId) {
+    if (entityId && !deferUpload) {
       setUploading(true)
       try {
         const updated = await uploadFn(entityId, file)
@@ -57,13 +65,20 @@ export default function DocumentAttachment({
 
   return (
     <div>
-      <input ref={fileRef} type="file" accept={accept} className="hidden"
+      <input ref={fileRef} type="file" disabled={disabled || uploading} accept={accept} className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = '' }} />
 
       {uploading ? (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
           <Loader2 size={14} className="animate-spin text-ink-muted flex-shrink-0" />
           <span className="text-xs text-ink-muted">{tr("Uploading…")}</span>
+        </div>
+      ) : pendingFileName ? (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
+          <FileText size={16} className="text-blue-400 shrink-0" />
+          <div className="flex-1 min-w-0"><p className="text-xs truncate">{pendingFileName}</p>
+            <p className="text-[11px] text-ink-muted mt-1">{tr("will upload on save")}</p></div>
+          <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className="text-xs text-blue-400">{tr("Replace")}</button>
         </div>
       ) : doc ? (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
@@ -82,16 +97,10 @@ export default function DocumentAttachment({
               <Eye size={12} />
             </button>
           )}
-          <button onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("Replace")}><Paperclip size={12} /></button>
-        </div>
-      ) : pendingFileName ? (
-        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
-          <FileText size={13} className="text-blue-400 flex-shrink-0" />
-          <p className="text-xs text-ink-primary truncate font-mono flex-1">{pendingFileName}</p>
-          <span className="text-[9px] text-ink-muted flex-shrink-0">{tr("will upload on save")}</span>
+          <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("Replace")}><Paperclip size={12} /></button>
         </div>
       ) : (
-        <button onClick={() => fileRef.current?.click()}
+        <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()}
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 hover:border-edge-strong transition-colors w-full">
           <Paperclip size={12} />  {tr("Attach PDF / Image")} </button>
       )}

@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using HexoraITApi.Api.App;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace HexoraIT.Tests.Controllers;
 
@@ -10,7 +10,7 @@ public class OrganizationsControllerTests : IDisposable
 {
     private readonly TestFixture _fx = new();
 
-    private OrganizationsController Controller()
+    private OrganizationService Service()
         => new(_fx.Db, _fx.Mapper, _fx.UserContext);
 
 
@@ -19,17 +19,12 @@ public class OrganizationsControllerTests : IDisposable
     {
         _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.GetAll();
-
-        var ok = result.Result as OkObjectResult;
-
-        ok.Should().NotBeNull();
-
-        ok.Value.As<List<OrganizationSummaryDto>>()
+        var result = await sut.GetAllAsync(null);
+        result.Value.As<List<OrganizationSummaryDto>>()
             .Should()
-            .ContainSingle();
+            .ContainSingle(organization => organization.Role == nameof(OrgRole.Owner));
     }
 
 
@@ -38,23 +33,19 @@ public class OrganizationsControllerTests : IDisposable
     {
         var (user, _) = _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.Create(
+        var result = await sut.CreateAsync(
             new CreateOrganizationDto(
                 "New Org",
                 "#fff",
                 "NO",
                 "Description"));
 
-        result.Result.Should()
-            .BeOfType<CreatedAtActionResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status201Created);
 
-        var organizations = await sut.GetAll();
-
-        var ok = organizations.Result as OkObjectResult;
-
-        ok.Value.As<List<OrganizationSummaryDto>>()
+        var organizations = await sut.GetAllAsync(null);
+        organizations.Value.As<List<OrganizationSummaryDto>>()
             .Should()
             .ContainSingle(o => o.Name == "New Org");
     }
@@ -65,9 +56,9 @@ public class OrganizationsControllerTests : IDisposable
     {
         var (_, org) = _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.Update(
+        var result = await sut.UpdateAsync(
             org.Id,
             new UpdateOrganizationDto(
                 "Updated",
@@ -75,12 +66,10 @@ public class OrganizationsControllerTests : IDisposable
                 "UP",
                 "Changed"));
 
-        result.Should()
-            .BeOfType<NoContentResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status204NoContent);
 
-        var fetched = await sut.GetById(org.Id);
-
-        fetched.Result.As<OkObjectResult>().Value!.As<OrganizationDto>().Name.Should()
+        var fetched = await sut.GetByIdAsync(org.Id);
+        fetched.Value!.As<OrganizationDto>().Name.Should()
             .Be("Updated");
     }
 
@@ -90,18 +79,14 @@ public class OrganizationsControllerTests : IDisposable
     {
         var (_, org) = _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.Delete(org.Id);
+        var result = await sut.DeleteAsync(org.Id);
 
-        result.Should()
-            .BeOfType<NoContentResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status204NoContent);
 
-        var deleted = await sut.GetDeleted();
-
-        var ok = deleted.Result as OkObjectResult;
-
-        ok.Value.As<List<OrganizationSummaryDto>>()
+        var deleted = await sut.GetDeletedAsync(null);
+        deleted.Value.As<List<OrganizationSummaryDto>>()
             .Should()
             .ContainSingle(o => o.Id == org.Id);
     }
@@ -123,16 +108,15 @@ public class OrganizationsControllerTests : IDisposable
         _fx.Db.Users.Add(invited);
         await _fx.Db.SaveChangesAsync();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.InviteMember(
+        var result = await sut.InviteMemberAsync(
             org.Id,
             new InviteMemberDto(
                 invited.Email,
                 OrgRole.Admin));
 
-        result.Result.Should()
-            .BeOfType<OkObjectResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status200OK);
 
         var membership = _fx.Db.UserOrganizations
             .FirstOrDefault(x =>
@@ -152,16 +136,15 @@ public class OrganizationsControllerTests : IDisposable
     {
         var (_, org) = _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.InviteMember(
+        var result = await sut.InviteMemberAsync(
             org.Id,
             new InviteMemberDto(
                 "someone@test.local",
                 OrgRole.Owner));
 
-        result.Result.Should()
-            .BeOfType<BadRequestObjectResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
 
@@ -190,14 +173,13 @@ public class OrganizationsControllerTests : IDisposable
 
         await _fx.Db.SaveChangesAsync();
 
-        var sut = Controller();
+        var sut = Service();
 
-        var result = await sut.RemoveMember(
+        var result = await sut.RemoveMemberAsync(
             org.Id,
             member.Id);
 
-        result.Should()
-            .BeOfType<NoContentResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status204NoContent);
 
         _fx.Db.UserOrganizations
             .Any(x =>
@@ -213,18 +195,16 @@ public class OrganizationsControllerTests : IDisposable
     {
         var (_, org) = _fx.SeedUserWithOrg();
 
-        var sut = Controller();
+        var sut = Service();
 
-        await sut.Delete(org.Id);
+        await sut.DeleteAsync(org.Id);
 
-        var result = await sut.Restore(org.Id);
+        var result = await sut.RestoreAsync(org.Id);
 
-        result.Should()
-            .BeOfType<NoContentResult>();
+        result.StatusCode.Should().Be(StatusCodes.Status204NoContent);
 
-        var fetched = await sut.GetById(org.Id);
-
-        fetched.Result.As<OkObjectResult>().Value.Should()
+        var fetched = await sut.GetByIdAsync(org.Id);
+        fetched.Value.Should()
             .NotBeNull();
     }
 

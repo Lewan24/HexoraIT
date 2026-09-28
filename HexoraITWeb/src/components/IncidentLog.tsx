@@ -43,8 +43,8 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
     description: initial?.description ?? '',
     resolution: initial?.resolution ?? '',
     affectedSystems: initial?.affectedSystems.join(', ') ?? '',
-    occurredAt: initial?.occurredAt ?? '',
-    resolvedAt: initial?.resolvedAt ?? '',
+    occurredAt: initial?.occurredAt?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
+    resolvedAt: initial?.resolvedAt?.slice(0, 16) ?? '',
     tags: initial?.tags.join(', ') ?? '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -72,7 +72,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
         resolution: form.resolution.trim(),
         affectedSystems: form.affectedSystems.split(',').map(s => s.trim()).filter(Boolean),
         occurredAt: form.occurredAt,
-        resolvedAt: form.resolvedAt,
+        resolvedAt: form.resolvedAt || null,
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       })
     } catch {
@@ -107,7 +107,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Database unreachable")} className={inp(errors.title)} autoFocus disabled={busy} />
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Database unreachable")} maxLength={200} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -126,7 +126,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Affected Systems (comma-separated)")}</label>
-            <input value={form.affectedSystems} onChange={e => set('affectedSystems', e.target.value)} placeholder={tr("Database, API Gateway, Auth Service")} className={inp()} disabled={busy} />
+            <input value={form.affectedSystems} onChange={e => set('affectedSystems', e.target.value)} placeholder={tr("Database, API Gateway, Auth Service")} maxLength={10099} className={inp()} disabled={busy} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
@@ -150,7 +150,7 @@ function IncidentModal({ initial, onClose, onSave, onDelete }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, database, security")} className={inp()} disabled={busy} />
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, database, security")} maxLength={10099} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">

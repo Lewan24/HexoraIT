@@ -1,3 +1,8 @@
 ﻿namespace HexoraITApi.Domain.Dtos;
 
-public record DashboardLayoutDto(List<string> SectionOrder, List<string> HiddenSections);
+using System.ComponentModel.DataAnnotations;
+using HexoraITApi.Domain.Validation;
+
+public record DashboardLayoutDto(
+    [Required, StringCollection(100, 100)] List<string> SectionOrder,
+    [Required, StringCollection(100, 100)] List<string> HiddenSections);

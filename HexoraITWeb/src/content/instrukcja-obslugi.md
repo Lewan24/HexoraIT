@@ -27,7 +27,7 @@ To, co widzisz i możesz zmieniać, zależy od uprawnień w wybranej organizacji
 4. Wybierz zakładkę z menu po lewej stronie. Na małym ekranie rozwiń menu przyciskiem w nagłówku.
 5. Skorzystaj z wyszukiwarki w górnym pasku, aby znaleźć dostępne dane; wpisz co najmniej dwa znaki.
 
-W **Ustawienia → Wygląd** zmienisz język i motyw. W **Ustawienia → Profil** możesz zmienić swoją nazwę, a w **Ustawienia → Bezpieczeństwo** — hasło, podając obecne i nowe hasło. Nowe hasło musi mieć co najmniej 8 znaków. Przycisk wylogowania znajduje się przy danych użytkownika i w górnym pasku.
+W **Ustawienia → Wygląd** zmienisz język i motyw. W **Ustawienia → Profil** możesz zmienić swoją nazwę, a w **Ustawienia → Bezpieczeństwo** — hasło, podając obecne i nowe hasło. Nowe hasło musi mieć co najmniej 15 znaków. Przycisk wylogowania znajduje się przy danych użytkownika i w górnym pasku.
 
 ### Jakie zakładki są dostępne?
 
@@ -127,7 +127,7 @@ Rola administratora systemu sama nie przyznaje członkostwa ani dostępu do doku
 
 1. Otwórz **Panel administratora** w bocznym menu.
 2. Kliknij **Dodaj użytkownika**.
-3. Wpisz nazwę wyświetlaną, adres e-mail i hasło o długości co najmniej 8 znaków.
+3. Wpisz nazwę wyświetlaną, adres e-mail i hasło o długości co najmniej 15 znaków.
 4. Wybierz rolę systemową **Użytkownik**. Wybierz **Administrator** tylko dla osoby, która ma zarządzać kontami całej aplikacji.
 5. Kliknij **Utwórz**.
 6. Przekaż dane logowania pracownikowi bezpiecznym kanałem. Po pierwszym logowaniu powinien ustawić własne hasło.
@@ -142,7 +142,7 @@ Na liście użytkowników wybierz **Użytkownik** lub **Administrator** w polu r
 ### Reset hasła
 
 1. Znajdź użytkownika i kliknij ikonę klucza **Zresetuj hasło**.
-2. Wpisz nowe hasło, minimum 8 znaków.
+2. Wpisz nowe hasło, minimum 15 znaków.
 3. Kliknij **Ustaw hasło** i przekaż nowe hasło użytkownikowi.
 
 Przy następnym logowaniu użytkownik używa nowego hasła. Jest to ustawienie hasła przez administratora, a nie wysłanie wiadomości z linkiem resetującym.
@@ -246,7 +246,7 @@ Przy nadpisaniu istniejącej roli jej członkowie i lokalne reguły pojedynczych
 
 1. Wybierz organizację klienta.
 2. Otwórz **Ustawienia → Role organizacji → Utwórz konto klienta**.
-3. Podaj nowy adres e-mail, nazwę wyświetlaną i hasło mające co najmniej 8 znaków.
+3. Podaj nowy adres e-mail, nazwę wyświetlaną i hasło mające co najmniej 15 znaków.
 4. Kliknij **Utwórz konto klienta**.
 5. Przekaż klientowi adres aplikacji i dane logowania.
 

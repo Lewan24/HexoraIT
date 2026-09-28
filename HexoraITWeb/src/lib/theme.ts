@@ -1,11 +1,11 @@
 export type Theme = 'dark' | 'light'
 
 export function getTheme(): Theme {
-  return (localStorage.getItem('theme') as Theme) ?? 'light'
+  try { return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light' } catch { return 'light' }
 }
 
 export function setTheme(theme: Theme) {
-  localStorage.setItem('theme', theme)
+  try { localStorage.setItem('theme', theme) } catch { /* Storage may be disabled. */ }
   document.documentElement.setAttribute('data-theme', theme)
 }
 

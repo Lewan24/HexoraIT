@@ -1,76 +1,47 @@
-### This is custom project template ready to go with installed tailwindcss, prepared routers, layout, sidebar and apiClient
-All changes made there are from my [guide](https://github.com/Lewan24/ReactStartingCommands)
+# HexoraIT Web
 
-# React + TypeScript + Vite
+Frontend HexoraIT jest aplikacją React 19 + TypeScript 6 budowaną przez Vite 8 i Tailwind CSS 4. Nie używa routingu URL — bieżący ekran jest stanem aplikacji, a dostęp do widoków zależy od sesji i uprawnień pobranych z API.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Uruchomienie
 
-Currently, two official plugins are available:
+Z katalogu repozytorium:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+npm ci --prefix HexoraITWeb
+npm run dev --prefix HexoraITWeb
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Lokalny serwer domyślnie nasłuchuje na `127.0.0.1:8443`. Frontend obsługuje tryb `http` (domyślny) oraz samodzielny tryb `mock`. W trybie HTTP adres API jest pobierany z `window.__ENV__.API_BASE_URL` albo konfiguracji developerskiej.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Samodzielny artefakt demonstracyjny, który nie wykonuje żadnych wywołań API:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+npm run build:demo --prefix HexoraITWeb
 ```
+
+Wynik w `HexoraITWeb/dist` można opublikować jako statyczne SPA. Dane są wersjonowane i zapisywane wyłącznie w `localStorage` przeglądarki. Ekran logowania udostępnia konta `demo@hexorait.local` / `DemoUser123!` oraz `admin@hexorait.local` / `DemoAdmin123!`. Ustawienia → About → Reset demo usuwa zmiany i odtwarza dane startowe.
+
+Ten sam obraz kontenera przełącza się przez `HEXORAIT_APP_MODE=http|mock`. `HEXORAIT_API_BASE_URL` jest wymagany tylko dla `http`; entrypoint generuje `/env.js` przy starcie. Tryb mock jest publicznym demo, a nie mechanizmem bezpieczeństwa — hasła i dane startowe są celowo jawne.
+
+## Weryfikacja
+
+```text
+npm test --prefix HexoraITWeb
+npm run lint --prefix HexoraITWeb
+npm run build --prefix HexoraITWeb
+npm audit --prefix HexoraITWeb --audit-level=high
+```
+
+Ekrany funkcjonalne są ładowane przez `React.lazy`. ExcelJS i `docx-preview` korzystają z importów dynamicznych i nie powinny wracać do bundla startowego. Test `frontend-hardening.test.mjs` chroni ten kontrakt.
+
+## Struktura
+
+- `src/api/` — centralny klient HTTP, wrappery zasobów i typy kontraktów;
+- `src/api/mockApi.ts` — ładowany na żądanie adapter demo zgodny z tym samym interfejsem zasobów;
+- `src/components/` — ekrany i komponenty UI;
+- `src/context/` — sesja, organizacja i stan aplikacyjny;
+- `src/i18n/` — polski i angielski katalog tłumaczeń;
+- `src/content/` — instrukcja użytkownika dołączana do aplikacji;
+- `tests/` — testy kontraktowe, bezpieczeństwa i lokalizacji.
+
+Kontrola uprawnień w UI jest wyłącznie mechanizmem UX. Każda chroniona operacja musi być odrzucona lub zaakceptowana przez backend.

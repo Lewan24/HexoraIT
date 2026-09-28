@@ -24,7 +24,7 @@ function NotesEditor({ orgId }: { orgId: string }) {
 
   useEffect(() => {
     let cancelled = false
-    http.get<Note[]>(endpoint)
+    http.getAllPages<Note>(endpoint)
       .then(items => { if (!cancelled) setNotes(items) })
       .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : tr("Failed to load notes")) })
       .finally(() => { if (!cancelled) setLoading(false) })

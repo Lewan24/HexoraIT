@@ -76,12 +76,12 @@ function SubnetModal({ initial, onClose, onSave }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("Server Farm")} className={inp(errors.name)} autoFocus disabled={submitting} />
+              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("Server Farm")} maxLength={200} className={inp(errors.name)} autoFocus disabled={submitting} />
               {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("CIDR *")}</label>
-              <input value={form.cidr} onChange={e => set('cidr', e.target.value)} placeholder={"10.0.1.0/24"} className={inp(errors.cidr) + ' font-mono'} disabled={submitting} />
+              <input value={form.cidr} onChange={e => set('cidr', e.target.value)} placeholder={"10.0.1.0/24"} maxLength={50} className={inp(errors.cidr) + ' font-mono'} disabled={submitting} />
               {errors.cidr && <p className="text-[10px] text-red-400 mt-1">{errors.cidr}</p>}
             </div>
           </div>
@@ -94,22 +94,22 @@ function SubnetModal({ initial, onClose, onSave }: {
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("VLAN ID")}</label>
-              <input value={form.vlan} onChange={e => set('vlan', e.target.value)} placeholder={"10"} className={inp() + ' font-mono'} disabled={submitting} />
+              <input type="number" min={0} max={4094} value={form.vlan} onChange={e => set('vlan', e.target.value)} placeholder={"10"} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Gateway")}</label>
-              <input value={form.gateway} onChange={e => set('gateway', e.target.value)} placeholder={"10.0.1.1"} className={inp() + ' font-mono'} disabled={submitting} />
+              <input value={form.gateway} onChange={e => set('gateway', e.target.value)} placeholder={"10.0.1.1"} maxLength={45} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("DNS")}</label>
-              <input value={form.dns} onChange={e => set('dns', e.target.value)} placeholder={"8.8.8.8"} className={inp() + ' font-mono'} disabled={submitting} />
+              <input value={form.dns} onChange={e => set('dns', e.target.value)} placeholder={"8.8.8.8"} maxLength={500} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className={inp() + ' resize-none'} disabled={submitting} />
+            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} maxLength={100000} className={inp() + ' resize-none'} disabled={submitting} />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
@@ -175,7 +175,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("IP Address *")}</label>
-              <input value={form.ip} onChange={e => set('ip', e.target.value)} placeholder={"10.0.1.10"} className={inp(errors.ip) + ' font-mono'} autoFocus disabled={submitting} />
+              <input value={form.ip} onChange={e => set('ip', e.target.value)} placeholder={"10.0.1.10"} maxLength={45} className={inp(errors.ip) + ' font-mono'} autoFocus disabled={submitting} />
               {errors.ip && <p className="text-[10px] text-red-400 mt-1">{errors.ip}</p>}
             </div>
             <div>
@@ -189,7 +189,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Label / Hostname")}</label>
-            <input value={form.label} onChange={e => set('label', e.target.value)} placeholder={tr("hostname or plain text")} className={inp() + ' font-mono'} disabled={submitting} />
+            <input value={form.label} onChange={e => set('label', e.target.value)} placeholder={tr("hostname or plain text")} maxLength={200} className={inp() + ' font-mono'} disabled={submitting} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Assign to Asset")}</label>
@@ -202,7 +202,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Notes")}</label>
-            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tr("Optional notes")} className={inp()} disabled={submitting} />
+            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tr("Optional notes")} maxLength={100000} className={inp()} disabled={submitting} />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40">

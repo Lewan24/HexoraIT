@@ -13,6 +13,7 @@ public class User
     public bool IsActive { get; set; } = true;
     public bool IsBlocked { get; set; }
     public SystemRole SystemRole { get; set; } = SystemRole.User;
+    public Guid SecurityStamp { get; set; } = Guid.NewGuid();
 
     public List<UserOrganization> Memberships { get; set; } = [];
 }

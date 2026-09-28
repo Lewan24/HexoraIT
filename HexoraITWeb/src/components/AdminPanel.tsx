@@ -1,3 +1,4 @@
+import AuditLog from './AuditLog'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect } from 'react'
 import { Shield, Loader2, Ban, KeyRound, ShieldCheck, Plus } from 'lucide-react'
@@ -6,7 +7,7 @@ import type { AdminUser, SystemRole } from '../api/types'
 import { useAuth } from '../context/useAuth'
 import { ApiError } from '../api/http'
 
-export default function AdminPanel() {
+function UserManagement() {
   useLocale()
     const { user: currentUser } = useAuth()
     const [users, setUsers] = useState<AdminUser[] | null>(null)
@@ -24,14 +25,14 @@ export default function AdminPanel() {
     })
 
     useEffect(() => {
-        adminApi.getUsers().then(setUsers)
+        adminApi.getUsers().then(setUsers).catch(() => { setUsers([]); setError(tr("Failed to load users")) })
     }, [])
 
     const submitCreate = async () => {
         if (
             createForm.email === '' ||
             createForm.displayName === '' ||
-            createForm.password.length < 8
+            createForm.password.length < 15
         )
             return
 
@@ -94,7 +95,7 @@ export default function AdminPanel() {
     }
 
     const submitReset = async () => {
-        if (!resetTarget || newPassword.length < 8) return
+        if (!resetTarget || newPassword.length < 15) return
         setBusyUserId(resetTarget.id)
         setError(null)
         try {
@@ -179,11 +180,11 @@ export default function AdminPanel() {
                     <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
                         <h3 className="text-sm font-semibold text-ink-primary mb-1 flex items-center gap-2"><Shield size={14} />  {tr("Reset Password")}</h3>
                         <p className="text-xs text-ink-muted mb-4">{tr("Set a new password for")} {resetTarget.email}{tr(". They'll need to use it on their next sign-in.")}</p>
-                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={tr("At least 8 characters")}
+                        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={tr("At least 15 characters")} minLength={15} maxLength={200}
                             className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none focus:border-blue-500 mb-4" />
                         <div className="flex gap-2">
                             <button onClick={() => setResetTarget(null)} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors">{tr("Cancel")}</button>
-                            <button onClick={submitReset} disabled={newPassword.length < 8 || busyUserId === resetTarget.id}
+                            <button onClick={submitReset} disabled={newPassword.length < 15 || busyUserId === resetTarget.id}
                                 className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-colors disabled:opacity-50">
                                 {busyUserId === resetTarget.id ? tr("Saving…") : tr("Set Password")}
                             </button>
@@ -238,6 +239,8 @@ export default function AdminPanel() {
                             <input
                                 placeholder={tr("Password")}
                                 type="password"
+                                minLength={15}
+                                maxLength={200}
                                 value={createForm.password}
                                 onChange={e =>
                                     setCreateForm(f => ({
@@ -277,7 +280,7 @@ export default function AdminPanel() {
                                 disabled={
                                     !createForm.email ||
                                     !createForm.displayName ||
-                                    createForm.password.length < 8
+                                    createForm.password.length < 15
                                 }
                                 className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-50"
                             >
@@ -290,4 +293,16 @@ export default function AdminPanel() {
             )}
         </div>
     )
+}
+
+export default function AdminPanel() {
+  useLocale()
+  const [tab, setTab] = useState<'users' | 'audit'>('users')
+  return <div className="p-4 sm:p-8 max-w-[1440px] mx-auto admin-workspace">
+    <div className="mb-7"><p className="text-[10px] uppercase tracking-[.2em] text-blue-400 mb-2">{tr('Workspace control')}</p><h1 className="text-2xl font-semibold tracking-tight">{tr('Administration')}</h1><p className="text-sm text-ink-muted mt-2">{tr('Manage access and investigate security activity.')}</p></div>
+    <div className="inline-flex gap-1 rounded-xl border border-edge-subtle bg-navy-800 p-1 mb-6" role="tablist" aria-label={tr('Administration')}>
+      {(['users', 'audit'] as const).map(value => <button key={value} id={`tab-${value}`} aria-controls={`panel-${value}`} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-5 py-2.5 text-xs font-medium transition-colors ${tab === value ? 'bg-blue-500/15 text-blue-400 shadow-sm' : 'text-ink-muted hover:text-ink-primary'}`}>{tr(value === 'users' ? 'Users' : 'Security audit')}</button>)}
+    </div>
+    <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>{tab === 'audit' ? <AuditLog /> : <UserManagement />}</div>
+  </div>
 }

@@ -14,7 +14,7 @@ services:
     environment:
       POSTGRES_DB: HexoraITApp
       POSTGRES_USER: HexoraIT
-      POSTGRES_PASSWORD: HexoraIT
+      POSTGRES_PASSWORD: ${HEXORAIT_DB_PASSWORD:?Set HEXORAIT_DB_PASSWORD}
 
     ports:
       - "5432:5432"
@@ -56,22 +56,28 @@ services:
         Port=5432;
         Database=HexoraITApp;
         Username=HexoraIT;
-        Password=HexoraIT
+        Password=${HEXORAIT_DB_PASSWORD:?Set HEXORAIT_DB_PASSWORD}
         
       Jwt__Issuer: HexoraITApp
       Jwt__Audience: HexoraITApp.Client
-      # Use custom 32-byte secret key22
-      Jwt__SigningKey: YOUR_SUPER_SECRET_KEY11111111111
+      # Provide at least 32 bytes of cryptographically random secret material.
+      Jwt__SigningKey: ${HEXORAIT_JWT_SIGNING_KEY:?Set HEXORAIT_JWT_SIGNING_KEY}
 
       # you can create a volume and bind to it to store documents somewhere like on another server or something
       FileStorage__RootPath: /app/storage
       FileStorage__DataProtectionKeysPath: /app/data-protection-keys
 
-      AppSettings__ITDocsAdmin: admin@HexoraIT.pl
+      # Optional bootstrap. The password is required only when this email is set
+      # and the account does not exist yet; remove it after the first startup.
+      AppSettings__HexoraITAdmin: ${HEXORAIT_ADMIN_EMAIL:-}
+      AppSettings__InitialAdminPassword: ${HEXORAIT_INITIAL_ADMIN_PASSWORD:-}
       AppSettings__AllowRegister: false
       # Make sure there is provided your domain (frontend) url, this is required for CORS settings and security
       AppSettings__AllowOrigins__0: "http://localhost:80"
       AppSettings__AllowOrigins__1: "http://localhost"
+      # If the API is placed behind a reverse proxy, list its exact IP addresses.
+      # Forwarded headers from every other source are ignored.
+      # ReverseProxy__KnownProxies__0: "10.0.0.10"
       
     volumes:
       - hexorait-storage:/app/storage
@@ -89,6 +95,7 @@ services:
     environment:
       # API url, the target domain where the ITDocs will be available at
       HEXORAIT_API_BASE_URL: http://localhost:8081/api
+      HEXORAIT_APP_MODE: ${HEXORAIT_APP_MODE:-http}
 
     depends_on:
       - api

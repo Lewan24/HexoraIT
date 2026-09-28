@@ -9,7 +9,7 @@ public sealed class GitHubVersionService(
 {
     private const string CacheKey = "github-latest-release";
 
-    public async Task<string?> GetLatestVersionAsync()
+    public async Task<string?> GetLatestVersionAsync(CancellationToken cancellationToken = default)
     {
         return await cache.GetOrCreateAsync(CacheKey, async entry =>
         {
@@ -18,7 +18,8 @@ public sealed class GitHubVersionService(
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("HexoraIT");
 
             var release = await httpClient.GetFromJsonAsync<GitHubReleaseDto>(
-                "https://api.github.com/repos/Lewan24/HexoraIT/releases/latest");
+                "https://api.github.com/repos/Lewan24/HexoraIT/releases/latest",
+                cancellationToken);
 
             return release?.TagName;
         });

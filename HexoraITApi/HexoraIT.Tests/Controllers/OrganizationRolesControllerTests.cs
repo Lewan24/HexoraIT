@@ -1,16 +1,17 @@
 using FluentAssertions;
-using HexoraITApi.Api.App;
+using HexoraITApi.Application;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HexoraIT.Tests.Controllers;
 
 public class OrganizationRolesControllerTests : IDisposable
 {
     private readonly TestFixture _fx = new();
-    private OrganizationRolesController Controller() => new(_fx.Db, _fx.UserContext);
+    private OrganizationRoleService Roles() => new(_fx.Db, _fx.UserContext, new Pbkdf2PasswordHasher());
 
     private async Task<OrganizationRole> AssignCustomRole(User user, Organization org, params PermissionDto[] permissions)
     {
@@ -37,11 +38,11 @@ public class OrganizationRolesControllerTests : IDisposable
         _fx.Db.Contracts.Add(contract);
         await _fx.Db.SaveChangesAsync();
         await AssignCustomRole(user, org, new PermissionDto("assets", Guid.Empty, true, true));
-        var contracts = new ContractsController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage);
+        var contracts = new ContractService(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage, NullLogger<ContractService>.Instance);
 
-        (await contracts.GetAll(org.Id)).Result.Should().BeOfType<ForbidResult>();
-        (await contracts.GetAll(null)).Result.As<OkObjectResult>().Value.As<List<ContractDto>>().Should().BeEmpty();
-        (await contracts.GetById(contract.Id)).Result.Should().BeOfType<NotFoundResult>();
+        (await contracts.GetAllAsync(org.Id, null)).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        (await contracts.GetAllAsync(null, null)).Value.As<List<ContractDto>>().Should().BeEmpty();
+        (await contracts.GetByIdAsync(contract.Id)).StatusCode.Should().Be(StatusCodes.Status404NotFound);
         (await _fx.Db.Contracts.ToListAsync()).Should().BeEmpty();
     }
 
@@ -58,12 +59,12 @@ public class OrganizationRolesControllerTests : IDisposable
             new PermissionDto("assets", Guid.Empty, true, true),
             new PermissionDto("assets", hidden.Id, false, false),
             new PermissionDto("assets", readOnly.Id, true, false));
-        var assets = new AssetsController(_fx.Db, _fx.Mapper, _fx.UserContext);
+        var assets = new AssetService(_fx.Db, _fx.Mapper, _fx.UserContext);
 
         (await _fx.Db.Assets.Select(a => a.Id).ToListAsync()).Should().BeEquivalentTo([readOnly.Id, writable.Id]);
-        (await assets.GetById(hidden.Id)).Result.Should().BeOfType<NotFoundResult>();
-        (await assets.Delete(readOnly.Id)).Should().BeOfType<ForbidResult>();
-        (await assets.ToggleStar(writable.Id)).Should().BeOfType<OkObjectResult>();
+        (await assets.GetByIdAsync(hidden.Id)).StatusCode.Should().Be(404);
+        (await assets.DeleteAsync(readOnly.Id)).StatusCode.Should().Be(403);
+        (await assets.ToggleStarAsync(writable.Id)).StatusCode.Should().Be(200);
     }
 
     [Fact]
@@ -77,11 +78,11 @@ public class OrganizationRolesControllerTests : IDisposable
         await _fx.Db.SaveChangesAsync();
         await AssignCustomRole(user, org);
 
-        var passwords = new PasswordsController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher);
-        var files = new FilesExplorerController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage);
-        (await passwords.Reveal(password.Id)).Result.Should().BeOfType<NotFoundResult>();
-        (await files.Download(file.Id)).Should().BeOfType<NotFoundResult>();
-        (await files.GetContent(file.Id)).Should().BeOfType<NotFoundResult>();
+        var passwords = Passwords();
+        var files = Files();
+        (await passwords.RevealAsync(password.Id)).StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        (await files.GetContentAsync(file.Id, true)).StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        (await files.GetContentAsync(file.Id, false)).StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
@@ -108,9 +109,9 @@ public class OrganizationRolesControllerTests : IDisposable
     {
         var (user, org) = _fx.SeedUserWithOrg();
         await AssignCustomRole(user, org, OrganizationResources.All.Select(r => new PermissionDto(r, Guid.Empty, true, true)).ToArray());
-        (await Controller().Create(org.Id, new("Escalation", []))).Result.Should().BeOfType<ForbidResult>();
-        (await Controller().GetRoles(org.Id)).Result.Should().BeOfType<ForbidResult>();
-        var access = (await Controller().GetAccess(org.Id)).Result.As<OkObjectResult>().Value.As<OrganizationAccessDto>();
+        (await Roles().CreateAsync(org.Id, new("Escalation", []))).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        (await Roles().GetRolesAsync(org.Id, null)).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        var access = (await Roles().GetAccessAsync(org.Id)).Value.As<OrganizationAccessDto>();
         access.CanManageRoles.Should().BeFalse();
     }
 
@@ -125,8 +126,8 @@ public class OrganizationRolesControllerTests : IDisposable
         await _fx.Db.SaveChangesAsync();
         _fx.ActAs(owner.Id);
 
-        (await Controller().Assign(org.Id, other.Id, new(OrgRole.ReadOnly, foreignRole.Id))).Should().BeOfType<BadRequestObjectResult>();
-        (await Controller().GetRoles(otherOrg.Id)).Result.Should().BeOfType<ForbidResult>();
+        (await Roles().AssignAsync(org.Id, other.Id, new(OrgRole.ReadOnly, foreignRole.Id))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        (await Roles().GetRolesAsync(otherOrg.Id, null)).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
     [Fact]
@@ -139,9 +140,9 @@ public class OrganizationRolesControllerTests : IDisposable
         await _fx.Db.SaveChangesAsync();
         _fx.ActAs(owner.Id);
 
-        (await Controller().Create(org.Id, new("Invalid", [new PermissionDto("assets", foreign.Id, true, true)]))).Result.Should().BeOfType<BadRequestObjectResult>();
-        (await Controller().Create(org.Id, new("Invalid", [new("unknown", Guid.Empty, true, true)]))).Result.Should().BeOfType<BadRequestObjectResult>();
-        (await Controller().Create(org.Id, new("Invalid", [new PermissionDto("assets", Guid.Empty, false, true)]))).Result.Should().BeOfType<BadRequestObjectResult>();
+        (await Roles().CreateAsync(org.Id, new("Invalid", [new PermissionDto("assets", foreign.Id, true, true)]))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        (await Roles().CreateAsync(org.Id, new("Invalid", [new("unknown", Guid.Empty, true, true)]))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        (await Roles().CreateAsync(org.Id, new("Invalid", [new PermissionDto("assets", Guid.Empty, false, true)]))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -154,8 +155,8 @@ public class OrganizationRolesControllerTests : IDisposable
         var role = await AssignCustomRole(member, org);
         _fx.ActAs(owner.Id);
 
-        (await Controller().Delete(org.Id, role.Id)).Should().BeOfType<ConflictObjectResult>();
-        (await Controller().Assign(org.Id, owner.Id, new(OrgRole.ReadOnly, role.Id))).Should().BeOfType<BadRequestObjectResult>();
+        (await Roles().DeleteAsync(org.Id, role.Id)).StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        (await Roles().AssignAsync(org.Id, owner.Id, new(OrgRole.ReadOnly, role.Id))).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -168,11 +169,11 @@ public class OrganizationRolesControllerTests : IDisposable
         _fx.Db.DiagramNodes.Add(node);
         await _fx.Db.SaveChangesAsync();
         await AssignCustomRole(user, org, new PermissionDto("diagram", Guid.Empty, true, true));
-        var diagram = new DiagramController(_fx.Db, _fx.Mapper, _fx.UserContext);
+        var diagram = new DiagramService(_fx.Db, _fx.Mapper, _fx.UserContext);
 
-        var result = (await diagram.Get(org.Id)).Result.As<OkObjectResult>().Value.As<DiagramDto>();
+        var result = (await diagram.GetAsync(org.Id)).Value.As<DiagramDto>();
         result.Nodes.Should().BeEmpty();
-        (await diagram.Save(org.Id, new([], []))).Should().BeOfType<ForbidResult>();
+        (await diagram.SaveAsync(org.Id, new([], []))).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
     [Fact]
@@ -186,11 +187,18 @@ public class OrganizationRolesControllerTests : IDisposable
         await _fx.Db.SaveChangesAsync();
         await AssignCustomRole(user, org,
             new PermissionDto("files", Guid.Empty, true, true), new PermissionDto("files", file.Id, false, false));
-        var files = new FilesExplorerController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage);
+        var files = Files();
 
-        (await files.DeleteFolder(folder.Id)).Should().BeOfType<ForbidResult>();
+        (await files.DeleteFolderAsync(folder.Id)).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         (await _fx.Db.StoredFiles.IgnoreQueryFilters().AnyAsync(f => f.Id == file.Id)).Should().BeTrue();
     }
+
+    private PasswordVaultService Passwords() => new(
+        _fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher,
+        new SecurityAuditLogger(NullLoggerFactory.Instance, new HttpContextAccessor()));
+
+    private FileExplorerService Files() => new(
+        _fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage, NullLogger<FileExplorerService>.Instance);
 
     public void Dispose() => _fx.Dispose();
 
@@ -201,26 +209,26 @@ public class OrganizationRolesControllerTests : IDisposable
         var asset = new Asset { OrganizationId = org.Id, Name = "Selected" };
         _fx.Db.Assets.Add(asset);
         await _fx.Db.SaveChangesAsync();
-        var created = (await Controller().Create(org.Id, new("Operator",
-            [new("assets", Guid.Empty, true, true)]))).Result.As<OkObjectResult>().Value.As<OrganizationRoleDto>();
+        var created = (await Roles().CreateAsync(org.Id, new("Operator",
+            [new("assets", Guid.Empty, true, true)]))).Value.As<OrganizationRoleDto>();
         _fx.Db.ChangeTracker.Clear();
 
-        (await Controller().Update(org.Id, created.Id, new("Operator",
-            [new("assets", Guid.Empty, true, true), new("assets", asset.Id, false, false)])))
-            .Should().BeOfType<NoContentResult>();
+        (await Roles().UpdateAsync(org.Id, created.Id, new("Operator",
+            [new("assets", Guid.Empty, true, true), new("assets", asset.Id, false, false)]))).StatusCode
+            .Should().Be(StatusCodes.Status204NoContent);
         _fx.Db.ChangeTracker.Clear();
         (await _fx.Db.RolePermissions.CountAsync(p => p.RoleId == created.Id)).Should().Be(2);
 
-        (await Controller().Update(org.Id, created.Id, new("Operator renamed",
-            [new("assets", Guid.Empty, false, false), new("assets", asset.Id, true, false)])))
-            .Should().BeOfType<NoContentResult>();
+        (await Roles().UpdateAsync(org.Id, created.Id, new("Operator renamed",
+            [new("assets", Guid.Empty, false, false), new("assets", asset.Id, true, false)]))).StatusCode
+            .Should().Be(StatusCodes.Status204NoContent);
         _fx.Db.ChangeTracker.Clear();
         var rule = await _fx.Db.RolePermissions.SingleAsync(p => p.RoleId == created.Id && p.ResourceId == asset.Id);
         rule.CanRead.Should().BeTrue();
         rule.CanWrite.Should().BeFalse();
 
-        (await Controller().Update(org.Id, created.Id, new("Operator renamed",
-            [new("assets", Guid.Empty, false, false)]))).Should().BeOfType<NoContentResult>();
+        (await Roles().UpdateAsync(org.Id, created.Id, new("Operator renamed",
+            [new("assets", Guid.Empty, false, false)]))).StatusCode.Should().Be(StatusCodes.Status204NoContent);
         (await _fx.Db.RolePermissions.CountAsync(p => p.RoleId == created.Id)).Should().Be(1);
     }
 
@@ -235,13 +243,13 @@ public class OrganizationRolesControllerTests : IDisposable
         await AssignCustomRole(user, org,
             new("passwords", Guid.Empty, false, false), new("passwords", visible.Id, true, true));
 
-        var passwords = new PasswordsController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Cipher);
-        var list = (await passwords.GetAll(org.Id)).Result.As<OkObjectResult>().Value.As<List<PasswordListDto>>();
+        var passwords = Passwords();
+        var list = (await passwords.GetAllAsync(org.Id, null)).Value.As<List<PasswordListDto>>();
         list.Select(p => p.Id).Should().Equal(visible.Id);
-        (await passwords.Reveal(hidden.Id)).Result.Should().BeOfType<NotFoundResult>();
+        (await passwords.RevealAsync(hidden.Id)).StatusCode.Should().Be(StatusCodes.Status404NotFound);
         (await _fx.UserContext.HasPermissionAsync(org.Id, "passwords", true)).Should().BeFalse();
         (await _fx.UserContext.HasPermissionAsync(org.Id, "passwords", true, visible.Id)).Should().BeTrue();
-        (await passwords.ToggleStar(visible.Id)).Should().BeOfType<OkObjectResult>();
+        (await passwords.ToggleStarAsync(visible.Id)).StatusCode.Should().Be(StatusCodes.Status200OK);
     }
 
     [Fact]
@@ -255,10 +263,10 @@ public class OrganizationRolesControllerTests : IDisposable
         _fx.Db.StoredFiles.AddRange(visible, hidden);
         await _fx.Db.SaveChangesAsync();
         await AssignCustomRole(user, org, new PermissionDto("files", visible.Id, true, false));
-        var files = new FilesExplorerController(_fx.Db, _fx.Mapper, _fx.UserContext, _fx.Storage);
+        var files = Files();
 
-        var result = (await files.GetFiles(org.Id, null)).Result.As<OkObjectResult>().Value.As<List<StoredFileDto>>();
+        var result = (await files.GetFilesAsync(org.Id, null, null)).Value.As<List<StoredFileDto>>();
         result.Select(f => f.Id).Should().Equal(visible.Id);
-        (await files.GetFolders(org.Id, null)).Result.As<OkObjectResult>().Value.As<List<FileFolderDto>>().Should().BeEmpty();
+        (await files.GetFoldersAsync(org.Id, null, null)).Value.As<List<FileFolderDto>>().Should().BeEmpty();
     }
 }

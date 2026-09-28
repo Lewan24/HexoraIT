@@ -115,7 +115,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
         <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Network Upgrade Q3")} className={inp(errors.title)} autoFocus disabled={busy} />
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Network Upgrade Q3")} maxLength={200} className={inp(errors.title)} autoFocus disabled={busy} />
             {errors.title && <p className="text-[10px] text-red-400 mt-1">{errors.title}</p>}
           </div>
           <div>
@@ -182,7 +182,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
-            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, infrastructure, q3")} className={inp()} disabled={busy} />
+            <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, infrastructure, q3")} maxLength={10099} className={inp()} disabled={busy} />
           </div>
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">

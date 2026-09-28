@@ -21,9 +21,15 @@ git clone https://github.com/Lewan24/HexoraIT.git
 
 cd HexoraIT
 
+# Use strong, unique values. A local .env file is ignored by Git.
+printf "HEXORAIT_DB_PASSWORD=replace-with-a-strong-password\nHEXORAIT_JWT_SIGNING_KEY=replace-with-at-least-32-random-bytes\n" > .env
+
 docker compose --profile database up -d
 ```
-Option **--profile database** is optional, you can skip this if you have already postgresql server. Then you just need to change connection string in **docker-compose.yml** file.
+
+The `database` profile starts the bundled PostgreSQL and Adminer services. If you already have PostgreSQL, configure `ConnectionStrings__Default` for the API and start only `api` and `frontend`. Never commit `.env` or production secrets.
+
+To bootstrap the first administrator, temporarily add `HEXORAIT_ADMIN_EMAIL` and `HEXORAIT_INITIAL_ADMIN_PASSWORD` (minimum 15 characters) to the deployment environment. Remove the bootstrap password immediately after the account is created.
 
 Open:
 
@@ -32,6 +38,14 @@ Open:
 - Adminer: http://localhost:8082
 
 ## Check out [Installation Guide](https://github.com/Lewan24/HexoraIT/blob/main/installation.md) to know better all settings and what you can do before start.
+
+## Documentation
+
+- [Technical documentation](docs/README.md)
+- [User guide](instrukcja-obslugi.md) (Polish)
+- [Administrator guide](docs/admin-guide/README.md) (Polish)
+- [Deployment and production checklist](docs/deployment/deployment-guide.md)
+- [Final security report](docs/audit/08-final-security-report.md)
 
 ## Features
 
@@ -192,7 +206,8 @@ The interface was designed to feel familiar to developers, system administrators
 ### Backend
 
 - .NET 10
-- ASP.NET Core Web API
+- ASP.NET Core Minimal API
+- EF Core and PostgreSQL
 - C#
 
 ### Frontend

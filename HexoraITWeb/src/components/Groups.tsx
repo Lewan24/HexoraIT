@@ -64,7 +64,7 @@ function GroupForm({ initial, onSave, onClose }: GroupFormProps) {
   }
   const addTag = () => {
     const t = tagInput.trim().toLowerCase()
-    if (t && !form.tags.includes(t)) set('tags', [...form.tags, t])
+    if (t.length <= 100 && form.tags.length < 100 && t && !form.tags.includes(t)) set('tags', [...form.tags, t])
     setTagInput('')
   }
 
@@ -102,7 +102,7 @@ function GroupForm({ initial, onSave, onClose }: GroupFormProps) {
         <div className="px-5 py-4 space-y-3.5 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
-            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Domain Admins")}
+            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Domain Admins")} maxLength={200}
               className={inp(errors.name)} disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
@@ -119,14 +119,14 @@ function GroupForm({ initial, onSave, onClose }: GroupFormProps) {
 
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Purpose")}</label>
-            <textarea value={form.purpose} onChange={e => set('purpose', e.target.value)} rows={3}
+            <textarea value={form.purpose} onChange={e => set('purpose', e.target.value)} rows={3} maxLength={100000}
               placeholder={tr("What is this group used for? Who should be a member?")}
               className={inp() + ' resize-none leading-relaxed'} disabled={submitting} />
           </div>
 
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2}
+            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} maxLength={100000}
               placeholder={tr("Short description…")}
               className={inp() + ' resize-none leading-relaxed'} disabled={submitting} />
           </div>
@@ -142,7 +142,7 @@ function GroupForm({ initial, onSave, onClose }: GroupFormProps) {
               ))}
             </div>
             <div className="flex gap-2">
-              <input value={memberInput} onChange={e => setMemberInput(e.target.value)}
+              <input value={memberInput} onChange={e => setMemberInput(e.target.value)} maxLength={200}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMember() } }}
                 placeholder={tr("Type name/username, press Enter…")} className={inp() + ' flex-1'} disabled={submitting} />
               <button type="button" onClick={addMember} disabled={submitting} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 transition-colors disabled:opacity-40">{tr("Add")}</button>
@@ -177,7 +177,7 @@ function GroupForm({ initial, onSave, onClose }: GroupFormProps) {
               ))}
             </div>
             <div className="flex gap-2">
-              <input value={tagInput} onChange={e => setTagInput(e.target.value)}
+              <input value={tagInput} onChange={e => setTagInput(e.target.value)} maxLength={100}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
                 placeholder={tr("Add tag…")} className={inp() + ' flex-1'} disabled={submitting} />
               <button type="button" onClick={addTag} disabled={submitting} className="px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-secondary text-xs hover:bg-navy-600 transition-colors disabled:opacity-40">{tr("Add")}</button>

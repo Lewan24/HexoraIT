@@ -1,8 +1,7 @@
-import { tr, useLocale } from '../i18n'
+import { buildSpreadsheetPreview, MAX_PREVIEW_CELLS, type SpreadsheetPreview } from '../lib/spreadsheetPreview'
+import { tr, useLocale, locale } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { X, Download, Loader2, AlertTriangle } from 'lucide-react'
-import { renderAsync } from 'docx-preview'
-import * as XLSX from 'xlsx'
 import { filesApi } from '../api/resources'
 import { getPreviewKind } from '../lib/filePreview'
 import type { StoredFile } from '../api/types'
@@ -12,17 +11,21 @@ interface Props {
   onClose: () => void
 }
 
+const MAX_SPREADSHEET_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_DOCUMENT_PREVIEW_BYTES = 10 * 1024 * 1024
+const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
+
 export default function FilePreviewModal({ file, onClose }: Props) {
   useLocale()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const [textContent, setTextContent] = useState<string | null>(null)
-  const [sheetNames, setSheetNames] = useState<string[]>([])
   const [activeSheet, setActiveSheet] = useState(0)
-  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
+  const [sheets, setSheets] = useState<SpreadsheetPreview[]>([])
 
-  const docxContainerRef = useRef<HTMLDivElement>(null)
+  const docxFrameRef = useRef<HTMLIFrameElement>(null)
+  const language = locale()
   const kind = getPreviewKind(file.name, file.mimeType)
 
   useEffect(() => {
@@ -40,16 +43,17 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           setObjectUrl(createdUrl)
         } else if (kind === 'docx') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_DOCUMENT_PREVIEW_BYTES) throw new Error('Document is too large to preview safely.')
 
-          if (cancelled) 
-            return
-          
-          if (!docxContainerRef.current) {
-              return;
-          }
-
-          docxContainerRef.current.innerHTML = '';
-          await renderAsync(blob, docxContainerRef.current, undefined, {
+          if (cancelled) return
+          const frameDocument = docxFrameRef.current?.contentDocument
+          if (!frameDocument) throw new Error('Document preview frame is unavailable.')
+          frameDocument.open()
+          frameDocument.write('<!doctype html><html><head></head><body></body></html>')
+          frameDocument.close()
+          const { renderAsync } = await import('docx-preview')
+          if (cancelled) return
+          await renderAsync(blob, frameDocument.body, frameDocument.head, {
             className: 'docx-preview',
             inWrapper: true,
             ignoreWidth: false,
@@ -57,14 +61,23 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           })
         } else if (kind === 'xlsx') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_SPREADSHEET_PREVIEW_BYTES) throw new Error('Spreadsheet is too large to preview safely.')
           const buffer = await blob.arrayBuffer()
-          const wb = XLSX.read(buffer, { type: 'array', cellStyles: true })
+          const { default: ExcelJS } = await import('exceljs')
+          const { Workbook } = ExcelJS
+          const workbook = new Workbook()
+          await workbook.xlsx.load(buffer)
           if (cancelled) return
-          setWorkbook(wb)
-          setSheetNames(wb.SheetNames)
+          let remaining = MAX_PREVIEW_CELLS
+          setSheets(workbook.worksheets.filter(sheet => sheet.state === 'visible').map(worksheet => {
+            const preview = buildSpreadsheetPreview(worksheet, language, remaining)
+            remaining -= preview.rows.length * preview.columns.length
+            return preview
+          }))
           setActiveSheet(0)
         } else if (kind === 'text') {
           const blob = await filesApi.getContentBlob(file.id)
+          if (blob.size > MAX_TEXT_PREVIEW_BYTES) throw new Error('Text file is too large to preview safely.')
           const text = await blob.text()
           if (!cancelled) setTextContent(text)
         }
@@ -85,7 +98,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           URL.revokeObjectURL(createdUrl);
       }
     }
-  }, [file.id, file.mimeType, kind])
+  }, [file.id, file.mimeType, kind, language])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -94,18 +107,20 @@ export default function FilePreviewModal({ file, onClose }: Props) {
   }, [onClose])
 
   const download = async () => {
-    const blob = await filesApi.downloadFile(file.id)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const blob = await filesApi.downloadFile(file.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch {
+      setError(true)
+    }
   }
 
-  const sheetHtml = workbook
-    ? XLSX.utils.sheet_to_html(workbook.Sheets[workbook.SheetNames[activeSheet]!]!, { id: 'preview-sheet', editable: false })
-    : null
+  const activeSpreadsheet = sheets[activeSheet]
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={onClose}>
@@ -121,12 +136,12 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           </div>
         </div>
 
-        {kind === 'xlsx' && sheetNames.length > 1 && (
+        {kind === 'xlsx' && sheets.length > 1 && (
           <div className="flex items-center gap-1 px-3 py-1.5 border-b border-edge-subtle bg-navy-900/40 flex-shrink-0 overflow-x-auto">
-            {sheetNames.map((name, i) => (
-              <button key={name} onClick={() => setActiveSheet(i)}
+            {sheets.map((sheet, i) => (
+              <button key={sheet.name} onClick={() => setActiveSheet(i)}
                 className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${activeSheet === i ? 'bg-blue-500 text-white' : 'text-ink-muted hover:text-ink-secondary hover:bg-navy-700'}`}>
-                {name}
+                {sheet.name}
               </button>
             ))}
           </div>
@@ -134,7 +149,8 @@ export default function FilePreviewModal({ file, onClose }: Props) {
 
         <div className="flex-1 min-h-0 bg-navy-950 overflow-auto relative">
           {kind === 'docx' && (
-            <div ref={docxContainerRef} className="docx-preview-host md:flex md:flex-col md:items-center bg-white p-4 h-full overflow-auto"/>
+            <iframe ref={docxFrameRef} sandbox="allow-same-origin" referrerPolicy="no-referrer" title={file.name}
+              className="docx-preview-host bg-white h-full w-full border-0" />
           )}
 
           {loading && (
@@ -165,9 +181,21 @@ export default function FilePreviewModal({ file, onClose }: Props) {
             </div>
           )}
 
-          {!loading && !error && kind === 'xlsx' && sheetHtml && (
-            <div className="p-4 bg-white overflow-auto h-full spreadsheet-preview" dangerouslySetInnerHTML={{ __html: sheetHtml }}/>
+          {!loading && !error && kind === 'xlsx' && activeSpreadsheet && (
+            <div className="spreadsheet-preview h-full overflow-auto">
+              {activeSpreadsheet.truncated && <p role="status" className="spreadsheet-notice">{tr('This sheet exceeds the preview limit. Download the file to view all cells.')}</p>}
+              {activeSpreadsheet.rows.length === 0 ? <p className="spreadsheet-notice">{tr('No cells to preview')}</p> : <table id="preview-sheet" aria-label={activeSpreadsheet.name}>
+                <colgroup><col style={{ width: 48 }} />{activeSpreadsheet.columns.map(column => <col key={column.number} style={{ width: column.width }} />)}</colgroup>
+                <thead><tr><th aria-label={tr('Row')} />{activeSpreadsheet.columns.map(column => <th key={column.number} scope="col">{column.label}</th>)}</tr></thead>
+                <tbody>{activeSpreadsheet.rows.map(row => <tr key={row.number} style={{ height: row.height }}>
+                  <th scope="row">{row.number}</th>
+                  {row.cells.map((cell, index) => cell.hidden ? null : <td key={index} rowSpan={cell.rowSpan} colSpan={cell.colSpan} style={cell.style}>{cell.text}</td>)}
+                </tr>)}</tbody>
+              </table>}
+            </div>
           )}
+
+          {!loading && !error && kind === 'xlsx' && !activeSpreadsheet && <p className="p-5 text-sm text-ink-muted">{tr('No cells to preview')}</p>}
 
           {!loading && !error && kind === 'text' && textContent !== null && (
             <pre className="p-5 text-xs text-ink-secondary whitespace-pre-wrap font-mono">

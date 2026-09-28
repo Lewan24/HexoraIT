@@ -6,11 +6,16 @@ using Microsoft.Extensions.Options;
 
 namespace HexoraITApi.Application;
 
+public interface IAppInitializer
+{
+    Task InitializeAsync();
+}
+
 public sealed class AppInitializer(
     AppDbContext db,
     IPasswordHasher hasher,
     ILogger<AppInitializer> logger,
-    IOptions<AppSettings> appSettings)
+    IOptions<AppSettings> appSettings) : IAppInitializer
 {
     public async Task InitializeAsync()
     {
@@ -26,7 +31,12 @@ public sealed class AppInitializer(
         if (await db.Users.AnyAsync(x => x.Email == adminEmail))
             return;
 
-        var password = PasswordGenerator.Generate();
+        var password = appSettings.Value.InitialAdminPassword;
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 15)
+        {
+            throw new InvalidOperationException(
+                "AppSettings:InitialAdminPassword must contain at least 15 characters when creating the initial administrator.");
+        }
 
         var (hash, salt) = hasher.Hash(password);
 
@@ -41,18 +51,8 @@ public sealed class AppInitializer(
 
         await db.SaveChangesAsync();
 
-        logger.LogWarning("""
-                          ============================================
-                          Initial administrator created
-
-                          Email: {Email}
-                          Password: {Password}
-
-                          Save this password immediately.
-                          And change the password after first login! 
-                          ============================================
-                          """,
-            adminEmail,
-            password);
+        logger.LogWarning(
+            "Initial administrator {Email} was created. Remove the one-time initial password from runtime configuration and change it after the first login.",
+            adminEmail);
     }
 }

@@ -101,18 +101,18 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
         <div className="px-5 py-4 space-y-3.5 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Item Name *")}</label>
-            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Dell PowerEdge R750")}
+            <input ref={firstRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder={tr("e.g. Dell PowerEdge R750")} maxLength={200}
               className={inp(errors.name)} disabled={submitting} />
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Vendor")}</label>
-              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("e.g. Dell Technologies")} className={inp()} disabled={submitting} />
+              <input value={form.vendor} onChange={e => set('vendor', e.target.value)} placeholder={tr("e.g. Dell Technologies")} maxLength={200} className={inp()} disabled={submitting} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Serial Number")}</label>
-              <input value={form.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder={tr("SN-XXXXX")} className={inp() + ' font-mono'} disabled={submitting} />
+              <input value={form.serialNumber} onChange={e => set('serialNumber', e.target.value)} placeholder={tr("SN-XXXXX")} maxLength={200} className={inp() + ' font-mono'} disabled={submitting} />
             </div>
           </div>
           <div>
@@ -148,7 +148,7 @@ function WarrantyForm({ initial, onSave, onClose }: FormProps) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contact Name")}</label>
-              <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder={tr("Name")} className={inp()} disabled={submitting} />
+              <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder={tr("Name")} maxLength={200} className={inp()} disabled={submitting} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Contact Phone")}</label>
