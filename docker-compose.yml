@@ -22,6 +22,10 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       
+    networks:
+      hexorait_app:
+        ipv4_address: 172.40.0.10
+      
   # Just ui to check the postgresql its fully optional if you have already client or another app to check out dbs
   adminer:
     image: adminer
@@ -38,6 +42,10 @@ services:
 
     depends_on:
       - db
+      
+    networks:
+      hexorait_app:
+        ipv4_address: 172.40.0.11
 
   api:
     image: lewan24/hexorait-api:latest
@@ -53,6 +61,8 @@ services:
       default:
       backend:
         ipv4_address: ${HEXORAIT_API_IP:-172.30.50.2}
+      hexorait_app:
+        ipv4_address: 172.40.0.20
 
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -82,8 +92,8 @@ services:
       # Public browser origin, including https:// and no trailing slash or /api.
       AppSettings__AllowOrigins__0: ${HEXORAIT_PUBLIC_ORIGIN:?Set HEXORAIT_PUBLIC_ORIGIN}
       # Trust the frontend hop and the exact NPM source IP seen by the frontend.
-      ReverseProxy__KnownProxies__0: ${HEXORAIT_FRONTEND_IP:-172.30.50.3}
-      ReverseProxy__KnownProxies__1: ${HEXORAIT_NPM_IP:?Set HEXORAIT_NPM_IP}
+      ReverseProxy__KnownProxies__0: ${HEXORAIT_FRONTEND_IP:-172.40.0.21}
+      # ReverseProxy__KnownProxies__1: ${HEXORAIT_NPM_IP:?Set HEXORAIT_NPM_IP}
       ReverseProxy__ForwardLimit: 2
       
     volumes:
@@ -103,6 +113,8 @@ services:
     networks:
       backend:
         ipv4_address: ${HEXORAIT_FRONTEND_IP:-172.30.50.3}
+      hexorait_app:
+        ipv4_address: 172.40.0.21
 
     environment:
       # The browser uses the same HTTPS origin; frontend Nginx forwards to api.
@@ -117,6 +129,11 @@ networks:
     ipam:
       config:
         - subnet: ${HEXORAIT_BACKEND_SUBNET:-172.30.50.0/29}
+  hexorait_app:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.40.0.0/24
 
 volumes:
   postgres-data:
