@@ -6,35 +6,48 @@ import tailwindcss from "@tailwindcss/vite"
 
 import path from "node:path"
 
-export default defineConfig(({ mode }) => ({
-  define: {
-    __DEFAULT_APP_MODE__: JSON.stringify(mode === "demo" ? "mock" : "http"),
-  },
-  plugins: [
-    react(),
+export default defineConfig(({ mode }) => {
+  const appMode =
+    process.env.APP_MODE === "mock" || mode === "demo"
+      ? "mock"
+      : "http"
 
-    tailwindcss(),
-  ],
+  console.log("================================")
+  console.log("VITE BUILD MODE:", mode)
+  console.log("APP_MODE ENV:", process.env.APP_MODE)
+  console.log("FINAL APP MODE:", appMode)
+  console.log("================================")
 
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
+  return {
+    define: {
+      __DEFAULT_APP_MODE__: JSON.stringify(appMode),
     },
-  },
+    plugins: [
+      react(),
 
-  build: {
-    // ExcelJS is loaded only when an XLSX preview is opened. Its minified
-    // distribution is intentionally kept in a separate, on-demand chunk.
-    chunkSizeWarningLimit: 1000,
-  },
+      tailwindcss(),
+    ],
 
-  server: {
-    host: process.env.HOST ?? "127.0.0.1",
-    port: Number(process.env.PORT ?? 8443),
-  },
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "src"),
+      },
+    },
 
-  preview: {
-    host: process.env.HOST ?? "127.0.0.1",
-    port: Number(process.env.PORT ?? 8443),
-  },
-}))
+    build: {
+      // ExcelJS is loaded only when an XLSX preview is opened. Its minified
+      // distribution is intentionally kept in a separate, on-demand chunk.
+      chunkSizeWarningLimit: 1000,
+    },
+
+    server: {
+      host: process.env.HOST ?? "127.0.0.1",
+      port: Number(process.env.PORT ?? 8443),
+    },
+
+    preview: {
+      host: process.env.HOST ?? "127.0.0.1",
+      port: Number(process.env.PORT ?? 8443),
+    },
+  }
+})
