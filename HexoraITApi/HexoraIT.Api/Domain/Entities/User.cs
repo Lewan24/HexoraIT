@@ -14,6 +14,7 @@ public class User
     public bool IsBlocked { get; set; }
     public SystemRole SystemRole { get; set; } = SystemRole.User;
     public Guid SecurityStamp { get; set; } = Guid.NewGuid();
+    public bool EmailConfirmed { get; set; } = true;
 
     public List<UserOrganization> Memberships { get; set; } = [];
 }

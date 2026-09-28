@@ -68,6 +68,11 @@ builder.Services.AddScoped<IClientReportService, ClientReportService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
+builder.Services.AddScoped<IEmailSecretProtector, EmailSecretProtector>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
+builder.Services.AddHostedService<ExpiryNotificationService>();
 builder.Services.AddScoped<SecurityAuditLogger>();
 builder.Services.AddHostedService<AuditRetentionService>();
 builder.Services.AddScoped<ISecurityAuditLogger>(sp => sp.GetRequiredService<SecurityAuditLogger>());
@@ -219,7 +224,12 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => options.SwaggerDoc("v2", new()
+{
+    Title = "HexoraIT API",
+    Version = "2.0.0",
+    Description = "HexoraIT v2 API contract"
+}));
 
 var app = builder.Build();
 ValidateStartupConfiguration(app.Configuration);
@@ -299,6 +309,7 @@ app.MapAdminEndpoints();
 app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
 app.MapOrganizationRoleEndpoints();
+app.MapEmailSettingsEndpoints();
 
 app.Run();
 
@@ -314,6 +325,11 @@ static void ValidateStartupConfiguration(IConfiguration configuration)
     var signingKey = jwt["SigningKey"];
     if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
         throw new InvalidOperationException("Jwt:SigningKey must be configured with at least 32 bytes of secret material.");
+
+    var publicUrl = configuration["AppSettings:PublicUrl"];
+    if (!Uri.TryCreate(publicUrl, UriKind.Absolute, out var parsedPublicUrl) ||
+        parsedPublicUrl.Scheme is not ("http" or "https"))
+        throw new InvalidOperationException("AppSettings:PublicUrl must be an absolute HTTP(S) URL.");
 }
 
 public partial class Program;

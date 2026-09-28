@@ -8,7 +8,7 @@ Nie wprowadzamy obecnie generatora typowanego klienta z OpenAPI. Frontend korzys
 
 ## Uzasadnienie
 
-- Kontrakt `v1` jest wersjonowany w `docs/api/openapi/v1.json`, a CI kontroluje jego dryf względem hosta testowego.
+- Bieżący kontrakt `v2` jest wersjonowany w `docs/api/openapi/v2.json`, a CI kontroluje jego dryf względem hosta testowego. `v1.json` pozostaje historycznym artefaktem.
 - Ręczne wrappery są już scentralizowane, przetestowane dla JSON, blobów, multipart i Problem Details oraz mają niewielki koszt utrzymania.
 - Generator wprowadziłby duży dodatkowy artefakt i wymagałby osobnej oceny obsługi upload/download, dat oraz nullable.
 - Największe ryzyko bezpieczeństwa dotyczy autoryzacji i walidacji serwerowej, a nie braku typów po stronie klienta; te kontrole pozostają po stronie API.

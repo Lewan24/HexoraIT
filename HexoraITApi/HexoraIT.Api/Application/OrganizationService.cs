@@ -20,7 +20,7 @@ public interface IOrganizationService
     Task<ApiOperationResult> RestoreAsync(Guid id, CancellationToken token = default);
 }
 
-public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext) : IOrganizationService
+public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurrentUserContext userContext, INotificationService? notifications = null) : IOrganizationService
 {
     public async Task<ApiOperationResult> GetAllAsync(PaginationParameters? pagination, CancellationToken token = default)
     {
@@ -102,6 +102,9 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
         if (await db.UserOrganizations.AnyAsync(item => item.OrganizationId == id && item.UserId == user.Id, token)) return new(StatusCodes.Status409Conflict, "This user is already a member of the organization.");
         db.UserOrganizations.Add(new UserOrganization { UserId = user.Id, OrganizationId = id, Role = assignedRole, CustomRoleId = customRole?.Id });
         await db.SaveChangesAsync(token);
+        if (notifications is not null)
+            await notifications.NotifyAsync(id, "role_membership_changed", "Organization membership changed",
+                $"{user.DisplayName} ({user.Email}) joined the organization as {customRole?.Name ?? assignedRole.ToString()}.", token);
         return new(StatusCodes.Status200OK, new OrgMemberDto(user.Id, user.Email, user.DisplayName, assignedRole, customRole?.Id, customRole?.Name));
     }
 
@@ -116,7 +119,12 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
         if (membership.Role == OrgRole.Owner) return new(StatusCodes.Status400BadRequest,
             isSelf ? "The organization owner cannot leave. Delete the organization instead if you want to give it up." : "The organization owner cannot be removed.");
         if (!isSelf && actingRole != OrgRole.Owner && membership.Role >= OrgRole.Admin) return new(StatusCodes.Status403Forbidden);
-        db.UserOrganizations.Remove(membership); await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);
+        var removedName = await db.Users.Where(x => x.Id == userId).Select(x => x.DisplayName).SingleAsync(token);
+        db.UserOrganizations.Remove(membership); await db.SaveChangesAsync(token);
+        if (notifications is not null)
+            await notifications.NotifyAsync(id, "role_membership_changed", "Organization membership changed",
+                $"{removedName} was removed from the organization.", token);
+        return new(StatusCodes.Status204NoContent);
     }
 
     public async Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken token = default)

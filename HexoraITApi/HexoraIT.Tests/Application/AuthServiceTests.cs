@@ -1,36 +1,39 @@
 using FluentAssertions;
+using HexoraIT.Tests.Fakes;
 using HexoraITApi.Application;
 using HexoraITApi.Domain;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 
 namespace HexoraIT.Tests.Application;
 
 public sealed class AuthServiceTests : IDisposable
 {
     private readonly TestFixture _fixture = new();
+    private readonly FakeEmailSender _email = new();
 
     private AuthService Service(bool allowRegister = true) => new(
         _fixture.Db,
         new Pbkdf2PasswordHasher(),
         new FakeJwtTokenService(),
-        Options.Create(new AppSettings { AllowRegister = allowRegister }));
+        Options.Create(new AppSettings { AllowRegister = allowRegister, PublicUrl = "https://app.test" }),
+        _email);
 
     [Fact]
-    public async Task Register_CreatesUserAndDefaultOrganization()
+    public async Task Register_CreatesUnconfirmedUserAndSendsConfirmationEmail()
     {
         var result = await Service().RegisterAsync(
             new RegisterDto("User@Test.Local", "password123456789", "John"));
 
-        result.StatusCode.Should().Be(StatusCodes.Status200OK);
-        var response = result.Value.Should().BeOfType<AuthResponseDto>().Subject;
-        response.User.Email.Should().Be("user@test.local");
-        response.Organizations.Should().ContainSingle();
+        result.StatusCode.Should().Be(StatusCodes.Status202Accepted);
         var user = _fixture.Db.Users.Single();
         user.Email.Should().Be("user@test.local");
-        _fixture.Db.UserOrganizations.Should().ContainSingle(membership => membership.UserId == user.Id);
+        user.EmailConfirmed.Should().BeFalse();
+        _fixture.Db.AccountActionTokens.Should().ContainSingle(token => token.UserId == user.Id && token.Purpose == "confirm_email");
+        _email.Messages.Should().ContainSingle(message => message.Recipient == user.Email && message.Subject.Contains("Confirm"));
     }
 
     [Fact]
@@ -115,6 +118,40 @@ public sealed class AuthServiceTests : IDisposable
         var result = await Service().LoginAsync(new LoginDto("login@test.local", "wrong", null));
 
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public async Task ConfirmEmail_ConsumesTokenAndEnablesLogin()
+    {
+        await Service().RegisterAsync(new RegisterDto("confirm@test.local", "password123456789", "Confirm"));
+        var rawToken = _email.Messages.Single().Body.Split("token=")[1].Split('\n')[0];
+
+        var confirm = await Service().ConfirmEmailAsync(new ConfirmEmailDto(rawToken));
+        var login = await Service().LoginAsync(new LoginDto("confirm@test.local", "password123456789", null));
+
+        confirm.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        login.StatusCode.Should().Be(StatusCodes.Status200OK);
+        (await _fixture.Db.Users.SingleAsync()).EmailConfirmed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PasswordReset_IsEnumerationSafeAndTokenIsSingleUse()
+    {
+        var hasher = new Pbkdf2PasswordHasher();
+        var (hash, salt) = hasher.Hash("old-password-123");
+        _fixture.Db.Users.Add(new User { Email = "reset@test.local", DisplayName = "Reset", PasswordHash = hash, PasswordSalt = salt });
+        await _fixture.Db.SaveChangesAsync();
+
+        var request = await Service().RequestPasswordResetAsync(new EmailAddressDto("reset@test.local"));
+        var missing = await Service().RequestPasswordResetAsync(new EmailAddressDto("missing@test.local"));
+        var rawToken = _email.Messages.Single().Body.Split("token=")[1].Split('\n')[0];
+        var reset = await Service().ResetPasswordAsync(new ResetPasswordWithTokenDto(rawToken, "new-password-123"));
+        var reused = await Service().ResetPasswordAsync(new ResetPasswordWithTokenDto(rawToken, "another-password-123"));
+
+        request.StatusCode.Should().Be(StatusCodes.Status202Accepted);
+        missing.StatusCode.Should().Be(StatusCodes.Status202Accepted);
+        reset.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        reused.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

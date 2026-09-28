@@ -2,7 +2,7 @@ import LanguageSwitcher from "./LanguageSwitcher"
 
 import { tr, useLocale } from "../i18n"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 
 import { Eye, EyeOff, Moon, Sun } from "lucide-react"
 
@@ -17,6 +17,7 @@ import logoDark from "../../public/logo/HexoraIT_LogoNoBg.png"
 import { getTheme, toggleTheme } from "../lib/theme"
 import { config } from "../../config"
 import { DEMO_ACCOUNTS } from "../demo"
+import { authApi } from "../api/auth"
 
 export default function Login() {
   useLocale()
@@ -26,10 +27,16 @@ export default function Login() {
   const [email, setEmail] = useState("")
 
   const [password, setPassword] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const initialPath = window.location.pathname
+  const actionToken = new URLSearchParams(window.location.search).get('token') ?? ''
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset' | 'confirm'>(
+    initialPath === '/reset-password' ? 'reset' : initialPath === '/confirm-email' ? 'confirm' : 'login')
+  const [message, setMessage] = useState<string | null>(null)
 
   const [showPass, setShowPass] = useState(false)
 
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(initialPath === '/confirm-email' && Boolean(actionToken))
 
   const [focused, setFocused] = useState<string | null>(null)
 
@@ -37,6 +44,12 @@ export default function Login() {
 
   const [theme, setThemeState] = useState(getTheme)
   const isDemo = config.appMode === "mock"
+  useEffect(() => {
+    if (mode !== 'confirm' || !actionToken) return
+    authApi.confirmEmail(actionToken).then(() => setMessage(tr('Email confirmed. You can now sign in.')))
+      .catch(err => setError(err instanceof ApiError ? err.message : tr('Unable to confirm email.')))
+      .finally(() => setLoading(false))
+  }, [mode, actionToken])
 
   const fillDemoAccount = (
     account: typeof DEMO_ACCOUNTS[keyof typeof DEMO_ACCOUNTS],
@@ -54,7 +67,10 @@ export default function Login() {
     setLoading(true)
 
     try {
-      await login(email, password)
+      if (mode === 'login') await login(email, password)
+      else if (mode === 'register') { await authApi.register(email, password, displayName); setMessage(tr('Check your email to confirm your account.')) }
+      else if (mode === 'forgot') { await authApi.forgotPassword(email); setMessage(tr('If the account exists, a reset link has been sent.')) }
+      else if (mode === 'reset') { await authApi.resetPassword(actionToken, password); setMessage(tr('Password reset. You can now sign in.')) }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -113,7 +129,7 @@ export default function Login() {
             {getTheme() === "light" && <img src={logo} alt="HexoraIT" className="w-52 sm:w-60 max-w-full mx-auto mb-7" />}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink-primary leading-tight">
-            {tr("Sign in to HexoraIT")}{" "}
+            {tr(mode === 'register' ? 'Create your HexoraIT account' : mode === 'forgot' ? 'Reset your password' : mode === 'reset' ? 'Choose a new password' : mode === 'confirm' ? 'Confirming your email' : 'Sign in to HexoraIT')}{" "}
 
           </h1>
           <p className="text-sm text-ink-muted mt-1">
@@ -147,7 +163,9 @@ export default function Login() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        {mode !== 'confirm' && <form onSubmit={handleSubmit} className="space-y-3">
+          {mode === 'register' && <div><label htmlFor="register-name" className="block text-xs font-medium text-ink-secondary mb-1.5">{tr('Display name')}</label><input id="register-name" value={displayName} onChange={e => setDisplayName(e.target.value)} required maxLength={200} className="w-full px-3 py-2.5 rounded-xl bg-navy-800 border border-edge-default text-ink-primary text-sm" /></div>}
+          {mode !== 'reset' && <>
           <div>
             <label htmlFor="login-email" className="block text-xs font-medium text-ink-secondary mb-1.5">
               {tr("Email")}{" "}
@@ -172,8 +190,9 @@ export default function Login() {
               }}
             />
           </div>
+          </>}
 
-          <div>
+          {mode !== 'forgot' && <div>
             <label htmlFor="login-password" className="block text-xs font-medium text-ink-secondary mb-1.5">
               {tr("Password")}{" "}
             </label>
@@ -188,7 +207,7 @@ export default function Login() {
                 placeholder={"••••••••••••"}
                 autoComplete="current-password"
                 required
-                minLength={8}
+                minLength={mode === 'login' ? 8 : 15}
                 maxLength={200}
                 className="w-full px-3 py-2.5 pr-10 rounded-xl bg-navy-800 border text-ink-primary text-sm placeholder:text-ink-muted focus:outline-none transition-colors"
                 style={{
@@ -208,10 +227,12 @@ export default function Login() {
               </button>
             </div>
           </div>
+          }
 
           {error && (
             <p className="text-xs text-red-400 font-mono pt-0.5">{error}</p>
           )}
+          {message && <p className="text-xs text-green-400 pt-0.5">{message}</p>}
 
           <button
             type="submit"
@@ -242,17 +263,17 @@ export default function Login() {
                 {tr("Authenticating…")}
               </span>
             ) : (
-              tr("Sign in")
+              tr(mode === 'register' ? 'Register' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Reset password' : 'Sign in')
             )}
           </button>
-        </form>
+        </form>}
+        {mode === 'confirm' && <p className={`text-sm ${message ? 'text-green-400' : 'text-red-400'}`}>{message ?? error ?? tr('The confirmation link is invalid.')}</p>}
 
         <div className="text-center mt-5">
-          <p className="text-xs">
-            {tr(
-              "For a new account or a forgotten password, contact the application administrator.",
-            )}
-          </p>
+          <div className="flex justify-center gap-3 text-xs">
+            {mode !== 'login' && <button onClick={() => { setMode('login'); setError(null); setMessage(null); history.replaceState(null, '', '/') }} className="text-blue-400">{tr('Sign in')}</button>}
+            {mode === 'login' && !isDemo && <><button onClick={() => setMode('register')} className="text-blue-400">{tr('Register')}</button><button onClick={() => setMode('forgot')} className="text-blue-400">{tr('Forgot password?')}</button></>}
+          </div>
         </div>
 
 

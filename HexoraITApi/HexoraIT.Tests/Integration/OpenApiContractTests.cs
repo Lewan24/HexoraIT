@@ -11,7 +11,7 @@ public sealed class OpenApiContractTests
         using var factory = new SecurityWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/swagger/v1/swagger.json");
+        using var response = await client.GetAsync("/swagger/v2/swagger.json");
         response.IsSuccessStatusCode.Should().BeTrue();
 
         var content = await response.Content.ReadAsStringAsync();
@@ -30,12 +30,12 @@ public sealed class OpenApiContractTests
         using var factory = new SecurityWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/swagger/v1/swagger.json");
+        using var response = await client.GetAsync("/swagger/v2/swagger.json");
         response.IsSuccessStatusCode.Should().BeTrue();
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
         var root = document.RootElement;
-        root.GetProperty("info").GetProperty("version").GetString().Should().Be("1.0");
+        root.GetProperty("info").GetProperty("version").GetString().Should().Be("2.0.0");
 
         var apiPaths = root.GetProperty("paths")
             .EnumerateObject()

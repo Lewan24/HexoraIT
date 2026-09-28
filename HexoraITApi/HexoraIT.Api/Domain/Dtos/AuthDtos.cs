@@ -25,3 +25,9 @@ public record ChangePasswordDto(
 public record UpdateProfileDto([Required, StringLength(200)] string DisplayName);
 
 public record SwitchOrgDto(Guid OrganizationId);
+
+public record EmailAddressDto([Required, EmailAddress, StringLength(256)] string Email);
+public record ConfirmEmailDto([Required, StringLength(512)] string Token);
+public record ResetPasswordWithTokenDto(
+    [Required, StringLength(512)] string Token,
+    [Required, StringLength(200, MinimumLength = 15)] string NewPassword);

@@ -14,10 +14,26 @@ public static class AuthEndpoints
         group.MapPost("/register", RegisterAsync)
             .RequireRateLimiting("authentication")
             .AddEndpointFilter<DataAnnotationsValidationFilter<RegisterDto>>()
-            .Produces<AuthResponseDto>()
+            .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status409Conflict);
+            .Produces(StatusCodes.Status409Conflict)
+            .Produces(StatusCodes.Status503ServiceUnavailable);
+
+        group.MapPost("/confirm-email", ConfirmEmailAsync)
+            .RequireRateLimiting("authentication")
+            .AddEndpointFilter<DataAnnotationsValidationFilter<ConfirmEmailDto>>()
+            .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/forgot-password", ForgotPasswordAsync)
+            .RequireRateLimiting("authentication")
+            .AddEndpointFilter<DataAnnotationsValidationFilter<EmailAddressDto>>()
+            .Produces(StatusCodes.Status202Accepted);
+
+        group.MapPost("/reset-password", ResetPasswordAsync)
+            .RequireRateLimiting("authentication")
+            .AddEndpointFilter<DataAnnotationsValidationFilter<ResetPasswordWithTokenDto>>()
+            .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status400BadRequest);
 
         group.MapPost("/login", LoginAsync)
             .RequireRateLimiting("authentication")
@@ -66,6 +82,15 @@ public static class AuthEndpoints
         IAuthService authService,
         CancellationToken cancellationToken) =>
         (await authService.LoginAsync(dto, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> ConfirmEmailAsync(ConfirmEmailDto dto, IAuthService authService, CancellationToken cancellationToken) =>
+        (await authService.ConfirmEmailAsync(dto, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> ForgotPasswordAsync(EmailAddressDto dto, IAuthService authService, CancellationToken cancellationToken) =>
+        (await authService.RequestPasswordResetAsync(dto, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> ResetPasswordAsync(ResetPasswordWithTokenDto dto, IAuthService authService, CancellationToken cancellationToken) =>
+        (await authService.ResetPasswordAsync(dto, cancellationToken)).ToHttpResult();
 
     private static async Task<IResult> SwitchOrganizationAsync(
         SwitchOrgDto dto,

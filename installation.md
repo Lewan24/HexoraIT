@@ -157,6 +157,7 @@ The Data Protection key directory must also be persistent, access-controlled and
 | `AppSettings__HexoraITAdmin` | Initial administrator email |
 | `AppSettings__InitialAdminPassword` | One-time initial administrator password (minimum 15 characters) |
 | `AppSettings__AllowRegister` | Enable/disable public registration |
+| `AppSettings__PublicUrl` | Public frontend URL used in confirmation and password-reset links |
 | `AppSettings__AllowOrigins__0` | Allowed frontend origin (CORS) |
 | `AppSettings__AllowOrigins__1` | Additional allowed origin |
 

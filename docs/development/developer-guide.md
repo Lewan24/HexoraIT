@@ -38,4 +38,4 @@ Po zmianie kontraktu uruchom z katalogu repozytorium:
 ./tools/export-openapi-from-tests.ps1
 ```
 
-Dołącz zmianę `docs/api/openapi/v1.json` do review. CI ponownie generuje dokument i sprawdza dryf.
+Dołącz zmianę `docs/api/openapi/v2.json` do review. CI ponownie generuje bieżący dokument i sprawdza dryf; `v1.json` pozostaje historycznym kontraktem.

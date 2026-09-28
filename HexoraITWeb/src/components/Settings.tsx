@@ -1475,75 +1475,54 @@ function SecuritySection() {
 
 function NotificationsSection() {
   useLocale()
+  const { currentOrg, toast } = useApp()
+  const [prefs, setPrefs] = useState<import('../api/resources').OrganizationNotificationSettings | null>(null)
+  const [saving, setSaving] = useState(false)
+  const canManage = currentOrg?.role === 'Owner' || currentOrg?.role === 'Admin'
+  const currentOrgId = currentOrg?.id
+  useEffect(() => {
+    if (!currentOrgId || !canManage) return
+    import('../api/resources').then(({ emailSettingsApi }) => emailSettingsApi.getOrganization(currentOrgId))
+      .then(setPrefs).catch(() => toast(tr('Failed to load notification settings'), 'error'))
+  }, [currentOrgId, canManage, toast])
+  const rows = [
+    ['licenseExpiring', 'License expiry alerts'], ['clientTaskCreated', 'Tasks created by clients'],
+    ['incidentCreated', 'New incidents'], ['contractExpiring', 'Contracts ending soon'],
+    ['warrantyExpiring', 'Warranties ending soon'], ['roleOrMembershipChanged', 'Role and membership changes'],
+  ] as const
+  const save = async () => {
+    if (!currentOrg || !prefs) return
+    setSaving(true)
+    try {
+      const { emailSettingsApi } = await import('../api/resources')
+      await emailSettingsApi.updateOrganization(currentOrg.id, {
+        licenseExpiring: prefs.licenseExpiring, clientTaskCreated: prefs.clientTaskCreated,
+        incidentCreated: prefs.incidentCreated, contractExpiring: prefs.contractExpiring,
+        warrantyExpiring: prefs.warrantyExpiring, roleOrMembershipChanged: prefs.roleOrMembershipChanged,
+        expiryWarningDays: prefs.expiryWarningDays,
+      })
+      toast(tr('Notification settings saved'))
+    } catch { toast(tr('Failed to save notification settings'), 'error') } finally { setSaving(false) }
+  }
 
-  const [prefs, setPrefs] = useState({
-    licenseExpiry: true,
-    assetOffline: true,
-    passwordAudit: false,
-
-    docUpdates: false,
-    loginAlerts: true,
-    weeklyReport: false,
-  })
-
-  const toggle = (k: keyof typeof prefs) =>
-    setPrefs((p) => ({ ...p, [k]: !p[k] }))
-
-  const rows: {
-    key: keyof typeof prefs
-    label: string
-    sub: string
-  }[] = [
-    {
-      key: "licenseExpiry",
-      label: "License expiry alerts",
-      sub: "Notify 60, 30 and 7 days before",
-    },
-
-    {
-      key: "assetOffline",
-      label: "Asset goes offline",
-      sub: "When a monitored asset changes to offline",
-    },
-
-    {
-      key: "passwordAudit",
-      label: "Password audit reminders",
-      sub: "Monthly reminder to rotate old passwords",
-    },
-
-    {
-      key: "docUpdates",
-      label: "Documentation updates",
-      sub: "When a document is created or edited",
-    },
-
-    {
-      key: "loginAlerts",
-      label: "New login alerts",
-      sub: "Email on sign-in from a new device",
-    },
-
-    {
-      key: "weeklyReport",
-      label: "Weekly digest",
-      sub: "Summary of activity every Monday",
-    },
-  ]
+  if (!canManage) return <SectionCard><SectionHeader title={tr('Notification Preferences')} desc={tr('Only an organization owner or administrator can manage email notifications.')} /></SectionCard>
+  if (!prefs) return <SectionCard><SectionHeader title={tr('Notification Preferences')} desc={tr('Loading...')} /></SectionCard>
 
   return (
     <SectionCard>
       <SectionHeader
         title={tr("Notification Preferences")}
-        desc={tr(
-          "Choose what you want to be notified about (not yet persisted)",
-        )}
+        desc={tr(prefs.emailServiceAvailable ? "Choose which organization events are emailed to active members." : "The global email service is disabled by a system administrator.")}
       />
       {rows.map((r) => (
-        <Row key={r.key} label={tr(r.label)} sub={tr(r.sub)}>
-          <Toggle value={prefs[r.key]} onChange={() => toggle(r.key)} />
+        <Row key={r[0]} label={tr(r[1])} sub={tr('Email all active, confirmed organization members')}>
+          <Toggle value={prefs[r[0]]} onChange={() => setPrefs(p => p ? { ...p, [r[0]]: !p[r[0]] } : p)} />
         </Row>
       ))}
+      <Row label={tr('Expiry warning window')} sub={tr('Days before license, contract, or warranty end date')}>
+        <input type="number" min={1} max={365} value={prefs.expiryWarningDays} onChange={e => setPrefs({ ...prefs, expiryWarningDays: Number(e.target.value) })} className="w-20 px-2 py-1 rounded bg-navy-700 border border-edge-default text-xs" />
+      </Row>
+      <div className="px-5 py-4 flex justify-end"><button onClick={save} disabled={saving || !prefs.emailServiceAvailable} className="px-4 py-2 rounded-lg bg-blue-500 text-white text-xs disabled:opacity-50">{saving ? tr('Saving...') : tr('Save')}</button></div>
     </SectionCard>
   )
 }

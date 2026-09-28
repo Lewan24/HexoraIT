@@ -21,7 +21,7 @@ public interface IOrganizationRoleService
     Task<ApiOperationResult> CopyAsync(Guid organizationId, Guid roleId, CopyRoleDto dto, CancellationToken token = default);
 }
 
-public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext userContext, IPasswordHasher hasher)
+public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext userContext, IPasswordHasher hasher, INotificationService? notifications = null)
     : IOrganizationRoleService
 {
     public async Task<ApiOperationResult> GetAccessAsync(Guid organizationId, CancellationToken token = default)
@@ -109,7 +109,12 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
             !await db.OrganizationRoles.AnyAsync(r => r.Id == customRoleId && r.OrganizationId == organizationId, token))
             return BadRequest("Role does not belong to this organization.");
         member.CustomRoleId = dto.CustomRoleId; member.Role = dto.CustomRoleId is null ? dto.Role : OrgRole.ReadOnly;
-        await db.SaveChangesAsync(token); return NoContent();
+        var memberName = await db.Users.Where(x => x.Id == userId).Select(x => x.DisplayName).SingleAsync(token);
+        await db.SaveChangesAsync(token);
+        if (notifications is not null)
+            await notifications.NotifyAsync(organizationId, "role_membership_changed", "Organization role changed",
+                $"The role for {memberName} was changed.", token);
+        return NoContent();
     }
 
     public async Task<ApiOperationResult> GetResourcesAsync(Guid organizationId, string resource, PaginationParameters? pagination, CancellationToken token = default)
