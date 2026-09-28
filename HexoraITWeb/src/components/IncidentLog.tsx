@@ -386,7 +386,7 @@ export default function IncidentLog() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-ink-primary group-hover:text-white transition-colors">{incident.title}</p>
+                      <p className="text-sm font-semibold text-ink-primary group-hover:text-ink-primary transition-colors">{incident.title}</p>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>{tr(sc.label)}</span>
                         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${stc.cls}`}>{stc.icon} {tr(stc.label)}</span>

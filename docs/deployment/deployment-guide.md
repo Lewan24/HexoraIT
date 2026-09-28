@@ -5,7 +5,7 @@ Publiczna instrukcja Docker Compose znajduje się również w [`installation.md`
 ## Przygotowanie
 
 1. Przygotuj PostgreSQL, prywatny storage plików, trwały key-ring Data Protection i secret store.
-2. Ustaw co najmniej `HEXORAIT_DB_PASSWORD`, `HEXORAIT_JWT_SIGNING_KEY`, produkcyjne originy CORS i `HEXORAIT_API_BASE_URL`.
+2. Ustaw co najmniej `HEXORAIT_DB_PASSWORD`, `HEXORAIT_JWT_SIGNING_KEY`, `HEXORAIT_PUBLIC_ORIGIN`, `HEXORAIT_NPM_IP` i `HEXORAIT_FRONTEND_BIND_IP`. Compose ustawia URL API na `/api`.
 3. Jeśli używasz reverse proxy, wpisz jego dokładne adresy IP w `ReverseProxy:KnownProxies`; nie ufaj całym sieciom klientów.
 4. Zapewnij HTTPS na publicznej granicy i nie publikuj portów PostgreSQL/Adminer do Internetu.
 5. Podłącz kategorię `HexoraIT.SecurityAudit` do trwałego append-only/SIEM sinka.

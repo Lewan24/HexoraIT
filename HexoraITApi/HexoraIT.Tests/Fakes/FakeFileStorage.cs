@@ -1,10 +1,12 @@
-﻿using HexoraITApi.Api.Interfaces;
+using HexoraITApi.Api.Interfaces;
 
 namespace HexoraIT.Tests.Fakes;
 
 public class FakeFileStorage : IFileStorage
 {
     private readonly Dictionary<string, byte[]> _store = new();
+
+    public IReadOnlyCollection<string> Paths => _store.Keys;
 
     public Task<string> SaveAsync(Stream content, string fileName, string contentType)
     {

@@ -22,6 +22,10 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       
+    networks:
+      hexorait_app:
+        ipv4_address: 172.40.0.10
+      
   # Just ui to check the postgresql its fully optional if you have already client or another app to check out dbs
   adminer:
     image: adminer
@@ -38,18 +42,31 @@ services:
 
     depends_on:
       - db
+      
+    networks:
+      hexorait_app:
+        ipv4_address: 172.40.0.11
 
   api:
     image: lewan24/hexorait-api:latest
+    build: ./HexoraITApi/HexoraIT.Api
     container_name: hexoraitapi
 
     restart: unless-stopped
 
-    ports:
-      - "8081:8080"
+    expose:
+      - "8080"
+
+    networks:
+      default:
+      backend:
+        ipv4_address: ${HEXORAIT_API_IP:-172.30.50.2}
+      hexorait_app:
+        ipv4_address: 172.40.0.20
 
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
 
       ConnectionStrings__Default: >
         Host=db;
@@ -72,12 +89,12 @@ services:
       AppSettings__HexoraITAdmin: ${HEXORAIT_ADMIN_EMAIL:-}
       AppSettings__InitialAdminPassword: ${HEXORAIT_INITIAL_ADMIN_PASSWORD:-}
       AppSettings__AllowRegister: false
-      # Make sure there is provided your domain (frontend) url, this is required for CORS settings and security
-      AppSettings__AllowOrigins__0: "http://localhost:80"
-      AppSettings__AllowOrigins__1: "http://localhost"
-      # If the API is placed behind a reverse proxy, list its exact IP addresses.
-      # Forwarded headers from every other source are ignored.
-      # ReverseProxy__KnownProxies__0: "10.0.0.10"
+      # Public browser origin, including https:// and no trailing slash or /api.
+      AppSettings__AllowOrigins__0: ${HEXORAIT_PUBLIC_ORIGIN:?Set HEXORAIT_PUBLIC_ORIGIN}
+      # Trust the frontend hop and the exact NPM source IP seen by the frontend.
+      ReverseProxy__KnownProxies__0: ${HEXORAIT_FRONTEND_IP:-172.40.0.21}
+      # ReverseProxy__KnownProxies__1: ${HEXORAIT_NPM_IP:?Set HEXORAIT_NPM_IP}
+      ReverseProxy__ForwardLimit: 2
       
     volumes:
       - hexorait-storage:/app/storage
@@ -85,20 +102,38 @@ services:
 
   frontend:
     image: lewan24/hexorait-web:latest
+    build: ./HexoraITWeb
     container_name: hexoraitweb
 
     restart: unless-stopped
 
     ports:
-      - "80:80"
+      - "${HEXORAIT_FRONTEND_BIND_IP:-127.0.0.1}:${HEXORAIT_FRONTEND_PORT:-8080}:80"
+
+    networks:
+      backend:
+        ipv4_address: ${HEXORAIT_FRONTEND_IP:-172.30.50.3}
+      hexorait_app:
+        ipv4_address: 172.40.0.21
 
     environment:
-      # API url, the target domain where the ITDocs will be available at
-      HEXORAIT_API_BASE_URL: http://localhost:8081/api
+      # The browser uses the same HTTPS origin; frontend Nginx forwards to api.
+      HEXORAIT_API_BASE_URL: /api
       HEXORAIT_APP_MODE: ${HEXORAIT_APP_MODE:-http}
 
     depends_on:
       - api
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: ${HEXORAIT_BACKEND_SUBNET:-172.30.50.0/29}
+  hexorait_app:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.40.0.0/24
 
 volumes:
   postgres-data:

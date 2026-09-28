@@ -88,7 +88,8 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         ValidatedUpload validated; try { validated = await FileUploadSecurity.ValidateAsync(file, 100_000_000, token); } catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
         if (folderId is { } target && !await db.FileFolders.AnyAsync(folder => folder.Id == target && folder.OrganizationId == organizationId, token))
             return new(StatusCodes.Status400BadRequest, "Target folder does not exist.");
-        var path = await storage.SaveAsync(file.OpenReadStream(), validated.FileName, validated.ContentType);
+        await using var content = file.OpenReadStream();
+        var path = await storage.SaveAsync(content, validated.FileName, validated.ContentType);
         var stored = new StoredFile { OrganizationId = organizationId, Name = validated.FileName, MimeType = validated.ContentType, Size = file.Length, BlobPath = path, FolderId = folderId };
         db.StoredFiles.Add(stored);
         try { await db.SaveChangesAsync(token); } catch { await DeleteBlobSafelyAsync(path, "after a database failure"); throw; }

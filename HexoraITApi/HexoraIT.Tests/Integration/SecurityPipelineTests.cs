@@ -83,6 +83,52 @@ public sealed class SecurityPipelineTests
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 
+    [Theory]
+    [InlineData("files")]
+    [InlineData("contracts")]
+    [InlineData("warranties")]
+    public async Task MultipartUpload_CanBeDownloadedAndListed(string module)
+    {
+        using var factory = new SecurityWebApplicationFactory();
+        var user = new User { Email = "upload@test.local", DisplayName = "Uploader", PasswordHash = [1], PasswordSalt = [1] };
+        var organization = new Organization { Name = "Uploads" };
+        var contract = new Contract { OrganizationId = organization.Id, Name = "Contract" };
+        var warranty = new WarrantyItem { OrganizationId = organization.Id, Name = "Warranty" };
+        string token;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.EnsureCreatedAsync();
+            db.AddRange(user, organization, contract, warranty);
+            db.UserOrganizations.Add(new UserOrganization { UserId = user.Id, OrganizationId = organization.Id, Role = OrgRole.Owner });
+            await db.SaveChangesAsync();
+            token = scope.ServiceProvider.GetRequiredService<IJwtTokenService>()
+                .CreateToken(user.Id, user.Email, user.SystemRole, user.SecurityStamp);
+        }
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var path = module switch
+        {
+            "files" => $"/api/files/upload?organizationId={organization.Id}",
+            "contracts" => $"/api/contracts/{contract.Id}/document",
+            _ => $"/api/warranties/{warranty.Id}/document"
+        };
+        var bytes = "%PDF-1.7\nupload regression"u8.ToArray();
+        using var form = new MultipartFormDataContent();
+        var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        form.Add(content, "file", "document.pdf");
+        var response = await client.PostAsync(path, form);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var id = body.RootElement.GetProperty("id").GetGuid();
+        var download = await client.GetAsync(module == "files" ? $"/api/files/{id}/download" : $"/api/{module}/{id}/document");
+        download.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await download.Content.ReadAsByteArrayAsync()).Should().Equal(bytes);
+        (await client.GetAsync($"/api/{module}?organizationId={organization.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.DeleteAsync($"/api/{module}/{id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
     [Fact]
     public void FileExplorerMinimalApi_AuthorizesAllOperationsAndKeepsUploadLimit()
     {
@@ -104,7 +150,7 @@ public sealed class SecurityPipelineTests
         var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
             .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/admin", StringComparison.Ordinal) == true).ToList();
-        endpoints.Should().HaveCount(7);
+        endpoints.Should().HaveCount(8);
         endpoints.Should().AllSatisfy(endpoint =>
             endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Should().Contain(item => item.Policy == "AdminOnly"));
     }
