@@ -15,17 +15,20 @@ The provided `docker-compose.yml` starts:
 
 ## Running
 
-Before starting, create a local `.env` file (it is ignored by Git):
+Before starting, copy `.env.example` to `.env` (ignored by Git) and edit it:
 
 ```dotenv
 HEXORAIT_DB_PASSWORD=replace-with-a-strong-database-password
 HEXORAIT_JWT_SIGNING_KEY=replace-with-at-least-32-random-bytes
+HEXORAIT_PUBLIC_ORIGIN=https://it.example.com
+HEXORAIT_NPM_IP=192.168.1.10
+HEXORAIT_FRONTEND_BIND_IP=192.168.1.20
 ```
 
 Start the application together with the bundled PostgreSQL and Adminer:
 
 ```bash
-docker compose --profile database up -d
+docker compose --profile database up -d --build
 ```
 
 Without the `database` profile, configure `ConnectionStrings__Default` to point at an external PostgreSQL server before starting `api` and `frontend`.
@@ -59,31 +62,27 @@ Do not commit `.env`. In production, prefer the deployment platform's secret sto
 Available at:
 
 ```
-http://localhost
+https://it.example.com
 ```
 
 Environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `HEXORAIT_API_BASE_URL` | URL of the backend API (for example `http://localhost:8081/api`) |
+| `HEXORAIT_API_BASE_URL` | Browser API base path (`/api` in Compose) |
 
 Example:
 
 ```yaml
 environment:
-  HEXORAIT_API_BASE_URL: http://localhost:8081/api
+  HEXORAIT_API_BASE_URL: /api
 ```
 
 ---
 
 ## API
 
-Available at:
-
-```
-http://localhost:8081
-```
+Available through `https://it.example.com/api`. The API port is not published on the host; frontend Nginx connects to `api:8080` over the backend Docker network.
 
 ### Database
 
@@ -117,11 +116,18 @@ If you're using an external PostgreSQL server simply replace `Host=db` with your
 
 ### Trusted reverse proxy
 
-If the API is published behind a reverse proxy, configure each trusted proxy IP as
-`ReverseProxy__KnownProxies__0`, `ReverseProxy__KnownProxies__1`, and so on. Only
-these exact proxies may supply `X-Forwarded-For` and `X-Forwarded-Proto`; do not add
-client networks or a catch-all address. Leave the list empty when clients connect
-directly to the API.
+Compose trusts exactly two addresses: the frontend (`172.30.50.3` by default)
+and `HEXORAIT_NPM_IP`, the NPM source address **as seen by frontend Nginx**.
+`appsettings.Production.json` sets `ReverseProxy:ForwardLimit` to 2; Compose also
+sets it explicitly. Base/development settings retain a one-hop limit. Empty trust
+lists disable forwarded headers, including in production outside Compose.
+
+The frontend appends its peer address and HTTP scheme to the header chains.
+ASP.NET Core walks both chains right to left, checks each proxy against the trust
+list, and restores the browser's IP and HTTPS scheme. No client subnet or
+catch-all network is trusted. The middleware already runs before HTTPS
+redirection, rate limiting and authentication. Proxy addresses are read when the
+forwarded-header options are configured, alongside the hop limit and networks.
 
 ---
 
@@ -158,7 +164,7 @@ Example:
 
 ```yaml
 AppSettings__AllowRegister: false
-AppSettings__AllowOrigins__0: http://localhost
+AppSettings__AllowOrigins__0: https://it.example.com
 ```
 
 When bootstrap email is set and the account does not exist, the one-time password is required. Remove it from runtime configuration immediately after the account is created and change the password after the first login. The application never prints this password to logs.
@@ -217,39 +223,46 @@ Before deploying:
  
 ---
 
-## HTTPS and Reverse Proxy (Recommended)
-If you don't want only local access and hosting.
+## Nginx Proxy Manager setup
 
-For production deployments it is recommended to expose HexoraIT through a reverse proxy instead of publishing the containers directly.
-
-A common setup is:
-
-```
-Internet
-     │
-     ▼
-Nginx Proxy Manager
-     │
-     ├── Frontend → http://frontend:80
-     └── API      → http://api:8080
+```text
+Browser https://it.example.com
+  → Nginx Proxy Manager (TLS termination)
+  → http://DOCKER_HOST_IP:8080 (frontend Nginx)
+  → http://api:8080/api/... (private API)
 ```
 
-I personally recommend **Nginx Proxy Manager** because it makes the setup very simple:
+1. Set `HEXORAIT_PUBLIC_ORIGIN` to the public HTTPS origin without a trailing slash.
+2. Set `HEXORAIT_FRONTEND_BIND_IP` to the Docker host address reachable from NPM.
+   The default `127.0.0.1` is for a proxy running on the host. NPM in another
+   container cannot use its own `127.0.0.1` to reach the frontend: use a reachable
+   host address and bind the frontend port to that address. Restrict host port
+   8080 to NPM in the host/network firewall. Host ports 80/443 remain free for NPM.
+3. Set `HEXORAIT_NPM_IP` to the exact source IP shown in
+   `docker compose logs frontend` after a request through NPM. When Docker NAT
+   rewrites the source, this can be a bridge gateway instead of NPM's LAN/container
+   IP. Keep this address stable and restrict access to the frontend port; all
+   traffic sharing a trusted NAT address shares that trust.
+4. In NPM create one Proxy Host with your domain, **Scheme: http**,
+   **Forward Hostname/IP: the Docker host address**, **Forward Port: 8080** (or
+   `HEXORAIT_FRONTEND_PORT`). Enable a valid SSL certificate and **Force SSL**.
+   Forward all paths to this one frontend destination; no custom `/api` location
+   or separate API hostname is needed. Retain NPM's standard Host,
+   X-Forwarded-For and X-Forwarded-Proto headers.
+5. In NPM's Advanced configuration set `client_max_body_size 100000000;` to match
+   the frontend and largest API upload request limit. API endpoint limits still
+   apply. For slow operations also set `proxy_read_timeout 120s;`.
+6. Build and start with `docker compose --profile database up -d --build`.
+   Building is required to include this checkout's new Nginx configuration;
+   existing published `latest` images may still contain the previous setup.
 
-- Connect your own domain to the application.
-- Automatically obtain and renew Let's Encrypt SSL certificates.
-- Configure HTTPS without manually editing Nginx configuration.
-- Easily manage multiple applications from a web interface.
+The backend subnet defaults to `172.30.50.0/29`. If it overlaps your existing
+Docker/LAN networks, change `HEXORAIT_BACKEND_SUBNET`, `HEXORAIT_API_IP` and
+`HEXORAIT_FRONTEND_IP` together. Compose keeps the frontend's trusted IP in sync
+with its static address. Do not attach unrelated containers to this network.
 
-When exposing **HexoraIT** to the Internet, it is also recommended to:
-
-- Disable public user registration:
-  ```yaml
-  AppSettings__AllowRegister: false
-  ```
-- Set `AppSettings__AllowOrigins__*` to your actual frontend domain.
-- Use a strong `Jwt__SigningKey`.
-- Use strong PostgreSQL credentials.
-- Persist both the PostgreSQL data volume and the file storage directory.
-
-With this setup, Nginx Proxy Manager will handle SSL termination and forward traffic to the frontend and API containers over your internal Docker network.
+Verify the public URL loads the SPA and its deep links. In browser Network tools,
+API requests must use `https://it.example.com/api/...`. Verify login, a file upload
+and download, and the client IP in the administrator audit log. API failures must
+return API status/JSON rather than the SPA's `index.html`. Check that HTTPS
+requests do not loop through redirects. Port 8081 should no longer be published.

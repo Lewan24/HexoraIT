@@ -68,7 +68,9 @@ public sealed class ContractService(AppDbContext db, IMapper mapper, ICurrentUse
         var item = await db.Contracts.FirstOrDefaultAsync(x => x.Id == id, token); if (item is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(item.OrganizationId, "contracts", true, item.Id)) return new(StatusCodes.Status403Forbidden);
         ValidatedUpload validated; try { validated = await FileUploadSecurity.ValidateAsync(file, 20_000_000, token); } catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
-        var oldPath = item.DocumentBlobPath; var path = await storage.SaveAsync(file.OpenReadStream(), validated.FileName, validated.ContentType);
+        var oldPath = item.DocumentBlobPath;
+        await using var content = file.OpenReadStream();
+        var path = await storage.SaveAsync(content, validated.FileName, validated.ContentType);
         item.DocumentName = validated.FileName; item.DocumentMimeType = validated.ContentType; item.DocumentSize = file.Length; item.DocumentBlobPath = path;
         try { await db.SaveChangesAsync(token); } catch { await DeleteBlobSafelyAsync(path, "after a database failure"); throw; }
         if (oldPath is not null) await DeleteBlobSafelyAsync(oldPath, "after replacing it");

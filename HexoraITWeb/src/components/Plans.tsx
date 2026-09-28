@@ -225,7 +225,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
       className="cursor-pointer w-full text-left bg-navy-800 border border-edge-subtle rounded-xl px-4 py-4 hover:border-edge-default hover:bg-navy-750 transition-all group">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink-primary group-hover:text-white transition-colors">
+          <p className="text-sm font-semibold text-ink-primary group-hover:text-ink-primary transition-colors">
             {plan.title}
             {plan.estimatedCost > 0 && (
               <span className="inline-flex items-center gap-1 ml-5 text-orange-400">

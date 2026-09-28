@@ -119,7 +119,8 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
         var query = ResourceOptionsQuery(organizationId, resource);
         if (query is null) return new(StatusCodes.Status200OK, new List<ResourceOptionDto>(), Pagination: new PaginationMetadata(0, window));
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(x => x.Name).ThenBy(x => x.Id).Skip(window.Offset).Take(window.PageSize).ToListAsync(token);
+        var items = await query.OrderBy(x => x.Name).ThenBy(x => x.Id).Skip(window.Offset).Take(window.PageSize)
+            .Select(x => new ResourceOptionDto(x.Id, x.Name)).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
 
@@ -212,24 +213,30 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
     private Task<bool> IsClientMemberAsync(Guid organizationId, Guid clientId, CancellationToken token) =>
         db.UserOrganizations.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == clientId && m.User.SystemRole == SystemRole.Client, token);
 
-    private IQueryable<ResourceOptionDto>? ResourceOptionsQuery(Guid organizationId, string resource) => resource switch
+    private IQueryable<ResourceOptionRow>? ResourceOptionsQuery(Guid organizationId, string resource) => resource switch
     {
-        "assets" => db.Assets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "passwords" => db.Passwords.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "networks" => db.Subnets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "licenses" => db.Licenses.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "contacts" => db.Contacts.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "contracts" => db.Contracts.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "plans" => db.Plans.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Title)),
-        "incidents" => db.Incidents.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Title)),
-        "knowledge" => db.KnowledgeArticles.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Title)),
-        "tasks" => db.Tasks.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Title)),
-        "projects" => db.Projects.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "groups" => db.Groups.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "warranty" => db.WarrantyItems.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
-        "files" => db.StoredFiles.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionDto(x.Id, x.Name)),
+        "assets" => db.Assets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "passwords" => db.Passwords.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "networks" => db.Subnets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "licenses" => db.Licenses.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "contacts" => db.Contacts.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "contracts" => db.Contracts.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "plans" => db.Plans.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Title }),
+        "incidents" => db.Incidents.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Title }),
+        "knowledge" => db.KnowledgeArticles.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Title }),
+        "tasks" => db.Tasks.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Title }),
+        "projects" => db.Projects.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "groups" => db.Groups.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "warranty" => db.WarrantyItems.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
+        "files" => db.StoredFiles.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
         _ => null
     };
+
+    private sealed class ResourceOptionRow
+    {
+        public Guid Id { get; init; }
+        public string Name { get; init; } = "";
+    }
 
     private async Task<string?> ValidateAsync(Guid organizationId, SaveOrganizationRoleDto dto, Guid? roleId = null, bool client = false, CancellationToken token = default)
     {

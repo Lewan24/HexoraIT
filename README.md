@@ -8,6 +8,12 @@ Built with modern technologies, HexoraIT focuses on performance, simplicity, and
 
 ---
 
+## Checkout the demo version to test out the application
+
+[Demo website](https://hexorait.lewanmordor.workers.dev/)
+
+---
+
 ![HexoraIT App Login gif](https://github.com/Lewan24/HexoraIT/blob/main/Images/Login.gif)
 
 ## Checkout [example images](https://github.com/Lewan24/HexoraIT/blob/main/presentation.md) of working application and few first pages.
@@ -21,10 +27,11 @@ git clone https://github.com/Lewan24/HexoraIT.git
 
 cd HexoraIT
 
-# Use strong, unique values. A local .env file is ignored by Git.
-printf "HEXORAIT_DB_PASSWORD=replace-with-a-strong-password\nHEXORAIT_JWT_SIGNING_KEY=replace-with-at-least-32-random-bytes\n" > .env
+# Set secrets, public HTTPS origin, NPM source IP and frontend bind address.
+cp .env.example .env
+# Edit .env for your deployment; see installation.md for NPM settings.
 
-docker compose --profile database up -d
+docker compose --profile database up -d --build
 ```
 
 The `database` profile starts the bundled PostgreSQL and Adminer services. If you already have PostgreSQL, configure `ConnectionStrings__Default` for the API and start only `api` and `frontend`. Never commit `.env` or production secrets.
@@ -33,8 +40,8 @@ To bootstrap the first administrator, temporarily add `HEXORAIT_ADMIN_EMAIL` and
 
 Open:
 
-- Frontend: http://localhost
-- API: http://localhost:8081
+- Frontend: your `HEXORAIT_PUBLIC_ORIGIN` through Nginx Proxy Manager
+- API: `/api` on that same origin (no published API port)
 - Adminer: http://localhost:8082
 
 ## Check out [Installation Guide](https://github.com/Lewan24/HexoraIT/blob/main/installation.md) to know better all settings and what you can do before start.

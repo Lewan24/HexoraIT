@@ -45,6 +45,11 @@ public sealed class PostgreSqlQueryTranslationTests
             ("groups", db.Groups.ProjectTo<GroupDto>(mapperConfiguration)),
             ("folders", db.FileFolders.ProjectTo<FileFolderDto>(mapperConfiguration)),
             ("files", db.StoredFiles.ProjectTo<StoredFileDto>(mapperConfiguration)),
+            ("contracts", db.Contracts.Select(item => new ContractDto(item.Id, item.Name, item.Vendor, item.Category, item.StartDate, item.EndDate, item.Value, item.Currency,
+                item.AutoRenew, item.Notes, item.Starred, item.Status, item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0)))),
+            ("warranties", db.WarrantyItems.Select(item => new WarrantyItemDto(item.Id, item.Name, item.Vendor, item.SerialNumber, item.PurchaseDate, item.WarrantyEndDate,
+                item.WarrantyType, item.ContactName, item.ContactPhone, item.ContactEmail, item.Notes, item.AssetId, item.Starred, item.Status,
+                item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0)))),
             ("private notes", db.PrivateNotes.Select(note => new { note.Id, note.Title, note.Content, note.UpdatedAt }))
         };
 
