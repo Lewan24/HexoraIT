@@ -8,6 +8,12 @@ Built with modern technologies, HexoraIT focuses on performance, simplicity, and
 
 ---
 
+## Checkout the demo version to test out the application
+
+[Demo website](https://hexorait.lewanmordor.workers.dev/)
+
+---
+
 ![HexoraIT App Login gif](https://github.com/Lewan24/HexoraIT/blob/main/Images/Login.gif)
 
 ## Checkout [example images](https://github.com/Lewan24/HexoraIT/blob/main/presentation.md) of working application and few first pages.
