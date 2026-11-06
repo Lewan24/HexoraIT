@@ -1,5 +1,5 @@
 import { tr, useLocale } from '../i18n'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import {
   LayoutDashboard, Server, KeyRound, BookOpen,
   Network, CreditCard, Settings, ChevronLeft, ChevronRight,
@@ -26,45 +26,70 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Infrastructure',
     items: [
-      { id: 'dashboard', label: 'Dashboard',  icon: <LayoutDashboard size={15} /> },
-      { id: 'assets',    label: 'Assets',     icon: <Server size={15} /> },
-      { id: 'networks',  label: 'Networks',   icon: <Network size={15} /> },
-      { id: 'licenses',  label: 'Licenses',   icon: <CreditCard size={15} /> },
-      { id: 'files', label: 'Files', icon: <FolderOpen size={15} /> },
+      { id: 'dashboard', label: 'Dashboard',  icon: <LayoutDashboard size={18} /> },
+      { id: 'assets',    label: 'Assets',     icon: <Server size={18} /> },
+      { id: 'networks',  label: 'Networks',   icon: <Network size={18} /> },
+      { id: 'licenses',  label: 'Licenses',   icon: <CreditCard size={18} /> },
+      { id: 'files', label: 'Files', icon: <FolderOpen size={18} /> },
     ],
   },
   {
     label: 'Security',
     items: [
-      { id: 'passwords', label: 'Passwords', icon: <KeyRound size={15} /> },
+      { id: 'passwords', label: 'Passwords', icon: <KeyRound size={18} /> },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { id: 'tasks',     label: 'Tasks',      icon: <CheckSquare size={15} /> },
-      { id: 'plans',     label: 'Plans',      icon: <Lightbulb size={15} /> },
-      { id: 'incidents', label: 'Incidents',  icon: <AlertTriangle size={15} /> },
-      { id: 'contracts', label: 'Contracts',  icon: <FileSignature size={15} /> },
+      { id: 'tasks',     label: 'Tasks',      icon: <CheckSquare size={18} /> },
+      { id: 'plans',     label: 'Plans',      icon: <Lightbulb size={18} /> },
+      { id: 'incidents', label: 'Incidents',  icon: <AlertTriangle size={18} /> },
+      { id: 'contracts', label: 'Contracts',  icon: <FileSignature size={18} /> },
     ],
   },
   {
     label: 'Assets & Infra',
     items: [
-      { id: 'warranty', label: 'Warranty',    icon: <ShieldCheck size={15} /> },
-      { id: 'groups',   label: 'Groups',      icon: <Layers size={15} /> },
-      { id: 'diagram',  label: 'Diagram',     icon: <Share2 size={15} /> },
+      { id: 'warranty', label: 'Warranty',    icon: <ShieldCheck size={18} /> },
+      { id: 'groups',   label: 'Groups',      icon: <Layers size={18} /> },
+      { id: 'diagram',  label: 'Diagram',     icon: <Share2 size={18} /> },
     ],
   },
   {
     label: 'Knowledge',
     items: [
-      { id: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} /> },
-      { id: 'private-notes', label: 'Private notes', icon: <BookOpen size={15} /> },
-      { id: 'contacts',  label: 'Contacts',       icon: <Users size={15} /> },
+      { id: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={18} /> },
+      { id: 'private-notes', label: 'Private notes', icon: <BookOpen size={18} /> },
+      { id: 'contacts',  label: 'Contacts',       icon: <Users size={18} /> },
     ],
   }
 ]
+
+function NavigationSection({ label, active, compact, children, defaultExpanded = false }: {
+  label: string; active: boolean; compact: boolean; children: React.ReactNode; defaultExpanded?: boolean
+}) {
+  const [expanded, setExpanded] = useState(active || defaultExpanded)
+  const [wasActive, setWasActive] = useState(active)
+  // Reveal a newly selected section, including navigation from search or the dashboard.
+  if (active !== wasActive) {
+    setWasActive(active)
+    if (active) setExpanded(true)
+  }
+  const id = useId()
+  return <section className={`sidebar-section ${active ? 'is-current' : ''}`}>
+    {!compact && <button className="sidebar-section-toggle" aria-expanded={expanded}
+      aria-controls={id} onClick={() => setExpanded(value => !value)}>
+      <span className="flex-1 text-left">{tr(label)}</span>
+      {active && <span className="sidebar-section-dot" aria-hidden="true" />}
+      <ChevronDown size={16} className={expanded ? 'rotate-180' : ''} />
+    </button>}
+    <div id={id} className="sidebar-section-content" data-expanded={compact || expanded}
+      inert={!compact && !expanded}>
+      <div className="sidebar-section-inner">{children}</div>
+    </div>
+  </section>
+}
 
 interface Props {
   currentView: View
@@ -89,7 +114,22 @@ function Sidebar({
   useLocale()
   const { orgs, currentOrg, switchOrg, licenses, toast, canRead, hiddenModules } = useApp()
   const { user } = useAuth()
+  const compact = collapsed && !isMobile
   const [orgOpen, setOrgOpen] = useState(false)
+  const orgTriggerRef = useRef<HTMLButtonElement>(null)
+  const [orgDropdownTop, setOrgDropdownTop] = useState(0)
+  const toggleOrganizations = () => {
+    setOrgDropdownTop((orgTriggerRef.current?.getBoundingClientRect().bottom ?? 160) + 8)
+    setOrgOpen(value => !value)
+  }
+  useEffect(() => {
+    if (!orgOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOrgOpen(false); orgTriggerRef.current?.focus() }
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [orgOpen])
   const [orgModalOpen, setOrgModalOpen] = useState(false)
 
   const expiring = hiddenModules.includes('licenses') ? 0 : licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
@@ -109,10 +149,10 @@ function Sidebar({
     ]
     return <div className="flex h-full flex-col bg-navy-900">
       <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'home')} aria-label="HexoraIT" className={`flex items-center gap-3 py-5 ${showLabels ? 'px-5' : 'justify-center'}`}><img src={logoHex} alt="" className="h-9 w-9 shrink-0 object-contain" />{showLabels && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}</button>
-      {showLabels && <p className="border-y border-edge-subtle px-5 py-4 text-[10px] uppercase tracking-widest text-ink-muted">{tr('Your workspace')}</p>}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">{globalLinks.map(link => <button key={link.view} title={tr(link.label)} onClick={() => handleNav(link.view)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${currentView === link.view ? 'bg-blue-500/10 text-blue-400' : 'text-ink-secondary hover:bg-navy-700'} ${!showLabels ? 'justify-center' : ''}`}><span className="shrink-0">{link.icon}</span>{showLabels && <span className="truncate">{tr(link.label)}</span>}</button>)}</nav>
+      {showLabels && <p className="border-y border-edge-subtle px-5 py-4 text-xs font-medium text-ink-secondary">{tr('Your workspace')}</p>}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2">{globalLinks.map(link => <button key={link.view} aria-current={currentView === link.view ? 'page' : undefined} title={tr(link.label)} onClick={() => handleNav(link.view)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${currentView === link.view ? 'bg-blue-500/10 text-ink-link font-semibold' : 'text-ink-secondary hover:bg-navy-700'} ${!showLabels ? 'justify-center' : ''}`}><span className="shrink-0">{link.icon}</span>{showLabels && <span className="truncate">{tr(link.label)}</span>}</button>)}</nav>
       <button onClick={onLogout} title={tr('Sign out')} className={`flex items-center gap-3 border-t border-edge-subtle px-5 py-4 text-sm text-ink-muted hover:text-red-400 ${!showLabels ? 'justify-center px-0' : ''}`}><LogOut size={16} />{showLabels && tr('Sign out')}</button>
-      {!isMobile && <button onClick={onToggleCollapse} title={tr('Collapse')} className="flex justify-center border-t border-edge-subtle p-3 text-ink-muted hover:text-ink-primary">{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>}
+      {!isMobile && <button onClick={onToggleCollapse} title={tr(collapsed ? 'Expand' : 'Collapse')} aria-label={tr(collapsed ? 'Expand' : 'Collapse')} className="flex justify-center border-t border-edge-subtle p-3 text-ink-muted hover:text-ink-primary">{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>}
     </div>
   }
 
@@ -120,7 +160,7 @@ function Sidebar({
     <div className="flex flex-col h-full bg-navy-900">
       <div className={`mt-2 flex items-center border-b border-edge-subtle flex-shrink-0 ${collapsed && !isMobile ? 'justify-center px-0' : 'px-4'}`}>
         {isMobile && (
-          <button onClick={onClose} className="mr-3 p-1 rounded-md text-ink-muted hover:text-ink-primary transition-colors">
+          <button onClick={onClose} aria-label={tr("Close menu")} className="mr-3 p-1 rounded-md text-ink-muted hover:text-ink-primary transition-colors">
             <X size={16} />
           </button>
         )}
@@ -132,85 +172,76 @@ function Sidebar({
         {(!collapsed || isMobile) && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}
       </button>
 
+      {user?.systemRole !== 'Client' && <div className="px-3 pb-3">
+        <button className={`sidebar-link sidebar-hub ${compact ? 'is-compact' : ''}`}
+          aria-label={tr('Organization hub')} title={tr('Organization hub')} onClick={() => handleNav('home')}>
+          <Building2 size={20} />{!compact && <span>{tr('Organization hub')}</span>}
+        </button>
+      </div>}
       {/* Org switcher */}
       {(!collapsed || isMobile) ? (
         <div className="px-3 py-2.5 border-b border-edge-subtle flex-shrink-0">
           <button
-            onClick={e => { e.stopPropagation(); setOrgOpen(v => !v) }}
+            ref={orgTriggerRef} aria-label={tr("Switch Organization")} aria-expanded={orgOpen}
+            onClick={e => { e.stopPropagation(); toggleOrganizations() }}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-navy-700 transition-colors"
           >
-            <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
               style={{ backgroundColor: currentOrg.color }}>{currentOrg.initials}</div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium text-ink-primary truncate leading-tight">{currentOrg.name}</p>
-              <p className="text-[9px] text-ink-muted leading-tight">{tr(currentOrg.role)}</p>
+              <p className="text-sm font-semibold text-ink-primary truncate leading-snug">{currentOrg.name}</p>
+              <p className="text-xs text-ink-secondary leading-snug">{tr(currentOrg.role)}</p>
             </div>
             <ChevronDown size={12} className={`text-ink-muted transition-transform flex-shrink-0 ${orgOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
       ) : (
         <div className="flex justify-center py-2.5 border-b border-edge-subtle flex-shrink-0">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white cursor-pointer"
-            onClick={e => { e.stopPropagation(); setOrgOpen(v => !v) }}
+          <button className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+            ref={orgTriggerRef} aria-label={tr("Switch Organization")} aria-expanded={orgOpen}
+            onClick={e => { e.stopPropagation(); toggleOrganizations() }}
             style={{ backgroundColor: currentOrg.color }} title={currentOrg.name}>
             {currentOrg.initials}
-          </div>
+          </button>
         </div>
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-        {user?.systemRole !== 'Client' && <button onClick={() => handleNav('home')} title={tr('Organization hub')} className="mx-2 mb-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-edge-subtle px-3 py-2 text-xs text-ink-muted hover:bg-navy-700"><Building2 size={15} />{(!collapsed || isMobile) && tr('Organization hub')}</button>}
-        {canManageOrganization(currentOrg) && <button onClick={() => handleNav('organization-customization')} title={tr('Customize organization')} className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-400 hover:bg-blue-500/10"><Settings size={15} />{(!collapsed || isMobile) && tr('Customize organization')}</button>}
-        {canManageOrganization(currentOrg) && <button onClick={() => handleNav('organization-documentation')} title={tr('Documentation PDF')} className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700"><FileText size={15} />{(!collapsed || isMobile) && tr('Documentation PDF')}</button>}
-        {user?.systemRole === 'Client' && <button className={"w-full px-4 py-3 text-left text-blue-300"} onClick={() => handleNav('reports')}>{tr('Report a problem')}</button>}
-        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map((section, si) => (
-          <div key={section.label}>
-            {si > 0 && <div className="mx-3 my-1.5 border-t border-edge-subtle" />}
-            {(!collapsed || isMobile) && (
-              <p className="px-4 pt-1.5 pb-0.5 text-[9px] font-semibold text-ink-muted uppercase tracking-widest">{tr(section.label)}</p>
-            )}
-            {section.items.map(item => {
-              const active = currentView === item.id
-                || (currentView === 'asset-detail' && item.id === 'assets')
-              const badge = item.id === 'licenses' ? (expiring || undefined) : undefined
-              return (
-                <button key={item.id} onClick={() => handleNav(item.id)}
-                  title={collapsed && !isMobile ? item.label : undefined}
-                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 mx-1.5 rounded-md text-sm transition-all text-left group
-                    ${active ? 'bg-blue-500/10 text-blue-300' : 'text-ink-secondary hover:text-ink-primary hover:bg-navy-700'}`}
-                  style={{ width: collapsed && !isMobile ? 36 : 'calc(100% - 12px)' }}>
-                  <span className={`flex-shrink-0 ${active ? 'text-blue-400' : 'text-ink-muted group-hover:text-ink-secondary'}`}>{item.icon}</span>
-                  {(!collapsed || isMobile) && (
-                    <>
-                      <span className="flex-1 whitespace-nowrap text-xs">{tr(item.label)}</span>
-                      {badge != null && <span className="text-[10px] font-mono bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full">{badge}</span>}
-                    </>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+      <nav aria-label={tr('Main navigation')} className={`sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${compact ? 'is-compact' : ''}`}>
+        {user?.systemRole === 'Client' && <button className="sidebar-link" aria-label={tr('Report a problem')}
+          aria-current={currentView === 'reports' ? 'page' : undefined} onClick={() => handleNav('reports')}>
+          <AlertTriangle size={18} />{!compact && <span>{tr('Report a problem')}</span>}
+        </button>}
+        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
+          <NavigationSection key={section.label} label={section.label} compact={compact}
+            active={section.items.some(item => currentView === item.id || (currentView === 'asset-detail' && item.id === 'assets'))}>
+            {section.items.map(item => <button key={item.id} onClick={() => handleNav(item.id)}
+              title={tr(item.label)} aria-label={tr(item.label)} className="sidebar-link"
+              aria-current={currentView === item.id || (currentView === 'asset-detail' && item.id === 'assets') ? 'page' : undefined}>
+              {item.icon}{!compact && <><span className="flex-1">{tr(item.label)}</span>
+                {item.id === 'licenses' && expiring > 0 && <span className="sidebar-badge">{expiring}</span>}</>}
+            </button>)}
+          </NavigationSection>
         ))}
-
-        <div className="my-1.5 mx-3 border-t border-edge-subtle" />
-
-        <button onClick={() => handleNav('settings')}
-          title={collapsed && !isMobile ? tr("Settings") : undefined}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-md text-sm transition-all text-left text-ink-secondary hover:text-ink-primary hover:bg-navy-700 group ${currentView === 'settings' ? 'bg-blue-500/10 text-blue-300' : ''}`}
-          style={{ width: collapsed && !isMobile ? 36 : 'calc(100% - 12px)' }}>
-          <Settings size={16} className="flex-shrink-0 text-ink-muted group-hover:text-ink-secondary" />
-          {(!collapsed || isMobile) && <span>{tr("Settings")}</span>}
-        </button>
-        
-        {(user?.systemRole === 'Admin') && (
-        <button onClick={() => handleNav('adminpanel')}
-          title={collapsed && !isMobile ? tr("Admin Panel") : undefined}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-md text-sm transition-all text-left text-ink-secondary hover:text-ink-primary hover:bg-navy-700 group ${currentView === 'settings' ? 'bg-blue-500/10 text-blue-300' : ''}`}
-          style={{ width: collapsed && !isMobile ? 36 : 'calc(100% - 12px)' }}>
-          <Settings size={16} className="flex-shrink-0 text-ink-muted group-hover:text-ink-secondary" />
-          {(!collapsed || isMobile) && <span>{tr("Admin Panel")}</span>}
-        </button>)}
+        {canManageOrganization(currentOrg) && <NavigationSection label="Organization tools" compact={compact} defaultExpanded
+          active={currentView === 'organization-customization' || currentView === 'organization-documentation'}>
+          {([{ id: 'organization-customization', label: 'Customize organization', icon: <Settings size={18} /> },
+            { id: 'organization-documentation', label: 'Documentation PDF', icon: <FileText size={18} /> }] as const).map(item => (
+            <button key={item.id} className="sidebar-link" onClick={() => handleNav(item.id)}
+              title={tr(item.label)} aria-label={tr(item.label)} aria-current={currentView === item.id ? 'page' : undefined}>
+              {item.icon}{!compact && <span>{tr(item.label)}</span>}
+            </button>))}
+        </NavigationSection>}
+        <NavigationSection label="Preferences and support" compact={compact}
+          active={currentView === 'settings' || currentView === 'adminpanel' || currentView === 'help'}>
+          <button className="sidebar-link" title={tr('Settings')} aria-label={tr('Settings')}
+            aria-current={currentView === 'settings' ? 'page' : undefined} onClick={() => handleNav('settings')}>
+            <Settings size={18} />{!compact && <span>{tr('Settings')}</span>}
+          </button>
+          {user?.systemRole === 'Admin' && <button className="sidebar-link" title={tr('Admin Panel')} aria-label={tr('Admin Panel')}
+            aria-current={currentView === 'adminpanel' ? 'page' : undefined} onClick={() => handleNav('adminpanel')}>
+            <ShieldCheck size={18} />{!compact && <span>{tr('Admin Panel')}</span>}
+          </button>}
+        </NavigationSection>
       </nav>
 
       <div className="border-t border-edge-subtle p-2 flex-shrink-0">
@@ -250,7 +281,7 @@ function Sidebar({
       {/* Collapse toggle — desktop only */}
       {!isMobile && (
         <div className={`border-t border-edge-subtle flex-shrink-0 ${collapsed ? 'flex justify-center py-2' : ''}`}>
-          <button onClick={onToggleCollapse}
+          <button onClick={onToggleCollapse} aria-label={tr(collapsed ? 'Expand' : 'Collapse')}
             className={`flex items-center gap-1.5 text-ink-muted hover:text-ink-primary transition-colors text-xs py-2 px-3 w-full hover:bg-navy-700 ${collapsed ? 'justify-center' : ''}`}>
             {collapsed ? <ChevronRight size={14} /> : (<><ChevronLeft size={14} /><span>{tr("Collapse")}</span></>)}
           </button>
@@ -262,7 +293,7 @@ function Sidebar({
         <>
           <div className="fixed inset-0 z-[55]" onClick={() => setOrgOpen(false)} />
           <div className="fixed left-3 z-[60] w-64 max-h-[70vh] overflow-y-auto bg-navy-750 border border-edge-default rounded-xl shadow-2xl"
-            style={{ top: isMobile ? 120 : 112 }}
+            style={{ top: orgDropdownTop, maxHeight: `calc(100dvh - ${orgDropdownTop + 16}px)` }}
             onClick={e => e.stopPropagation()}>
             <div className="px-3 py-2 border-b border-edge-subtle">
               <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{tr("Switch Organization")}</p>
@@ -278,11 +309,11 @@ function Sidebar({
                   toast(tr("Switched to {{value1}}", { value1: org.name }), 'info')
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-navy-700 transition-colors text-left">
-                <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
                   style={{ backgroundColor: org.color }}>{org.initials}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-ink-primary truncate">{org.name}</p>
-                  {org.description && <p className="text-[9px] text-ink-muted truncate">{org.description}</p>}
+                  <p className="text-sm text-ink-primary truncate">{org.name}</p>
+                  {org.description && <p className="text-xs text-ink-secondary truncate">{org.description}</p>}
                 </div>
                 {org.id === currentOrg.id && <Check size={11} className="text-blue-400 flex-shrink-0" />}
               </button>
@@ -395,8 +426,8 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
 
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:block flex-shrink-0 border-r border-edge-subtle transition-all duration-200"
-        style={{ width: collapsed ? 68 : 244 }}>
+        className="hidden md:block flex-shrink-0 border-r border-edge-subtle transition-[width] duration-200"
+        style={{ width: collapsed ? 76 : 292 }}>
         <Sidebar {...sidebarProps} />
       </aside>
 
@@ -404,7 +435,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 border-r border-edge-subtle shadow-2xl"
+          <aside className="absolute left-0 top-0 bottom-0 w-[min(320px,calc(100vw-24px))] border-r border-edge-subtle shadow-2xl"
             style={{ animation: 'slideInLeft 0.2s ease-out' }}>
             <Sidebar {...sidebarProps} isMobile collapsed={false} onClose={() => setMobileOpen(false)} />
           </aside>
@@ -418,7 +449,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
         <header className="workspace-header h-16 border-b border-edge-subtle bg-navy-900 flex items-center px-3 sm:px-4 gap-2 sm:gap-3 flex-shrink-0">
 
           {/* Hamburger */}
-          <button onClick={() => setMobileOpen(true)}
+          <button aria-label={tr("Open menu")} onClick={() => setMobileOpen(true)}
             className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors flex-shrink-0">
             <Menu size={18} />
           </button>
