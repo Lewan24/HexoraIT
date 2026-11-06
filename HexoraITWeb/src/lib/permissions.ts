@@ -4,7 +4,7 @@ export const MODULE_ID = '00000000-0000-0000-0000-000000000000'
 export const RESOURCES = [
   'dashboard', 'assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts',
   'plans', 'incidents', 'knowledge', 'tasks', 'projects', 'groups', 'warranty',
-  'diagram', 'files', 'settings',
+  'diagram', 'files', 'settings', 'data-transfer',
 ] as const
 
 export function hasPermission(access: OrganizationAccess | undefined, resource: string, write = false, id?: string) {

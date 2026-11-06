@@ -26,7 +26,7 @@ public class DbCurrentUserContext(AppDbContext db, ICurrentUserIdProvider idProv
         if (membership is null || !OrganizationResources.All.Contains(resource)) return false;
         if (membership.SystemRole == SystemRole.Client)
         {
-            if (resource is "dashboard" or "settings") return false;
+            if (resource is "dashboard" or "settings" or "data-transfer") return false;
             if (resource == "tasks" && write) return false;
             var permissions = await db.ClientPermissions.AsNoTracking()
                 .Where(p => p.UserId == UserId && p.OrganizationId == organizationId && p.Resource == resource).ToListAsync();
@@ -36,7 +36,7 @@ public class DbCurrentUserContext(AppDbContext db, ICurrentUserIdProvider idProv
             return rule is not null && rule.CanRead && (!write || rule.CanWrite);
         }
         if (membership.CustomRoleId is null)
-            return !write || membership.Role >= OrgRole.Member;
+            return resource == "data-transfer" ? membership.Role >= OrgRole.Admin : !write || membership.Role >= OrgRole.Member;
 
         var rules = await db.RolePermissions.AsNoTracking()
             .Where(p => p.RoleId == membership.CustomRoleId && p.Resource == resource &&

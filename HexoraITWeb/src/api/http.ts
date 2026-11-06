@@ -171,6 +171,7 @@ export function qs(params: Record<string, string | undefined | null>): string {
 }
 
 export const http = {
+  resolveUrl: (path: string) => `${BASE_URL}${path}`,
   get: <T>(path: string) => request<T>(path),
   getAllPages,
   getString: (path: string) => request<string>(path, {}, true),
@@ -192,11 +193,15 @@ export const http = {
     return response.blob()
   },
 
-  post: <T>(path: string, body?: unknown) =>
+  post: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
     request<T>(path, {
       method: "POST",
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     }),
+
+  postForm: <T>(path: string, body: FormData, signal?: AbortSignal) =>
+    request<T>(path, { method: "POST", body, signal }),
 
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, {

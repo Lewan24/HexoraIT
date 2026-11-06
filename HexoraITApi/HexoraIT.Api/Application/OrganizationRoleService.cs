@@ -39,7 +39,7 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
             return Ok(new OrganizationAccessDto("Client", false, individual, member.Organization.HiddenModules));
         }
         var permissions = member.CustomRoleId is null
-            ? OrganizationResources.All.Select(r => new PermissionDto(r, Guid.Empty, true, member.Role >= OrgRole.Member)).ToList()
+            ? OrganizationResources.All.Select(r => new PermissionDto(r, Guid.Empty, r != "data-transfer" || member.Role >= OrgRole.Admin, r == "data-transfer" ? member.Role >= OrgRole.Admin : member.Role >= OrgRole.Member)).ToList()
             : member.CustomRole!.Permissions.Select(ToDto).ToList();
         return Ok(new OrganizationAccessDto(member.CustomRole?.Name ?? member.Role.ToString(),
             member.CustomRoleId is null && member.Role >= OrgRole.Admin, permissions, member.Organization.HiddenModules));
@@ -249,8 +249,9 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100) return "Role name must contain between 1 and 100 characters.";
         if (dto.Permissions is null || dto.Permissions.Count > 2000) return "Provide at most 2000 permission rules.";
         if (dto.Permissions.Any(p => !OrganizationResources.All.Contains(p.Resource) || (p.CanWrite && !p.CanRead))) return "Unknown resource or write permission without read permission.";
+        if (client && dto.Permissions.Any(p => p.Resource == "data-transfer" && (p.CanRead || p.CanWrite))) return "Clients cannot export or import organization archives.";
         if (dto.Permissions.GroupBy(p => new { p.Resource, p.ResourceId }).Any(g => g.Count() > 1)) return "Duplicate permission rules are not allowed.";
-        if (dto.Permissions.Any(p => p.ResourceId != Guid.Empty && p.Resource is "dashboard" or "diagram" or "settings")) return "This resource supports module permissions only.";
+        if (dto.Permissions.Any(p => p.ResourceId != Guid.Empty && p.Resource is "dashboard" or "diagram" or "settings" or "data-transfer")) return "This resource supports module permissions only.";
         if (!client && await db.OrganizationRoles.AnyAsync(r => r.OrganizationId == organizationId && r.Id != roleId && r.Name.ToLower() == dto.Name.Trim().ToLower(), token)) return "A role with this name already exists.";
         foreach (var group in dto.Permissions.Where(p => p.ResourceId != Guid.Empty).GroupBy(p => p.Resource))
         {

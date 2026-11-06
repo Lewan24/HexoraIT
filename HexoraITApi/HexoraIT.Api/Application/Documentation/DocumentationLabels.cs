@@ -2,6 +2,28 @@ namespace HexoraITApi.Application.Documentation;
 
 public static class DocumentationLabels
 {
+    public static string SectionDescription(string key, bool polish) => (key, polish) switch
+    {
+        ("passwords", true) => "Konta, identyfikatory użytkowników i dane dostępowe w wybranym zakresie eksportu.",
+        ("passwords", false) => "Accounts, usernames and credentials within the selected export scope.",
+        ("assets", true) => "Ewidencja urządzeń, ich lokalizacji, opiekunów i parametrów technicznych.",
+        ("assets", false) => "Device inventory, locations, owners and technical specifications.",
+        ("networks", true) => "Sieci, podsieci i adresacja IP wraz z wybranymi szczegółami konfiguracji.",
+        ("networks", false) => "Networks, subnets and IP addressing with selected configuration details.",
+        ("licenses", true) => "Oprogramowanie, wykorzystanie stanowisk i terminy ważności licencji.",
+        ("licenses", false) => "Software, seat allocation and license expiry dates.",
+        ("contacts", true) => "Osoby kontaktowe, ich role oraz dostępne kanały kontaktu.",
+        ("contacts", false) => "Contact people, their roles and available contact details.",
+        ("knowledge", true) => "Wybrane artykuły, procedury i instrukcje dla organizacji.",
+        ("knowledge", false) => "Selected articles, procedures and instructions for the organization.",
+        ("files", true) => "Wykaz plików i ich metadanych. Zawartość załączników nie jest osadzona w dokumencie.",
+        ("files", false) => "File inventory and metadata. Attachment contents are not embedded in this document.",
+        ("private-notes", true) => "Osobiste notatki autora raportu uwzględnione w wybranym zakresie.",
+        ("private-notes", false) => "The report author's personal notes included in the selected scope.",
+        (_, true) => "Zestawienie wybranych wpisów i informacji udostępnionych w tym raporcie.",
+        _ => "Selected records and information included in this report."
+    };
+
     private static readonly Dictionary<string, string> Polish = new()
     {
         ["Organization documentation"] = "Dokumentacja organizacji", ["Contents"] = "Spis treści", ["Generated"] = "Wygenerowano",

@@ -27,7 +27,7 @@ public static class OrganizationResources
     [
         "dashboard", "assets", "passwords", "networks", "licenses", "contacts",
         "contracts", "plans", "incidents", "knowledge", "tasks", "projects",
-        "groups", "warranty", "diagram", "files", "settings"
+        "groups", "warranty", "diagram", "files", "settings", "data-transfer"
     ];
 
     public static string ForEntity(Type type) => type.Name switch

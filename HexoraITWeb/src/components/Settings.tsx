@@ -54,10 +54,11 @@ import OrganizationCreateModal from "./OrganizationCreateModal"
 import OrganizationArchiveButton from "./OrganizationArchiveButton"
 import OrganizationCustomization from "./OrganizationCustomization"
 import OrganizationRoles from "./OrganizationRoles"
+import OrganizationDataTransfer from "./OrganizationDataTransfer"
 import { config } from "../../config"
 import { resetDemoData } from "../demo"
 
-type Section = "customization" | "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
+type Section = "data-transfer" | "customization" | "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
 
 const SECTIONS: {
   id: Section
@@ -65,6 +66,7 @@ const SECTIONS: {
   icon: React.ReactNode
   desc: string
 }[] = [
+  { id: "data-transfer", label: "Export and import data", icon: <Building2 size={16} />, desc: "Organization archives and recovery" },
   { id: "customization", label: "Customize organization", icon: <Building2 size={16} />, desc: "Choose modules for the whole organization" },
   {
     id: "roles",
@@ -1538,7 +1540,8 @@ export default function Settings({
   const { user } = useAuth()
 
   const isClient = user?.systemRole === "Client"
-  const { currentOrg } = useApp()
+  const { currentOrg, canRead } = useApp()
+  const canTransfer = !!currentOrg && !currentOrg.isArchived && !isClient && canRead("data-transfer")
   const canCustomize = !!currentOrg && !currentOrg.isArchived && ["Owner", "Admin"].includes(currentOrg.role)
 
   const [active, setActive] = useState<Section>("profile")
@@ -1549,12 +1552,15 @@ export default function Settings({
 
   const content = () => {
     switch (
-      (isClient && ["roles", "organizations"].includes(active)) || ((!currentOrg || currentOrg.isArchived) && ["roles", "customization", "notifications"].includes(active))
+      (active === "data-transfer" && !canTransfer) || (isClient && ["roles", "organizations"].includes(active)) || ((!currentOrg || currentOrg.isArchived) && ["roles", "customization", "notifications"].includes(active))
         ? "profile"
         : active
     ) {
       case "profile":
         return <ProfileSection />
+
+      case "data-transfer":
+        return <OrganizationDataTransfer />
 
       case "customization":
         return <OrganizationCustomization onArchived={() => navigate('home')} onExport={() => navigate('organization-documentation')} />
@@ -1598,7 +1604,7 @@ export default function Settings({
         >
           <div className="bg-navy-800 border border-edge-subtle rounded-xl overflow-hidden">
             {SECTIONS.filter(
-              (s) => (s.id !== "customization" || canCustomize) && (!["roles", "notifications"].includes(s.id) || (!!currentOrg && !currentOrg.isArchived)) && (!isClient || !["roles", "organizations"].includes(s.id)),
+              (s) => (s.id !== "data-transfer" || canTransfer) && (s.id !== "customization" || canCustomize) && (!["roles", "notifications"].includes(s.id) || (!!currentOrg && !currentOrg.isArchived)) && (!isClient || !["roles", "organizations"].includes(s.id)),
             ).map((s) => (
               <button
                 key={s.id}

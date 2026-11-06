@@ -21,6 +21,7 @@ export default function PermissionGate({ view, children }: { view: View; childre
   if (currentOrg.isArchived) return <div role="status" className="p-6 text-ink-muted">{tr("This organization is archived. Ask an owner or administrator to reactivate it.")}</div>
   if (accessError) return <div role="alert" className="p-6 text-red-400">{accessError}</div>
   if (!access) return <div className="p-6 text-ink-muted">{tr("Loading organization permissions…")}</div>
+  if (view === 'settings' && canRead('data-transfer')) return children
   if (view === 'reports' && isClient) return children
   if (view === 'private-notes') return children
   const resource = view === 'asset-detail' ? 'assets' : ['organization-customization', 'organization-documentation'].includes(view) ? 'settings' : view

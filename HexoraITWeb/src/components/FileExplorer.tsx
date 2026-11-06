@@ -25,7 +25,7 @@ function iconFor(file: StoredFile) {
 }
 
 interface Crumb { id?: string; name: string }
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024 * 1024
 const MAX_FILES_PER_BATCH = 20
 
 export default function FileExplorer() {
@@ -103,7 +103,7 @@ function FileExplorerContent() {
       return
     }
     if (filesArr.some(file => file.size > MAX_UPLOAD_BYTES)) {
-      toast(tr("Each file must be at most 2 GiB."), 'error')
+      toast(tr("Each file must be at most 8 GiB."), 'error')
       return
     }
 
@@ -132,7 +132,7 @@ function FileExplorerContent() {
     replacementTarget.current = null
     if (!target || uploading || !canWrite('files', target.id)) return
     if (file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
-      toast(tr('Choose a non-empty file up to 2 GiB.'), 'error')
+      toast(tr('Choose a non-empty file up to 8 GiB.'), 'error')
       return
     }
     if (file.name !== target.name && !window.confirm(tr('Replace “{{oldName}}” with “{{newName}}”? The previous content will be lost.', { oldName: target.name, newName: file.name }))) return
@@ -212,7 +212,7 @@ function FileExplorerContent() {
 
       <input ref={replacementInputRef} type="file" className="hidden" aria-label={tr('Update file')}
         onChange={e => { const file = e.target.files?.[0]; if (file) void handleReplace(file); e.target.value = '' }} />
-      <p className="mb-3 text-xs text-ink-muted">{tr('Maximum file size: 2 GiB')}</p>
+      <p className="mb-3 text-xs text-ink-muted">{tr('Maximum file size: 8 GiB')}</p>
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
         <div>

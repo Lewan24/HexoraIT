@@ -166,6 +166,55 @@ public sealed class DocumentationTests : IDisposable
     }
 
     public void Dispose() => fixture.Dispose();
+
+    [Fact]
+    public async Task CardLayoutRendersOddPairsLongValuesAndMultipageArticlesWithoutLosingData()
+    {
+        var accounts = Enumerable.Range(1, 5).Select(i => new DocumentationRecord(Guid.NewGuid(), $"Panel administracyjny {i}",
+            [new("Username", $"administrator{i}@example.test"), new("Category", "Infrastruktura"),
+             new("Password", $"Example-Only-{i}-#2026"), new("Updated", "2026-11-06")],
+            [new("Notes", "Dostęp do panelu zarządzania usługą.")], i)).ToList();
+        var article = new DocumentationRecord(Guid.NewGuid(), "Procedura utrzymania infrastruktury",
+            [new("Category", "Procedury operacyjne"), new("Description", new string('x', 1800))],
+            [new("Content", "## Kontrola usług\n**Sprawdź dostępność systemów.**\n- Zweryfikuj kopie zapasowe.\n" +
+                string.Join('\n', Enumerable.Repeat("Sprawdź połączenie sieciowe i zapisz wynik kontroli w dzienniku serwisowym.", 90)) + "\nEND_OF_ARTICLE")]);
+        var snapshot = new DocumentationSnapshot("Pracownia Łódź", "Dokumentacja środowiska IT przygotowana do przekazania zespołowi utrzymania.",
+            "Administrator", new DateTime(2026, 11, 6, 12, 0, 0, DateTimeKind.Utc),
+            new([new("passwords"), new("contacts"), new("knowledge")], Title: "Dokumentacja techniczna", Recipient: "Zespół utrzymania",
+                IncludeSecrets: true, ConfirmSensitiveData: true),
+            [new("passwords", accounts), new("contacts", [new(Guid.NewGuid(), "Anna Kowalska",
+                [new("Role", "Opiekun infrastruktury"), new("Email", "anna@example.test"), new("Phone", "+48 000 000 000")], [])]),
+             new("knowledge", [article])]);
+        var renderer = new DocumentationPdfRenderer();
+        var document = renderer.BuildDocument(snapshot);
+        var cards = document.Sections[2].Elements.OfType<MigraDoc.DocumentObjectModel.Tables.Table>().ToList();
+        cards.Should().HaveCount(3);
+        cards.Should().OnlyContain(table => table.Columns.Count == 3);
+        var pdf = await renderer.RenderAsync(snapshot);
+        using var input = new MemoryStream(pdf);
+        using var parsed = PdfReader.Open(input, PdfDocumentOpenMode.Import);
+        parsed.PageCount.Should().BeGreaterThan(5);
+        var artifactPath = Environment.GetEnvironmentVariable("HEXORA_DOCUMENTATION_CARD_SAMPLE");
+        if (!string.IsNullOrEmpty(artifactPath))
+        {
+            // Keep the stress fixture above; use realistic content in the downloadable preview.
+            var previewArticle = article with
+            {
+                Fields = [new("Category", "Procedury operacyjne"), new("Updated", "2026-11-06")],
+                Texts = [new("Content", "## Codzienna kontrola\n**Sprawdź dostępność kluczowych usług.**\n" +
+                    "- Zweryfikuj stan kopii zapasowych i dostępność repozytorium.\n" +
+                    "- Sprawdź łączność z urządzeniami sieciowymi.\n" +
+                    "- Przejrzyj otwarte incydenty i terminy odnowienia licencji.\n" +
+                    "## Obsługa incydentu\nZapisz czas wystąpienia, objawy oraz dotknięte systemy. " +
+                    "Skontaktuj się z opiekunem infrastruktury i udokumentuj wykonane działania.\n" +
+                    "## Przekazanie zmiany\nPo zakończeniu prac zaktualizuj ewidencję urządzeń, " +
+                    "opisy sieci i procedury odtwarzania. Potwierdź działanie usług z zespołem utrzymania.")]
+            };
+            var preview = snapshot with { Sections = [new("passwords", accounts.Take(4).ToList()), snapshot.Sections[1], new("knowledge", [previewArticle])] };
+            await File.WriteAllBytesAsync(artifactPath, await renderer.RenderAsync(preview));
+        }
+    }
+
     private sealed class CaptureRenderer : IDocumentationPdfRenderer
     {
         public DocumentationSnapshot? Snapshot { get; private set; }

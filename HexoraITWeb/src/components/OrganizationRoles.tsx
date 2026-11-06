@@ -156,15 +156,15 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           </label>
           <p className="text-xs text-ink-muted">{tr("Module permissions are the defaults. Write also allows creating resources. Individual rules override these defaults for the selected item.")}</p>
           <div className="flex gap-2">
-            <button className={buttonClass} onClick={() => setDraft({ ...draft, permissions: RESOURCES.filter(r => !clientId || !['dashboard', 'settings'].includes(r)).map(resource => ({ resource, resourceId: MODULE_ID, canRead: true, canWrite: !clientId || resource !== 'tasks' })) })}>{tr("Allow all")}</button>
+            <button className={buttonClass} onClick={() => setDraft({ ...draft, permissions: RESOURCES.filter(r => !clientId || !['dashboard', 'settings', 'data-transfer'].includes(r)).map(resource => ({ resource, resourceId: MODULE_ID, canRead: true, canWrite: !clientId || resource !== 'tasks' })) })}>{tr("Allow all")}</button>
             <button className={buttonClass} onClick={() => setDraft({ ...draft, permissions: [] })}>{tr("Deny all")}</button>
           </div>
           <table className="w-full text-sm">
             <thead><tr className="text-left text-ink-muted"><th className="py-2">{tr("Module")}</th><th>{tr("Read")}</th><th>{tr("Write")}</th></tr></thead>
-            <tbody>{RESOURCES.filter(r => !clientId || !['dashboard', 'settings'].includes(r)).map(resource => {
+            <tbody>{RESOURCES.filter(r => !clientId || !['dashboard', 'settings', 'data-transfer'].includes(r)).map(resource => {
               const rule = draft.permissions.find(p => p.resource === resource && p.resourceId === MODULE_ID)
               return <tr key={resource} className="border-t border-edge-subtle">
-                <td className="py-2 capitalize">{tr(resource)}</td>
+                <td className="py-2 capitalize">{tr(resource)}{resource === 'data-transfer' && <p className="mt-1 max-w-xs text-xs font-normal normal-case text-ink-muted">{tr('Read allows full export; write also allows import. Includes all shared modules and credentials, regardless of individual module rules.')}</p>}</td>
                 <td><input type="checkbox" aria-label={tr("Read {{value1}}", { value1: tr(resource) })} checked={rule?.canRead ?? false} onChange={e => setRule(resource, MODULE_ID, 'canRead', e.target.checked)} /></td>
                 <td><input type="checkbox" disabled={!!clientId && resource === 'tasks'} aria-label={tr("Write {{value1}}", { value1: tr(resource) })} checked={rule?.canWrite ?? false} onChange={e => setRule(resource, MODULE_ID, 'canWrite', e.target.checked)} /></td>
               </tr>
@@ -174,7 +174,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           <p className="text-xs text-ink-muted">{tr("An individual rule can grant or deny access, overriding the module default. To share only one item, disable module access and enable Read for that item. Removing a rule restores the module default. Network rules include their IP entries.")}</p>
           <div className="flex flex-wrap gap-2">
             <select aria-label={tr("Resource module")} className={inputClass} value={resource} onChange={e => { setResource(e.target.value); setOptions([]); setResourceId('') }}>
-              {RESOURCES.filter(r => !['dashboard', 'diagram', 'settings'].includes(r)).map(r => <option key={r} value={r}>{tr(r)}</option>)}
+              {RESOURCES.filter(r => !['dashboard', 'diagram', 'settings', 'data-transfer'].includes(r)).map(r => <option key={r} value={r}>{tr(r)}</option>)}
             </select>
             <select aria-label={tr("Individual resource")} className={inputClass} value={resourceId} onChange={e => setResourceId(e.target.value)}>
               <option value="">{tr("Choose a resource")}</option>

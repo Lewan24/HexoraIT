@@ -23,7 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = FileUploadSecurity.MaxFileBytes;
+    options.MultipartBodyLengthLimit = HexoraITApi.Application.DataTransfer.ArchiveSchema.MaxArchiveBytes + 1024 * 1024;
     options.MemoryBufferThreshold = 64 * 1024;
 });
 
@@ -78,6 +78,8 @@ builder.Services.AddScoped<HexoraITApi.Application.Documentation.DocumentationSe
 builder.Services.AddSingleton<HexoraITApi.Application.Documentation.IDocumentationPdfRenderer, HexoraITApi.Application.Documentation.DocumentationPdfRenderer>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
+builder.Services.AddScoped<HexoraITApi.Application.DataTransfer.OrganizationArchiveService>();
+builder.Services.AddSingleton<HexoraITApi.Application.DataTransfer.ArchiveDownloadStore>();
 builder.Services.AddScoped<IEmailSecretProtector, EmailSecretProtector>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -136,6 +138,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 builder.Services.AddRateLimiter(options =>
 {
+    options.AddPolicy("data-transfer", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("documentation-export", context => RateLimitPartition.GetFixedWindowLimiter(
         context.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 4, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -295,8 +300,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapVersionEndpoints();
 app.MapAuthEndpoints();
@@ -323,6 +328,7 @@ app.MapAdminEndpoints();
 app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
 app.MapDocumentationEndpoints();
+app.MapDataTransferEndpoints();
 app.MapOrganizationRoleEndpoints();
 app.MapEmailSettingsEndpoints();
 

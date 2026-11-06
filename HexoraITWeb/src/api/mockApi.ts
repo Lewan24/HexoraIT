@@ -44,12 +44,12 @@ const id = () =>
   globalThis.crypto?.randomUUID?.() ??
   `demo-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-function allPermissions(canWrite = true) {
+function allPermissions(canWrite = true, canTransfer = false) {
   return RESOURCES.map((resource) => ({
     resource,
     resourceId: MODULE_ID,
-    canRead: true,
-    canWrite,
+    canRead: resource !== "data-transfer" || canTransfer,
+    canWrite: resource === "data-transfer" ? canTransfer : canWrite,
   }))
 }
 
@@ -652,9 +652,9 @@ async function request<T>(
   }
   if (route === "/organizations" && method === "POST") {
     const temporary = body.isTemporary === true
-    const defaultHidden = temporary ? RESOURCES.filter(resource => !['dashboard', 'settings', 'assets', 'passwords', 'contacts', 'contracts', 'knowledge', 'files'].includes(resource)) : []
+    const defaultHidden = temporary ? RESOURCES.filter(resource => !['data-transfer', 'dashboard', 'settings', 'assets', 'passwords', 'contacts', 'contracts', 'knowledge', 'files'].includes(resource)) : []
     const hiddenModules = body.hiddenModules ?? defaultHidden
-    if (!Array.isArray(hiddenModules) || hiddenModules.some(module => !RESOURCES.includes(module) || ['dashboard', 'settings'].includes(module))) throw new ApiError(400, "Invalid organization modules.")
+    if (!Array.isArray(hiddenModules) || hiddenModules.some(module => !RESOURCES.includes(module) || ['dashboard', 'settings', 'data-transfer'].includes(module))) throw new ApiError(400, "Invalid organization modules.")
     const created = { ...body, id: id(), isTemporary: temporary, isArchived: false, archivedAt: null, hiddenModules } as Entity
     state.organizations.push(created)
     state.memberships.push({
@@ -731,7 +731,7 @@ async function request<T>(
     if (tail.startsWith("documentation/")) {
       const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
       if (!member || !["Owner", "Admin"].includes(member.role) || member.customRoleId || user.systemRole === "Client") throw new ApiError(403, "Access forbidden.")
-      const keys = [...RESOURCES.filter(key => !["dashboard", "settings"].includes(key)), "private-notes"]
+      const keys = [...RESOURCES.filter(key => !["dashboard", "settings", "data-transfer"].includes(key)), "private-notes"]
       const records = (key: string): Entity[] => {
         if (key === "private-notes" || key === "diagram") return []
         const resource = key === "networks" ? "subnets" : key === "warranty" ? "warranties" : key
@@ -840,7 +840,7 @@ async function request<T>(
         canManageRoles: ["Owner", "Admin"].includes(membership.role),
         hiddenModules: org.hiddenModules ?? [],
         permissions:
-          custom?.permissions ?? allPermissions(membership.role !== "ReadOnly"),
+          custom?.permissions ?? allPermissions(membership.role !== "ReadOnly", ["Owner", "Admin"].includes(membership.role)),
       } as T
     }
     if (tail === "roles" && method === "GET")
