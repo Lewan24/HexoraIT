@@ -24,8 +24,8 @@ public record WarrantyItemDto(
     Guid? AssetId,
     bool Starred,
     WarrantyStatus Status,
-    WarrantyDocumentDto? Document
-);
+    WarrantyDocumentDto? Document,
+    int? SortIndex = null);
 
 public record CreateWarrantyItemDto([Required, StringLength(36)] string Id, [Required, StringLength(200)] string Name,
     [StringLength(200)] string Vendor, [StringLength(200)] string SerialNumber, DateOnly PurchaseDate,

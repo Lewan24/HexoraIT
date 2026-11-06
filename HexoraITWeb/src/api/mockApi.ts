@@ -34,6 +34,7 @@ type DemoState = {
   resources: Record<ResourceName, Entity[]>
   roles: Entity[]
   diagrams: Record<string, { nodes: unknown[]; edges: unknown[] }>
+  privateNotes?: Entity[]
   dashboards: Record<string, unknown>
   fileContents: Record<string, string>
 }
@@ -439,6 +440,7 @@ function ensureAdmin(user: DemoUser) {
 }
 
 function entityStatus(collection: string, item: Entity): Entity {
+  if (collection === "plans") return { ...item, subnetIds: item.subnetIds ?? [] }
   const today = new Date().toISOString().slice(0, 10)
   if (collection === "licenses")
     return {
@@ -472,6 +474,35 @@ function memberDto(state: DemoState, membership: Membership) {
     customRoleName: role?.name,
     systemRole: user.systemRole,
   }
+}
+
+function demoPermission(state: DemoState, user: DemoUser, orgId: string, resource: string, write = false, resourceId = MODULE_ID) {
+  if (state.deletedOrganizationIds.includes(orgId)) return false
+  const member = state.memberships.find(m => m.userId === user.id && m.organizationId === orgId)
+  if (!member || user.systemRole === 'Client') return false
+  if (!member.customRoleId) return !write || member.role !== 'ReadOnly'
+  const rules = (state.roles.find(role => role.id === member.customRoleId)?.permissions ?? []) as { resource: string; resourceId: string; canRead: boolean; canWrite: boolean }[]
+  const rule = rules.find(rule => rule.resource === resource && rule.resourceId === resourceId) ?? rules.find(rule => rule.resource === resource && rule.resourceId === MODULE_ID)
+  return !!rule?.canRead && (!write || rule.canWrite)
+}
+function compareDemoOrder(a: Entity, b: Entity) {
+  return Number(a.sortIndex ?? Number.MAX_SAFE_INTEGER) - Number(b.sortIndex ?? Number.MAX_SAFE_INTEGER) || a.id.localeCompare(b.id)
+}
+// Numeric address parsing for the browser-only demo. Production uses IPAddress and transactional EF updates.
+function demoAddress(value: string): { value: bigint; bits: number } | undefined {
+  const input = value.trim().toLowerCase()
+  if (!input.includes(':')) {
+    const parts = input.split('.')
+    if (parts.length !== 4 || parts.some(part => !/^(0|[1-9]\d{0,2})$/.test(part) || Number(part) > 255)) return
+    return { value: parts.reduce((sum, part) => sum * 256n + BigInt(part), 0n), bits: 32 }
+  }
+  if (input.includes('%') || !/^[0-9a-f:]+$/.test(input) || input.split('::').length > 2) return
+  const halves = input.split('::'), left = halves[0] ? halves[0].split(':') : [], right = halves[1] ? halves[1].split(':') : []
+  const missing = 8 - left.length - right.length
+  if ((halves.length === 1 && missing !== 0) || (halves.length === 2 && missing < 1)) return
+  const words = [...left, ...Array(halves.length === 2 ? missing : 0).fill('0'), ...right]
+  if (words.length !== 8 || words.some(word => !/^[0-9a-f]{1,4}$/.test(word))) return
+  return { value: words.reduce((sum, word) => sum * 65536n + BigInt('0x' + word), 0n), bits: 128 }
 }
 
 async function dataUrl(file: File): Promise<string> {
@@ -604,7 +635,7 @@ async function request<T>(
       )
       .map((m) => {
         const org = state.organizations.find((o) => o.id === m.organizationId)!
-        return { id: org.id, name: org.name, role: m.role }
+        return { ...org, isTemporary: org.isTemporary ?? false, isArchived: org.isArchived ?? false, archivedAt: org.archivedAt ?? null, role: m.role }
       }) as T
   }
   if (route === "/organizations/deleted" && method === "GET") {
@@ -616,11 +647,15 @@ async function request<T>(
       )
       .map((m) => {
         const org = state.organizations.find((o) => o.id === m.organizationId)!
-        return { id: org.id, name: org.name, role: m.role }
+        return { ...org, isTemporary: org.isTemporary ?? false, isArchived: org.isArchived ?? false, archivedAt: org.archivedAt ?? null, role: m.role }
       }) as T
   }
   if (route === "/organizations" && method === "POST") {
-    const created = { ...body, id: id() } as Entity
+    const temporary = body.isTemporary === true
+    const defaultHidden = temporary ? RESOURCES.filter(resource => !['dashboard', 'settings', 'assets', 'passwords', 'contacts', 'contracts', 'knowledge', 'files'].includes(resource)) : []
+    const hiddenModules = body.hiddenModules ?? defaultHidden
+    if (!Array.isArray(hiddenModules) || hiddenModules.some(module => !RESOURCES.includes(module) || ['dashboard', 'settings'].includes(module))) throw new ApiError(400, "Invalid organization modules.")
+    const created = { ...body, id: id(), isTemporary: temporary, isArchived: false, archivedAt: null, hiddenModules } as Entity
     state.organizations.push(created)
     state.memberships.push({
       userId: user.id,
@@ -637,6 +672,93 @@ async function request<T>(
     const tail = orgMatch[2] ?? ""
     const org = state.organizations.find((item) => item.id === orgId)
     if (!org) throw new ApiError(404, "Organization not found.")
+    if ((tail === "archive" || tail === "unarchive") && method === "POST") {
+      const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
+      if (!member || !["Owner", "Admin"].includes(member.role) || member.customRoleId || user.systemRole === "Client" || state.deletedOrganizationIds.includes(orgId)) throw new ApiError(403, "Access forbidden.")
+      org.isArchived = tail === "archive"
+      org.archivedAt = org.isArchived ? now() : null
+      writeState(state)
+      return undefined as T
+    }
+    const noteMatch = tail.match(/^private-notes(?:\/([^/]+))?$/)
+    if (noteMatch) {
+      const membership = state.memberships.find(member => member.userId === user.id && member.organizationId === orgId)
+      if (!membership || user.systemRole === 'Client' || state.deletedOrganizationIds.includes(orgId)) throw new ApiError(403, 'Access forbidden.')
+      state.privateNotes ??= []
+      const own = state.privateNotes.filter(note => note.organizationId === orgId && note.userId === user.id)
+      const noteId = noteMatch[1], note = own.find(note => note.id === noteId)
+      if (method === 'GET' && !noteId) return own.sort(compareDemoOrder) as T
+      if (noteId && !note) throw new ApiError(404, 'Note not found.')
+      if (method === 'POST' || method === 'PUT') {
+        if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200 || typeof body.content !== 'string' || body.content.length > 100000) throw new ApiError(400, 'Invalid note.')
+        if (note) Object.assign(note, { title: body.title.trim(), content: body.content, updatedAt: now() })
+        else { const created = { id: id(), organizationId: orgId, userId: user.id, title: body.title.trim(), content: body.content, updatedAt: now() }; state.privateNotes.push(created); writeState(state); return created as T }
+        writeState(state); return note as T
+      }
+      if (method === 'DELETE' && note) { state.privateNotes = state.privateNotes.filter(item => item !== note); writeState(state); return undefined as T }
+    }
+    if (tail.startsWith('record-order/')) {
+      const resource = tail.slice('record-order/'.length)
+      const permission = resource === 'folders' ? 'files' : resource === 'ip-entries' ? 'networks' : resource
+      const personal = resource === 'private-notes' && user.systemRole !== 'Client' && state.memberships.some(m => m.userId === user.id && m.organizationId === orgId) && !state.deletedOrganizationIds.includes(orgId)
+      if (!personal && !demoPermission(state, user, orgId, permission)) throw new ApiError(403, 'Access forbidden.')
+      const collection = resource === 'networks' ? 'subnets' : resource === 'warranty' ? 'warranties' : resource
+      let records: { entity: Entity; parentId?: string }[]
+      if (resource === 'ip-entries') records = state.resources.subnets.filter(x => x.organizationId === orgId).flatMap(subnet => ((subnet.ips ?? []) as Entity[]).map(entity => ({ entity, parentId: subnet.id })))
+      else if (resource === 'diagram') records = ((state.diagrams[orgId]?.nodes ?? []) as Entity[]).map(entity => ({ entity }))
+      else if (resource === 'private-notes') records = (state.privateNotes ?? []).filter(note => note.organizationId === orgId && note.userId === user.id).map(entity => ({ entity }))
+      else if (collection in state.resources) records = state.resources[collection as ResourceName].filter(x => x.organizationId === orgId).map(entity => ({ entity, parentId: (entity.folderId ?? entity.parentFolderId) as string | undefined }))
+      else throw new ApiError(400, 'Unknown record section.')
+      records = records.filter(row => personal || demoPermission(state, user, orgId, permission, false, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id))
+      if (method === 'GET') {
+        const search = (url.searchParams.get('search') ?? '').toLowerCase(), parent = url.searchParams.get('parentId')
+        const page = Math.max(1, Number(url.searchParams.get('page') ?? 1)), size = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize') ?? 200)))
+        return records.filter(row => (!parent || row.parentId === parent) && String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? '').toLowerCase().includes(search))
+          .sort((a, b) => compareDemoOrder(a.entity, b.entity)).slice((page - 1) * size, page * size).map(row => ({ id: row.entity.id, name: String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? ''), sortIndex: row.entity.sortIndex ?? null,
+            canWrite: personal || demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id) })) as T
+      }
+      if (method === 'PATCH') {
+        const changes = body.changes as { id: string; sortIndex: number | null }[]
+        if (!Array.isArray(changes) || !changes.length || changes.length > 500 || new Set(changes.map(x => x?.id)).size !== changes.length || changes.some(x => !x || !x.id || (x.sortIndex !== null && (!Number.isInteger(x.sortIndex) || x.sortIndex < 1 || x.sortIndex > 1_000_000)))) throw new ApiError(400, 'Invalid record indices.')
+        const selected = changes.map(change => ({ change, row: records.find(row => row.entity.id === change.id) }))
+        if (selected.some(x => !x.row)) throw new ApiError(400, 'Some records are unavailable in this organization.')
+        if (!personal && selected.some(({ row }) => !demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row!.parentId : resource === 'diagram' ? MODULE_ID : row!.entity.id))) throw new ApiError(403, 'Access forbidden.')
+        for (const { change, row } of selected) row!.entity.sortIndex = change.sortIndex
+        writeState(state)
+        return changes as T
+      }
+    }
+    if (tail.startsWith("documentation/")) {
+      const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
+      if (!member || !["Owner", "Admin"].includes(member.role) || member.customRoleId || user.systemRole === "Client") throw new ApiError(403, "Access forbidden.")
+      const keys = [...RESOURCES.filter(key => !["dashboard", "settings"].includes(key)), "private-notes"]
+      const records = (key: string): Entity[] => {
+        if (key === "private-notes" || key === "diagram") return []
+        const resource = key === "networks" ? "subnets" : key === "warranty" ? "warranties" : key
+        return (state.resources[resource as ResourceName] ?? []).filter(item => item.organizationId === orgId)
+      }
+      if (tail === "documentation/options") return { sections: keys.map(key => ({ key, count: records(key).length,
+        defaultSelected: ["assets", "networks", "licenses", "contacts", "contracts", "knowledge", "warranty", "files", "diagram"].includes(key) && !(org.hiddenModules as string[] | undefined)?.includes(key) && records(key).length > 0 })) } as T
+      if (tail.startsWith("documentation/items/")) {
+        const key = decodeURIComponent(tail.slice("documentation/items/".length))
+        const search = (url.searchParams.get("search") ?? "").toLowerCase()
+        const page = Number(url.searchParams.get("page") ?? "1")
+        return records(key).sort(compareDemoOrder).map(item => ({ id: item.id, name: String(item.name ?? item.title ?? "") })).filter(item => item.name.toLowerCase().includes(search))
+          .slice((page - 1) * 200, page * 200) as T
+      }
+      throw new ApiError(501, "Connect the API to generate documentation PDFs. The demo supports selection and review only.")
+    }
+    if (tail === "customization") {
+      const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
+      if (!member) throw new ApiError(403, "Access forbidden.")
+      if (method === "GET") return { hiddenModules: org.hiddenModules ?? [] } as T
+      if (method === "PUT") {
+        if (!["Owner", "Admin"].includes(member.role)) throw new ApiError(403, "Access forbidden.")
+        org.hiddenModules = body.hiddenModules
+        writeState(state)
+        return undefined as T
+      }
+    }
     if (!tail && method === "GET") return org as T
     if (!tail && method === "PUT") {
       Object.assign(org, body)
@@ -716,6 +838,7 @@ async function request<T>(
       return {
         roleName: custom?.name ?? membership.role,
         canManageRoles: ["Owner", "Admin"].includes(membership.role),
+        hiddenModules: org.hiddenModules ?? [],
         permissions:
           custom?.permissions ?? allPermissions(membership.role !== "ReadOnly"),
       } as T
@@ -892,12 +1015,74 @@ async function request<T>(
     return undefined as T
   }
 
+  const taskStatus = route.match(/^\/tasks\/([^/]+)\/status$/)
+  if (taskStatus && method === 'PATCH') {
+    const task = state.resources.tasks.find(task => task.id === taskStatus[1])
+    if (!task || !demoPermission(state, user, String(task.organizationId), 'tasks', false, task.id)) throw new ApiError(404, 'Task not found.')
+    if (!demoPermission(state, user, String(task.organizationId), 'tasks', true, task.id)) throw new ApiError(403, 'Access forbidden.')
+    if (!['todo', 'in-progress', 'done'].includes(String(body.status))) throw new ApiError(400, 'Invalid status.')
+    task.status = body.status
+    writeState(state)
+    return { status: task.status } as T
+  }
   const revealMatch = route.match(/^\/passwords\/([^/]+)\/reveal$/)
   if (revealMatch && method === "GET") {
     const password = state.resources.passwords.find(
       (item) => item.id === revealMatch[1],
     )?.password
     return String(password ?? "") as T
+  }
+  if (route === '/subnets/sync-assets' && method === 'POST') {
+    const orgId = organizationId(url)
+    if (!demoPermission(state, user, orgId, 'assets') || !demoPermission(state, user, orgId, 'networks')) throw new ApiError(403, 'Access forbidden.')
+    const subnets = state.resources.subnets.filter(x => x.organizationId === orgId && demoPermission(state, user, orgId, 'networks', false, x.id))
+    if (!subnets.some(x => demoPermission(state, user, orgId, 'networks', true, x.id))) throw new ApiError(403, 'Access forbidden.')
+    const result = { added: 0, updated: 0, unchanged: 0, skipped: 0, issueCount: 0, issues: [] as { assetId: string | null; name: string; ip: string; reason: string }[] }
+    const issue = (entity: Entity, reason: string, subnet = false) => { result.issueCount++; if (result.issues.length < 50) result.issues.push({ assetId: subnet ? null : entity.id, name: String(entity.name ?? ''), ip: String(subnet ? entity.cidr : entity.ip ?? ''), reason }) }
+    const ranges = subnets.flatMap(subnet => {
+      const [ip, mask, extra] = String(subnet.cidr ?? '').split('/'), address = demoAddress(ip ?? ''), prefix = Number(mask)
+      if (!address || mask === undefined || !/^\d+$/.test(mask) || extra !== undefined || prefix < 0 || prefix > address.bits) { issue(subnet, 'invalid-subnet', true); return [] }
+      return [{ subnet, address, prefix }]
+    })
+    const entries = subnets.flatMap(subnet => ((subnet.ips ?? []) as Entity[]).map(entry => ({ subnet, entry })))
+    const addressKey = (value: unknown) => { const address = demoAddress(String(value ?? '')); return address ? address.bits + ':' + address.value : '' }
+    const plans = state.resources.assets.filter(x => x.organizationId === orgId && demoPermission(state, user, orgId, 'assets', false, x.id)).flatMap(asset => {
+      if (entries.some(x => x.entry.assetId === asset.id && !x.entry.isAutoManaged)) { result.unchanged++; return [] }
+      const address = demoAddress(String(asset.ip ?? ''))
+      if (!address) { result.skipped++; issue(asset, 'invalid-address'); return [] }
+      const matches = ranges.filter(range => range.address.bits === address.bits && range.address.value >> BigInt(address.bits - range.prefix) === address.value >> BigInt(address.bits - range.prefix)).sort((a, b) => b.prefix - a.prefix)
+      const reason = !matches.length ? 'no-subnet' : matches.length > 1 && matches[0]!.prefix === matches[1]!.prefix ? 'ambiguous-subnet' : null
+      if (reason) { result.skipped++; issue(asset, reason); return [] }
+      const target = matches[0]!.subnet, existing = entries.find(x => x.entry.assetId === asset.id && x.entry.isAutoManaged)
+      if (!demoPermission(state, user, orgId, 'networks', true, target.id) || (existing && !demoPermission(state, user, orgId, 'networks', true, existing.subnet.id))) { result.skipped++; issue(asset, 'write-denied'); return [] }
+      return [{ asset, target, existing, key: addressKey(asset.ip) }]
+    })
+    const rejected = new Map<string, string>()
+    for (const plan of plans) if (plans.filter(x => x.target.id === plan.target.id && x.key === plan.key).length > 1) rejected.set(plan.asset.id, 'duplicate-asset-address')
+    let changed: boolean
+    do {
+      changed = false
+      for (const plan of plans.filter(x => !rejected.has(x.asset.id))) {
+        const conflict = entries.find(x => {
+          if (x.subnet.id !== plan.target.id || addressKey(x.entry.ip) !== plan.key || x.entry.id === plan.existing?.entry.id) return false
+          const move = x.entry.isAutoManaged && plans.find(other => other.asset.id === x.entry.assetId && !rejected.has(other.asset.id) && (other.target.id !== x.subnet.id || other.key !== addressKey(x.entry.ip)))
+          return !move
+        })
+        if (conflict) { rejected.set(plan.asset.id, conflict.entry.isAutoManaged ? 'address-conflict' : 'manual-address-conflict'); changed = true }
+      }
+    } while (changed)
+    for (const plan of plans) {
+      const reason = rejected.get(plan.asset.id)
+      if (reason) { result.skipped++; issue(plan.asset, reason); continue }
+      if (plan.existing) {
+        const { entry, subnet } = plan.existing
+        if (subnet.id === plan.target.id && addressKey(entry.ip) === plan.key && entry.label === plan.asset.name && entry.status === 'used') { result.unchanged++; continue }
+        if (subnet.id !== plan.target.id) { subnet.ips = (subnet.ips as Entity[]).filter(x => x.id !== entry.id); (plan.target.ips as Entity[]).push(entry) }
+        Object.assign(entry, { ip: plan.asset.ip, label: plan.asset.name, status: 'used' }); result.updated++
+      } else { (plan.target.ips as Entity[]).push({ id: id(), ip: plan.asset.ip, label: plan.asset.name, assetId: plan.asset.id, status: 'used', isAutoManaged: true, notes: '', plainText: '' }); result.added++ }
+    }
+    writeState(state)
+    return result as T
   }
   const ipMatch = route.match(/^\/subnets\/([^/]+)\/ips(?:\/([^/]+))?$/)
   if (ipMatch) {
@@ -914,7 +1099,7 @@ async function request<T>(
     }
     if (method === "PUT") {
       const entry = ips.find((item) => item.id === ipMatch[2])
-      if (entry) Object.assign(entry, body)
+      if (entry) Object.assign(entry, body, { isAutoManaged: false })
       writeState(state)
       return undefined as T
     }
@@ -936,7 +1121,7 @@ async function request<T>(
     if (!entityId && method === "GET") {
       const result = items
         .filter((item) => item.organizationId === organizationId(url))
-        .map((item) => entityStatus(collection, item))
+        .map((item) => entityStatus(collection, item)).sort(compareDemoOrder)
       if (collection === "projects")
         for (const project of result)
           project.taskCount = state.resources.tasks.filter(
@@ -1020,6 +1205,16 @@ async function upload<T>(path: string, file: File): Promise<T> {
     state.fileContents[created.id] = await dataUrl(file)
     writeState(state)
     return created as T
+  }
+  const replacement = url.pathname.match(/^\/files\/([^/]+)\/replace$/)
+  if (replacement) {
+    const item = state.resources.files.find(value => value.id === replacement[1])
+    if (!item) throw new ApiError(404, "File not found.")
+    const content = await dataUrl(file)
+    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size })
+    state.fileContents[item.id] = content
+    writeState(state)
+    return item as T
   }
   const document = url.pathname.match(
     /^\/(contracts|warranties)\/([^/]+)\/document$/,

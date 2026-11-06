@@ -39,7 +39,7 @@ public sealed class AssetService(
 
         var totalCount = await query.CountAsync(cancellationToken);
         var assets = await query
-            .OrderBy(asset => asset.Id)
+            .OrderBy(asset => asset.SortIndex ?? int.MaxValue).ThenBy(asset => asset.Id)
             .Skip(window.Offset)
             .Take(window.PageSize)
             .ProjectTo<AssetDto>(mapper.ConfigurationProvider)

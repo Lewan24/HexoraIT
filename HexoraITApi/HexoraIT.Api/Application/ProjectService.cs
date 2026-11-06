@@ -25,7 +25,7 @@ public sealed class ProjectService(AppDbContext db, IMapper mapper, ICurrentUser
         var query = db.Projects.AsQueryable();
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<ProjectDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }

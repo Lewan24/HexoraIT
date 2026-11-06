@@ -28,7 +28,7 @@ public sealed class IncidentService(AppDbContext db, IMapper mapper, ICurrentUse
         var query = db.Incidents.AsQueryable();
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<IncidentDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(totalCount, window));
     }

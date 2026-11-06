@@ -11,7 +11,7 @@ public record SaveOrganizationRoleDto(
     [Required, StringLength(100, MinimumLength = 1)] string Name,
     [Required, CollectionCount(1000)] List<PermissionDto> Permissions);
 public record AssignOrganizationRoleDto(OrgRole Role, Guid? CustomRoleId);
-public record OrganizationAccessDto(string RoleName, bool CanManageRoles, List<PermissionDto> Permissions);
+public record OrganizationAccessDto(string RoleName, bool CanManageRoles, List<PermissionDto> Permissions, List<string>? HiddenModules = null);
 public record CreateClientDto(
     [Required, EmailAddress, StringLength(256)] string Email,
     [Required, StringLength(200)] string DisplayName,

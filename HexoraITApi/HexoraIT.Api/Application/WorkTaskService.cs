@@ -13,6 +13,7 @@ public interface IWorkTaskService
     Task<ApiOperationResult> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiOperationResult> CreateAsync(Guid organizationId, CreateWorkTaskDto dto, CancellationToken cancellationToken = default);
     Task<ApiOperationResult> UpdateAsync(Guid id, UpdateWorkTaskDto dto, CancellationToken cancellationToken = default);
+    Task<ApiOperationResult> UpdateStatusAsync(Guid id, UpdateTaskStatusDto dto, CancellationToken cancellationToken = default);
     Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -26,7 +27,7 @@ public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUse
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         if (projectId is { } project) query = query.Where(item => item.ProjectId == project);
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<WorkTaskDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
@@ -63,6 +64,18 @@ public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUse
         mapper.Map(dto, item);
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
+    }
+
+    public async Task<ApiOperationResult> UpdateStatusAsync(Guid id, UpdateTaskStatusDto dto, CancellationToken cancellationToken = default)
+    {
+        if (dto.Status is null || !Enum.IsDefined(dto.Status.Value)) return new(StatusCodes.Status400BadRequest);
+        var item = await db.Tasks.FirstOrDefaultAsync(task => task.Id == id, cancellationToken);
+        if (item is null) return new(StatusCodes.Status404NotFound);
+        if (!await userContext.HasPermissionAsync(item.OrganizationId, "tasks", true, item.Id)) return new(StatusCodes.Status403Forbidden);
+        item.Status = dto.Status.Value;
+        try { await db.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { return new(StatusCodes.Status409Conflict, "Task changed while saving. Refresh and try again."); }
+        return new(StatusCodes.Status200OK, new UpdateTaskStatusDto(item.Status));
     }
 
     public async Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)

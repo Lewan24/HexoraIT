@@ -19,6 +19,14 @@ public static class OrganizationEndpoints
         group.MapDelete("/{id:guid}/members/{userId:guid}", RemoveMemberAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         group.MapDelete("/{id:guid}", DeleteAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         group.MapPost("/{id:guid}/restore", RestoreAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
+        group.MapGet("/{id:guid}/customization", async (Guid id, OrganizationCustomizationService service, CancellationToken token) =>
+            (await service.GetAsync(id, token)).ToHttpResult());
+        group.MapPut("/{id:guid}/customization", async (Guid id, OrganizationCustomizationDto dto, OrganizationCustomizationService service, CancellationToken token) =>
+            (await service.SaveAsync(id, dto, token)).ToHttpResult());
+        group.MapPost("/{id:guid}/archive", async (Guid id, IOrganizationService service, CancellationToken token) =>
+            (await service.SetArchivedAsync(id, true, token)).ToHttpResult());
+        group.MapPost("/{id:guid}/unarchive", async (Guid id, IOrganizationService service, CancellationToken token) =>
+            (await service.SetArchivedAsync(id, false, token)).ToHttpResult());
         return endpoints;
     }
     private static async Task<IResult> GetAllAsync([AsParameters] PaginationParameters pagination, IOrganizationService service, HttpResponse response, CancellationToken token) => (await service.GetAllAsync(pagination, token)).ToHttpResult(response);

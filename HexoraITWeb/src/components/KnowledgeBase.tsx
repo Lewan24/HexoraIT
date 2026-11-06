@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
@@ -177,7 +178,7 @@ function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
           {article.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
-          <p className="text-xs font-semibold text-ink-primary truncate">{article.title}</p>
+          <p className="text-xs font-semibold text-ink-primary truncate"><RecordIndex index={article.sortIndex} />{article.title}</p>
         </div>
         <span className={`inline-block text-[9px] font-mono px-1.5 py-0.5 rounded border ${catCls(article.category)} mb-1`}>{article.category}</span>
         <p className="text-[10px] text-ink-muted font-mono">{article.updatedAt}</p>
@@ -322,7 +323,7 @@ export default function KnowledgeBase() {
               {/* Article header */}
               <div className="px-5 py-4 border-b border-edge-subtle flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-ink-primary">{selected.title}</p>
+                  <p className="text-sm font-semibold text-ink-primary"><RecordIndex index={selected.sortIndex} />{selected.title}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${catCls(selected.category)}`}>{selected.category}</span>
                     <span className="text-[10px] font-mono text-ink-muted">{tr("Updated")} {selected.updatedAt}</span>

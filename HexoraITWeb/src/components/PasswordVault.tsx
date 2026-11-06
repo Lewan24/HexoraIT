@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
 import {
@@ -209,7 +210,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
   onDelete: () => void
 }) {
   useLocale()
-  const { toggleStarPassword, revealPassword, canWrite } = useApp()
+  const { toggleStarPassword, revealPassword, canWrite, toast } = useApp()
   const [revealed, setRevealed] = useState<{
     id: string
     value: string
@@ -217,7 +218,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
   const [revealing, setRevealing] = useState(false)
   const [copied, setCopied] = useState<'user' | 'pass' | null>(null)
 
-  const ensureRevealed = async (): Promise<string | null> => {
+  const ensureRevealed = async (show = true): Promise<string | null> => {
     if (revealed?.id === selected.id)
       return revealed.value
 
@@ -226,7 +227,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
     try {
       const value = await revealPassword(selected.id)
 
-      setRevealed({
+      if (show) setRevealed({
         id: selected.id,
         value
       })
@@ -252,14 +253,16 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
   }
 
   const copy = async (text: string, which: 'user' | 'pass') => {
-    navigator.clipboard?.writeText(text).catch(() => {})
-    setCopied(which)
-    setTimeout(() => setCopied(null), 1800)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(which)
+      setTimeout(() => setCopied(null), 1800)
+    } catch { toast(tr('Failed to copy to clipboard'), 'error') }
   }
 
   const copyPassword = async () => {
-    const value = await ensureRevealed()
-    if (value) copy(value, 'pass')
+    const value = await ensureRevealed(false)
+    if (value !== null) await copy(value, 'pass')
   }
 
   return (
@@ -276,7 +279,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
             <KeyRound size={16} className="text-blue-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-semibold text-ink-primary truncate">{selected.name}</h1>
+            <h1 className="text-base sm:text-lg font-semibold text-ink-primary truncate"><RecordIndex index={selected.sortIndex} />{selected.name}</h1>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[10px] font-mono bg-navy-700 text-ink-muted px-1.5 py-0.5 rounded border border-edge-subtle">{tr(selected.category)}</span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${STRENGTH_STYLES[selected.strength]}`}>{tr(selected.strength)}</span>
@@ -343,7 +346,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
       {selected.notes && (
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5 mb-4">
           <h3 className="text-xs font-semibold text-ink-primary mb-2">{tr("Notes")}</h3>
-          <p className="text-xs text-ink-secondary leading-relaxed">{selected.notes}</p>
+          <p className="whitespace-pre-wrap break-words text-xs text-ink-secondary leading-relaxed">{selected.notes}</p>
         </div>
       )}
 
@@ -468,7 +471,7 @@ export default function PasswordVault() {
             <button key={p.id} onClick={() => selectEntry(p.id)}
               className={`w-full px-4 py-3 text-left transition-all hover:bg-navy-800/80 ${selectedId === p.id ? 'bg-navy-800 md:border-r-2 md:border-blue-500' : ''}`}>
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-xs font-medium text-ink-primary truncate">{p.name}</span>
+                <span className="text-xs font-medium text-ink-primary truncate"><RecordIndex index={p.sortIndex} />{p.name}</span>
                 {p.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
               </div>
               <div className="flex items-center justify-between gap-1">
@@ -522,7 +525,7 @@ export default function PasswordVault() {
           <div className="relative bg-navy-800 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm p-6" style={{ animation: 'modalIn 0.15s ease-out' }} onClick={e => e.stopPropagation()}>
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"><Trash2 size={18} className="text-red-400" /></div>
             <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">{tr("Delete Password Entry")}</h3>
-            <p className="text-xs text-ink-muted text-center mb-5">{tr("Delete")} <span className="text-ink-primary font-mono">{deleteTarget.name}</span>{tr("? This cannot be undone.")}</p>
+            <p className="text-xs text-ink-muted text-center mb-5">{tr("Delete")} <span className="text-ink-primary font-mono"><RecordIndex index={deleteTarget.sortIndex} />{deleteTarget.name}</span>{tr("? This cannot be undone.")}</p>
             <div className="flex gap-2">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">

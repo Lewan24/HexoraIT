@@ -54,6 +54,37 @@ public sealed class FileUploadSecurityTests
         FileUploadSecurity.SafeDownloadName("bad\0name.txt").Should().Be("download");
     }
 
+    [Theory]
+    [InlineData(1_073_741_824L)]
+    [InlineData(2_147_483_648L)]
+    public async Task GigabyteFilesAreValidatedWithoutReadingWholeStream(long length)
+    {
+        // Sparse backing file exercises real stream lengths without allocating gigabytes of RAM.
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+            stream.SetLength(length);
+            await stream.WriteAsync("PK\u0003\u0004"u8.ToArray());
+            stream.Position = 0;
+            var file = new FormFile(stream, 0, length, "file", "wordpress.zip") { Headers = new HeaderDictionary(), ContentType = "text/html" };
+            var validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes);
+            validated.ContentType.Should().Be("application/octet-stream");
+            stream.Position.Should().BeLessThan(100);
+        }
+        finally { System.IO.File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task FileAboveTwoGiBIsRejectedBeforeReading()
+    {
+        using var stream = new MemoryStream([1]);
+        var file = new FormFile(stream, 0, FileUploadSecurity.MaxFileBytes + 1, "file", "large.zip");
+        Func<Task> action = () => FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes);
+        await action.Should().ThrowAsync<InvalidDataException>().WithMessage("*limit*");
+        stream.Position.Should().Be(0);
+    }
+
     private static FormFile FormFile(byte[] content, string name, string contentType)
     {
         var stream = new MemoryStream(content);

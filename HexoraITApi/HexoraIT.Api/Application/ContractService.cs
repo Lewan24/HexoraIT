@@ -28,9 +28,9 @@ public sealed class ContractService(AppDbContext db, IMapper mapper, ICurrentUse
         if (organizationId is { } organization && !await userContext.HasPermissionAsync(organization, "contracts")) return new(StatusCodes.Status403Forbidden);
         var query = db.Contracts.AsQueryable(); if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .Select(item => new ContractDto(item.Id, item.Name, item.Vendor, item.Category, item.StartDate, item.EndDate, item.Value, item.Currency,
-                item.AutoRenew, item.Notes, item.Starred, item.Status, item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0)))
+                item.AutoRenew, item.Notes, item.Starred, item.Status, item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0), item.SortIndex))
             .ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }

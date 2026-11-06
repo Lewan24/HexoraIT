@@ -18,7 +18,7 @@ public sealed class DashboardLayoutService(AppDbContext db, ICurrentUserContext 
     {
         if (!await userContext.HasPermissionAsync(organizationId, "dashboard")) return new(StatusCodes.Status403Forbidden);
         var layout = await FindAsync(organizationId, cancellationToken);
-        return new(StatusCodes.Status200OK, layout is null ? null : new DashboardLayoutDto(layout.SectionOrder, layout.HiddenSections));
+        return new(StatusCodes.Status200OK, layout is null ? null : new DashboardLayoutDto(layout.SectionOrder, layout.HiddenSections, layout.MaxItems));
     }
 
     public async Task<ApiOperationResult> SaveAsync(Guid organizationId, DashboardLayoutDto dto, CancellationToken cancellationToken = default)
@@ -30,6 +30,8 @@ public sealed class DashboardLayoutService(AppDbContext db, ICurrentUserContext 
             layout = new DashboardLayout { UserId = userContext.UserId, OrganizationId = organizationId };
             db.DashboardLayouts.Add(layout);
         }
+        if (dto.MaxItems is < 1 or > 10) return new(StatusCodes.Status400BadRequest);
+        layout.MaxItems = dto.MaxItems;
         layout.SectionOrder = dto.SectionOrder;
         layout.HiddenSections = dto.HiddenSections;
         layout.UpdatedAt = DateTime.UtcNow;

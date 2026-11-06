@@ -25,20 +25,23 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  ExternalLink,
 } from "lucide-react"
 
 import { useApp } from "../context/useApp"
 
 import { useAuth } from "../context/useAuth"
 
-import { organizationsApi } from "../api/resources"
+import applicationLogo from "../../public/logo/HexoraIT_HexLogoNoBg.png"
+
+import { versionApi, organizationsApi } from "../api/resources"
 
 import { ApiError } from "../api/http"
 
 import { toggleTheme, getTheme } from "../lib/theme"
 
 import type {
-  Organization,
+  OrganizationInput,
   OrgMembership,
   OrgMember,
   OrgRole,
@@ -47,11 +50,14 @@ import type {
 
 import type { View } from "../App"
 
+import OrganizationCreateModal from "./OrganizationCreateModal"
+import OrganizationArchiveButton from "./OrganizationArchiveButton"
+import OrganizationCustomization from "./OrganizationCustomization"
 import OrganizationRoles from "./OrganizationRoles"
 import { config } from "../../config"
 import { resetDemoData } from "../demo"
 
-type Section = "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
+type Section = "customization" | "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
 
 const SECTIONS: {
   id: Section
@@ -59,6 +65,7 @@ const SECTIONS: {
   icon: React.ReactNode
   desc: string
 }[] = [
+  { id: "customization", label: "Customize organization", icon: <Building2 size={16} />, desc: "Choose modules for the whole organization" },
   {
     id: "roles",
     label: "Organization roles",
@@ -282,7 +289,7 @@ function OrgEditModal({
 
   onClose: () => void
 
-  onSave: (data: Omit<Organization, "id">) => Promise<void>
+  onSave: (data: OrganizationInput) => Promise<void>
 }) {
   useLocale()
 
@@ -810,7 +817,6 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
     orgs,
     currentOrg,
     switchOrg,
-    addOrg,
     updateOrg,
     deleteOrg,
     removeMember,
@@ -832,14 +838,6 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
 
   const [addOpen, setAddOpen] = useState(false)
 
-  const [newName, setNewName] = useState("")
-
-  const [newDesc, setNewDesc] = useState("")
-
-  const [newColor, setNewColor] = useState("#2563eb")
-
-  const [creating, setCreating] = useState(false)
-
   const [deletedOrgs, setDeletedOrgs] = useState<OrganizationSummary[] | null>(
     null,
   )
@@ -847,47 +845,6 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
   const [loadingDeleted, setLoadingDeleted] = useState(false)
 
   const [restoringId, setRestoringId] = useState<string | null>(null)
-
-  const COLORS = [
-    "#2563eb",
-    "#7c3aed",
-    "#059669",
-    "#dc2626",
-    "#d97706",
-    "#0891b2",
-    "#be185d",
-  ]
-
-  const submitNew = async () => {
-    if (!newName.trim() || creating) return
-
-    const initials = newName
-      .trim()
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-
-    setCreating(true)
-
-    try {
-      await addOrg({
-        name: newName.trim(),
-        description: newDesc,
-        color: newColor,
-        initials,
-      })
-
-      setNewName("")
-      setNewDesc("")
-      setAddOpen(false)
-    } catch {
-      // error toast already fired
-    } finally {
-      setCreating(false)
-    }
-  }
 
   const handleDelete = async () => {
     if (!deleteTarget) return
@@ -968,74 +925,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
           }
         />
 
-        {addOpen && (
-          <div className="px-5 py-4 border-b border-edge-subtle bg-navy-900/30 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
-                  {tr("Name *")}
-                </label>
-                <input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder={tr("e.g. Remote Office")}
-                  className={inp()}
-                  autoFocus
-                  disabled={creating}
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
-                  {tr("Description")}
-                </label>
-                <input
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder={tr("Optional")}
-                  className={inp()}
-                  disabled={creating}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => !creating && setNewColor(c)}
-                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
-                    style={{
-                      backgroundColor: c,
-                      borderColor: newColor === c ? "#fff" : "transparent",
-                    }}
-                  >
-                    {newColor === c && (
-                      <Check size={9} className="text-white" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setAddOpen(false)}
-                  disabled={creating}
-                  className="px-3 py-1.5 rounded-lg bg-navy-700 text-ink-secondary text-xs border border-edge-default hover:bg-navy-600 transition-colors disabled:opacity-40"
-                >
-                  {tr("Cancel")}
-                </button>
-                <button
-                  onClick={submitNew}
-                  disabled={creating}
-                  className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-all disabled:opacity-60 flex items-center gap-1.5"
-                  style={{ backgroundColor: newColor }}
-                >
-                  {creating && <Loader2 size={11} className="animate-spin" />}{" "}
-                  {tr("Create")}{" "}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {addOpen && <OrganizationCreateModal onClose={() => setAddOpen(false)} />}
 
         <div className="divide-y divide-edge-subtle">
           {orgs.map((org) => {
@@ -1068,6 +958,8 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                         {tr("active")}
                       </span>
                     )}
+                    {org.isArchived && <span className="text-[10px] text-amber-400">{tr('Archived')}</span>}
+                    {org.isTemporary && <span className="text-[10px] text-ink-muted">{tr('Temporary engagement')}</span>}
                     <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-navy-700 text-ink-muted border border-edge-subtle">
                       {tr(org.role)}
                     </span>
@@ -1079,7 +971,9 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                   )}
                 </div>
                 <div className="flex gap-1 flex-shrink-0 flex-wrap">
-                  {currentOrg?.id !== org.id && (
+                  <OrganizationArchiveButton org={org} onChanged={() => { if (currentOrg?.id === org.id && !org.isArchived) navigate('home') }} />
+                  {canManage && !org.isArchived && <button onClick={() => { switchOrg(org.id); navigate('organization-customization') }} className="rounded-lg border border-blue-500/20 px-2.5 py-1.5 text-xs text-blue-400">{tr('Customize organization')}</button>}
+                  {!org.isArchived && currentOrg?.id !== org.id && (
                     <button
                       onClick={() => {
                         switchOrg(org.id)
@@ -1529,6 +1423,12 @@ function NotificationsSection() {
 
 function AboutSection() {
   useLocale()
+  const [version, setVersion] = useState<string>()
+  useEffect(() => {
+    let active = true
+    versionApi.getCurrentVersion().then(value => { if (active) setVersion(value) }).catch(() => { if (active) setVersion('') })
+    return () => { active = false }
+  }, [])
   const [resetting, setResetting] = useState(false)
 
   const resetDemo = () => {
@@ -1547,20 +1447,20 @@ function AboutSection() {
       <SectionCard>
         <SectionHeader title={tr("Application")} />
         <div className="px-5 py-5 flex items-center gap-4">
-          <div
-            className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0"
-            style={{ boxShadow: "0 0 20px rgba(37,99,235,0.4)" }}
-          >
-            <Shield size={22} className="text-white" />
-          </div>
+          <img src={applicationLogo} alt="HexoraIT" className="h-14 w-14 shrink-0 object-contain" />
           <div>
             <p className="text-sm font-semibold text-ink-primary">
-              {tr("ITDocs")}
+              HexoraIT
             </p>
             <p className="text-xs text-ink-muted">
               {tr("IT Documentation Platform")}
             </p>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-edge-subtle px-5 py-4 text-xs">
+          <span className="rounded-lg border border-edge-default bg-navy-700 px-3 py-2 text-ink-secondary">{tr('Current version')}: <span className="font-mono">{version === undefined ? tr('loading...') : version || tr('Unavailable')}</span></span>
+          <a href="https://github.com/Lewan24/HexoraIT" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-edge-default px-3 py-2 text-ink-secondary hover:text-blue-400">{tr('Project on GitHub')}<ExternalLink size={12} /></a>
+          <a href="https://github.com/Lewan24" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-ink-muted hover:text-blue-400">Lewan24<ExternalLink size={12} /></a>
         </div>
       </SectionCard>
 
@@ -1638,6 +1538,8 @@ export default function Settings({
   const { user } = useAuth()
 
   const isClient = user?.systemRole === "Client"
+  const { currentOrg } = useApp()
+  const canCustomize = !!currentOrg && !currentOrg.isArchived && ["Owner", "Admin"].includes(currentOrg.role)
 
   const [active, setActive] = useState<Section>("profile")
 
@@ -1647,12 +1549,15 @@ export default function Settings({
 
   const content = () => {
     switch (
-      isClient && ["roles", "organizations"].includes(active)
+      (isClient && ["roles", "organizations"].includes(active)) || ((!currentOrg || currentOrg.isArchived) && ["roles", "customization", "notifications"].includes(active))
         ? "profile"
         : active
     ) {
       case "profile":
         return <ProfileSection />
+
+      case "customization":
+        return <OrganizationCustomization onArchived={() => navigate('home')} onExport={() => navigate('organization-documentation')} />
 
       case "roles":
         return <OrganizationRoles />
@@ -1675,7 +1580,7 @@ export default function Settings({
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-[900px]">
+    <div className="p-4 sm:p-6 max-w-[1200px]">
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-ink-primary">
           {tr("Settings")}
@@ -1693,7 +1598,7 @@ export default function Settings({
         >
           <div className="bg-navy-800 border border-edge-subtle rounded-xl overflow-hidden">
             {SECTIONS.filter(
-              (s) => !isClient || !["roles", "organizations"].includes(s.id),
+              (s) => (s.id !== "customization" || canCustomize) && (!["roles", "notifications"].includes(s.id) || (!!currentOrg && !currentOrg.isArchived)) && (!isClient || !["roles", "organizations"].includes(s.id)),
             ).map((s) => (
               <button
                 key={s.id}

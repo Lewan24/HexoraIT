@@ -12,7 +12,7 @@ public record DiagramNodeDto(
     Guid? AssetId,
     double X,
     double Y,
-    [StringLength(20)] string? Color);
+    [StringLength(20)] string? Color, int? SortIndex = null);
 public record DiagramEdgeDto(
     Guid Id,
     Guid Source,

@@ -6,15 +6,16 @@ import {
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
   ShieldCheck, Layers, Share2, Sun, Moon,
-  FolderOpen, BookOpenText,
+  FolderOpen, BookOpenText, FileText,
 } from 'lucide-react'
 import type { View } from '../App'
 import { useApp } from '../context/useApp'
 import { useAuth } from '../context/useAuth'
-import type { Organization } from '../api/types'
+import RecordOrderButton from './RecordOrderButton'
+import OrganizationCreateModal from './OrganizationCreateModal'
+import { activeOrganizations, canManageOrganization } from '../lib/organizationLifecycle'
 import { toggleTheme, getTheme } from '../lib/theme'
 import { buildSearchResults, type SearchResult } from '../lib/search'
-import logo from '../../public/logo/HexoraIT_LogoNoBg.png'
 import logoHex from '../../public/logo/HexoraIT_HexLogoNoBg.png'
 import UpdateDialog from './updateDialog'
 import { useVersionCheck } from '../context/useVersionCheck'
@@ -74,70 +75,6 @@ interface Props {
 
 // ─── New Org Modal ────────────────────────────────────────────────────────────
 
-function OrgModal({ onClose, onAdd }: { onClose: () => void; onAdd: (o: Omit<Organization, 'id'>) => void }) {
-  useLocale()
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [color, setColor] = useState('#2563eb')
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const COLORS = ['#2563eb', '#7c3aed', '#059669', '#dc2626', '#d97706', '#0891b2', '#be185d', '#374151']
-
-  const submit = async () => {
-    if (!name.trim()) { setError(tr("Name is required")); return }
-    const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    setSubmitting(true)
-    try {
-      await onAdd({ name: name.trim(), description, color, initials })
-      onClose()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-edge-subtle">
-          <h2 className="text-sm font-semibold text-ink-primary">{tr("New Organization")}</h2>
-          <button onClick={onClose} className="p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors"><X size={14} /></button>
-        </div>
-        <div className="px-5 py-4 space-y-4">
-          <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Name *")}</label>
-            <input value={name} onChange={e => { setName(e.target.value); setError('') }} placeholder={tr("e.g. Branch Office")} autoFocus
-              className={`w-full px-3 py-2 rounded-lg bg-navy-700 border text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none transition-colors ${error ? 'border-red-500/50' : 'border-edge-default focus:border-blue-500'}`} />
-            {error && <p className="text-[10px] text-red-400 mt-1">{error}</p>}
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Description")}</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder={tr("Optional description")}
-              className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-xs placeholder:text-ink-muted focus:outline-none focus:border-blue-500 transition-colors" />
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-2">{tr("Color")}</label>
-            <div className="flex gap-2 flex-wrap">
-              {COLORS.map(c => (
-                <button key={c} onClick={() => setColor(c)} className="w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center"
-                  style={{ backgroundColor: c, borderColor: color === c ? '#fff' : 'transparent' }}>
-                  {color === c && <Check size={10} className="text-white" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-edge-subtle bg-navy-900/40">
-          <button onClick={onClose} disabled={submitting} className="px-3.5 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-50">{tr("Cancel")}</button>
-          <button onClick={submit} disabled={submitting} className="px-3.5 py-1.5 rounded-lg text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: color, boxShadow: `0 1px 10px ${color}55` }}>
-            {submitting ? tr("Creating…") : tr("Create")}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function Sidebar({
   currentView, navigate, onLogout, collapsed, onToggleCollapse, isMobile, onClose,
 }: {
@@ -150,30 +87,33 @@ function Sidebar({
   onClose?: () => void
 }) {
   useLocale()
-  const { orgs, currentOrg, switchOrg, licenses, addOrg, toast, canRead } = useApp()
+  const { orgs, currentOrg, switchOrg, licenses, toast, canRead, hiddenModules } = useApp()
   const { user } = useAuth()
   const [orgOpen, setOrgOpen] = useState(false)
   const [orgModalOpen, setOrgModalOpen] = useState(false)
 
-  const expiring = licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
+  const expiring = hiddenModules.includes('licenses') ? 0 : licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
 
   const handleNav = (v: View) => {
     navigate(v)
     onClose?.()
   }
 
-  if (!currentOrg) {
-    return (
-      <div className="flex flex-col h-full bg-navy-900">
-        <div className="h-14 flex items-center px-4 border-b border-edge-subtle flex-shrink-0">
-          <img src={logo} />
-          {/* {(!collapsed || isMobile) && <span className="ml-2.5 font-semibold text-ink-primary text-sm">HexoraIT</span>} */}
-        </div>
-        <button className="p-4 text-ink-secondary" onClick={() => handleNav('settings')}>{tr('Settings')}</button>
-        <button className="p-4 text-ink-secondary" onClick={() => handleNav('help')}>{tr('User guide')}</button>
-        <button className="p-4 text-ink-secondary" onClick={onLogout}>{tr('Sign out')}</button>
-      </div>
-    )
+  if (!currentOrg || currentOrg.isArchived || currentView === 'home') {
+    const showLabels = !collapsed || isMobile
+    const globalLinks: { view: View; label: string; icon: React.ReactNode }[] = [
+      ...(user?.systemRole === 'Client' ? [] : [{ view: 'home' as View, label: 'Organization hub', icon: <Building2 size={17} /> }]),
+      ...(currentOrg && !currentOrg.isArchived ? [{ view: (user?.systemRole === 'Client' ? 'reports' : 'dashboard') as View, label: 'Return to organization', icon: <LayoutDashboard size={17} /> }] : []),
+      { view: 'settings', label: 'Settings', icon: <Settings size={17} /> },
+      { view: 'help', label: 'User guide', icon: <BookOpenText size={17} /> },
+    ]
+    return <div className="flex h-full flex-col bg-navy-900">
+      <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'home')} aria-label="HexoraIT" className={`flex items-center gap-3 py-5 ${showLabels ? 'px-5' : 'justify-center'}`}><img src={logoHex} alt="" className="h-9 w-9 shrink-0 object-contain" />{showLabels && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}</button>
+      {showLabels && <p className="border-y border-edge-subtle px-5 py-4 text-[10px] uppercase tracking-widest text-ink-muted">{tr('Your workspace')}</p>}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2">{globalLinks.map(link => <button key={link.view} title={tr(link.label)} onClick={() => handleNav(link.view)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${currentView === link.view ? 'bg-blue-500/10 text-blue-400' : 'text-ink-secondary hover:bg-navy-700'} ${!showLabels ? 'justify-center' : ''}`}><span className="shrink-0">{link.icon}</span>{showLabels && <span className="truncate">{tr(link.label)}</span>}</button>)}</nav>
+      <button onClick={onLogout} title={tr('Sign out')} className={`flex items-center gap-3 border-t border-edge-subtle px-5 py-4 text-sm text-ink-muted hover:text-red-400 ${!showLabels ? 'justify-center px-0' : ''}`}><LogOut size={16} />{showLabels && tr('Sign out')}</button>
+      {!isMobile && <button onClick={onToggleCollapse} title={tr('Collapse')} className="flex justify-center border-t border-edge-subtle p-3 text-ink-muted hover:text-ink-primary">{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>}
+    </div>
   }
 
   return (
@@ -186,7 +126,7 @@ function Sidebar({
         )}
       </div>
 
-      <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'dashboard')}
+      <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'home')}
         aria-label="HexoraIT" className={`flex items-center gap-3 py-5 ${collapsed && !isMobile ? 'justify-center' : 'px-5'}`}>
         <img src={logoHex} alt="" className="h-9 w-9 object-contain" />
         {(!collapsed || isMobile) && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}
@@ -220,8 +160,11 @@ function Sidebar({
 
       {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
+        {user?.systemRole !== 'Client' && <button onClick={() => handleNav('home')} title={tr('Organization hub')} className="mx-2 mb-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-edge-subtle px-3 py-2 text-xs text-ink-muted hover:bg-navy-700"><Building2 size={15} />{(!collapsed || isMobile) && tr('Organization hub')}</button>}
+        {canManageOrganization(currentOrg) && <button onClick={() => handleNav('organization-customization')} title={tr('Customize organization')} className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-400 hover:bg-blue-500/10"><Settings size={15} />{(!collapsed || isMobile) && tr('Customize organization')}</button>}
+        {canManageOrganization(currentOrg) && <button onClick={() => handleNav('organization-documentation')} title={tr('Documentation PDF')} className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-3 py-2 text-xs text-ink-secondary hover:bg-navy-700"><FileText size={15} />{(!collapsed || isMobile) && tr('Documentation PDF')}</button>}
         {user?.systemRole === 'Client' && <button className={"w-full px-4 py-3 text-left text-blue-300"} onClick={() => handleNav('reports')}>{tr('Report a problem')}</button>}
-        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => user?.systemRole !== 'Client' || canRead(item.id)) })).filter(section => section.items.length > 0).map((section, si) => (
+        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map((section, si) => (
           <div key={section.label}>
             {si > 0 && <div className="mx-3 my-1.5 border-t border-edge-subtle" />}
             {(!collapsed || isMobile) && (
@@ -318,13 +261,15 @@ function Sidebar({
       {orgOpen && (
         <>
           <div className="fixed inset-0 z-[55]" onClick={() => setOrgOpen(false)} />
-          <div className="fixed left-3 z-[60] w-56 bg-navy-750 border border-edge-default rounded-xl shadow-2xl overflow-hidden"
+          <div className="fixed left-3 z-[60] w-64 max-h-[70vh] overflow-y-auto bg-navy-750 border border-edge-default rounded-xl shadow-2xl"
             style={{ top: isMobile ? 120 : 112 }}
             onClick={e => e.stopPropagation()}>
             <div className="px-3 py-2 border-b border-edge-subtle">
               <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{tr("Switch Organization")}</p>
             </div>
-            {orgs.map(org => (
+            {canManageOrganization(currentOrg) && <button onClick={() => { setOrgOpen(false); handleNav('organization-customization') }} className="flex w-full items-center gap-2 border-b border-edge-subtle px-3 py-3 text-xs text-blue-400 hover:bg-navy-700"><Settings size={14} />{tr('Customize organization')}</button>}
+            {user?.systemRole !== 'Client' && <button onClick={() => { setOrgOpen(false); handleNav('home') }} className="flex w-full items-center gap-2 border-b border-edge-subtle px-3 py-3 text-xs text-ink-secondary hover:bg-navy-700"><Building2 size={14} />{tr('Organizations and archive')}</button>}
+            {activeOrganizations(orgs).map(org => (
               <button key={org.id}
                 onClick={() => {
                   switchOrg(org.id)
@@ -351,7 +296,7 @@ function Sidebar({
         </>
       )}
 
-      {orgModalOpen && user?.systemRole !== 'Client' && <OrgModal onClose={() => setOrgModalOpen(false)} onAdd={addOrg} />}
+      {orgModalOpen && user?.systemRole !== 'Client' && <OrganizationCreateModal onClose={() => setOrgModalOpen(false)} onCreated={org => { switchOrg(org.id); handleNav('dashboard') }} />}
     </div>
   )
 }
@@ -361,7 +306,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
   useLocale()
   const {
     currentOrg, licenses, assets, passwords, contacts, contracts, plans,
-    incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets
+    incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets, hiddenModules
   } = useApp()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -379,17 +324,18 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
     closeUpdateDialog
   } = useVersionCheck();
 
-  const expiring = licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
+  const expiring = hiddenModules.includes('licenses') ? 0 : licenses.filter(l => l.status === 'expiring' || l.status === 'expired').length
 
   const results = buildSearchResults(
     { assets, passwords, contacts, licenses, contracts, plans, incidents, knowledgeArticles, tasks, groups, warrantyItems, subnets },
     searchQuery, tr
-  )
+  ).filter(result => !hiddenModules.includes(result.view === 'asset-detail' ? 'assets' : result.view))
 
   // ⌘K / Ctrl+K opens search from anywhere; Escape closes it
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        if (currentView === 'home') return
         e.preventDefault()
         setSearchOpen(true)
       } else if (e.key === 'Escape' && searchOpen) {
@@ -398,7 +344,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [searchOpen])
+  }, [searchOpen, currentView])
 
   const openSearch = () => {
     setSearchQuery('')
@@ -478,7 +424,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           </button>
 
           {/* Org badge */}
-          {currentOrg && (
+          {currentOrg && !currentOrg.isArchived && currentView !== 'home' && (
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-navy-800 border border-edge-subtle flex-shrink-0">
               <div className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold text-white"
                 style={{ backgroundColor: currentOrg.color }}>{currentOrg.initials}</div>
@@ -488,17 +434,17 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           )}
 
           {/* Search */}
-          <button onClick={openSearch}
+          {currentView !== 'home' && <button onClick={openSearch}
             className="flex items-center gap-2 flex-1 min-w-0 max-w-sm px-3 py-1.5 rounded-lg bg-navy-700 border border-edge-default hover:border-edge-strong text-ink-muted transition-colors">
             <Search size={13} className="flex-shrink-0" />
             <span className="text-xs truncate hidden sm:block">{tr("Search assets, docs…")}</span>
             <span className="ml-auto text-[10px] font-mono bg-navy-600 text-ink-muted px-1.5 py-0.5 rounded border border-edge-default hidden md:block flex-shrink-0">{tr("⌘K")}</span>
-          </button>
+          </button>}
 
           <div className="flex-1" />
 
           {/* Bell */}
-          <div className="relative">
+          {currentView !== 'home' && <div className="relative">
             <button onClick={() => setNotifOpen(v => !v)}
               className="relative w-8 h-8 rounded-lg flex items-center justify-center text-ink-secondary hover:text-ink-primary hover:bg-navy-700 transition-colors">
               <Bell size={16} />
@@ -526,7 +472,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Theme toggle */}
           <button
@@ -545,7 +491,10 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
           </button>
         </header>
 
-        <main className="workspace-main flex-1 overflow-y-auto">{children}</main>
+        <main className="workspace-main flex-1 overflow-y-auto">
+          {currentOrg && ['assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'files', 'private-notes', 'diagram'].includes(currentView) && <aside className="flex justify-end px-4 pt-3 sm:px-6"><RecordOrderButton key={`${currentOrg.id}:${currentView}`} resources={currentView === 'tasks' ? ['tasks', 'projects'] : currentView === 'files' ? ['files', 'folders'] : [currentView]} /></aside>}
+          {children}
+        </main>
       </div>
 
       {/* Search overlay */}

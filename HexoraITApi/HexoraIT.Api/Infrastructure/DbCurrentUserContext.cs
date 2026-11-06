@@ -7,6 +7,7 @@ public interface ICurrentUserContext
 {
     Guid UserId { get; }
     Task<bool> HasAccessAsync(Guid organizationId);
+    Task<HashSet<Guid>> GetWritableResourceIdsAsync(Guid organizationId, string resource, IReadOnlyCollection<Guid> resourceIds, CancellationToken token = default);
     Task<OrgRole?> GetRoleAsync(Guid organizationId);
     Task<List<Guid>> GetAccessibleOrganizationIdsAsync();
     Task<bool> HasPermissionAsync(Guid organizationId, string resource, bool write = false, Guid? resourceId = null);
@@ -47,6 +48,28 @@ public class DbCurrentUserContext(AppDbContext db, ICurrentUserIdProvider idProv
         if (resourceId is null && !write)
             return rules.Any(p => p.CanRead);
         return effective is not null && effective.CanRead && (!write || effective.CanWrite);
+    }
+
+    // Resolve one module and its individual overrides in a fixed number of queries,
+    // so bulk ordering/synchronization does not issue a permission query per record.
+    public async Task<HashSet<Guid>> GetWritableResourceIdsAsync(Guid organizationId, string resource, IReadOnlyCollection<Guid> resourceIds, CancellationToken token = default)
+    {
+        if (!OrganizationResources.All.Contains(resource) || resourceIds.Count == 0) return [];
+        var membership = await db.UserOrganizations.AsNoTracking()
+            .Where(m => m.UserId == UserId && m.OrganizationId == organizationId && !m.Organization.IsDeleted)
+            .Select(m => new { m.Role, m.CustomRoleId, m.User.SystemRole }).FirstOrDefaultAsync(token);
+        if (membership is null) return [];
+        if (membership.SystemRole == SystemRole.Client && resource is "dashboard" or "settings" or "tasks") return [];
+        if (membership.SystemRole != SystemRole.Client && membership.CustomRoleId is null)
+            return membership.Role >= OrgRole.Member ? resourceIds.ToHashSet() : [];
+        var rules = membership.SystemRole == SystemRole.Client
+            ? await db.ClientPermissions.AsNoTracking().Where(p => p.UserId == UserId && p.OrganizationId == organizationId && p.Resource == resource)
+                .Select(p => new { p.ResourceId, p.CanRead, p.CanWrite }).ToListAsync(token)
+            : await db.RolePermissions.AsNoTracking().Where(p => p.RoleId == membership.CustomRoleId && p.Resource == resource)
+                .Select(p => new { p.ResourceId, p.CanRead, p.CanWrite }).ToListAsync(token);
+        var byId = rules.ToDictionary(rule => rule.ResourceId);
+        byId.TryGetValue(Guid.Empty, out var module);
+        return resourceIds.Where(id => { var effective = byId.GetValueOrDefault(id) ?? module; return effective is { CanRead: true, CanWrite: true }; }).ToHashSet();
     }
 
     public async Task<bool> HasAccessAsync(Guid organizationId) =>

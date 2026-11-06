@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
 import {
@@ -5,6 +6,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, Calendar, DollarSign,
   Key, Building2, Package, ChevronDown, Loader2,
 } from 'lucide-react'
+import { compareRecordOrder } from '../lib/recordOrder'
 import { useApp } from '../context/useApp'
 import type { License, LicenseCategory, LicenseType, LicenseStatus } from '../api/types'
 
@@ -252,6 +254,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
   onToggleStar: () => void
 }) {
   useLocale()
+  const { toast } = useApp()
   const sc = STATUS_CONFIG[license.status]
   const cc = CAT_COLORS[getLicenseCategoryFromString(license.category)]
   const days = daysUntil(license.expiryDate)
@@ -274,7 +277,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
       <div className="px-5 py-4 border-b border-edge-subtle">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-ink-primary leading-snug">{license.name}</p>
+            <p className="text-sm font-semibold text-ink-primary leading-snug"><RecordIndex index={license.sortIndex} />{license.name}</p>
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${sc.cls}`}>
                 {sc.icon} {tr(sc.label)}
@@ -341,13 +344,17 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
             <span className="text-ink-muted flex-shrink-0"><Key size={11} /></span>
             <span className="text-xs text-ink-muted w-20 flex-shrink-0">{tr("Key")}</span>
             <div className="flex-1 flex items-center gap-1.5 min-w-0">
-              <span className={`text-xs font-mono text-ink-secondary truncate ${!keyVisible ? 'blur-sm select-none' : ''}`}>
-                {license.licenseKey}
+              <span className="text-xs font-mono text-ink-secondary truncate">
+                {keyVisible ? license.licenseKey : '••••••••••••••••'}
               </span>
               <button onClick={() => setKeyVisible(!keyVisible)}
                 className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0 font-mono">
                 {keyVisible ? tr("hide") : tr("show")}
               </button>
+              <button className="text-xs text-blue-400" onClick={async () => {
+                try { await navigator.clipboard.writeText(license.licenseKey); toast(tr("Copied to clipboard")) }
+                catch { toast(tr("Failed to copy to clipboard"), "error") }
+              }}>{tr("Copy")}</button>
             </div>
           </div>
         )}
@@ -371,7 +378,7 @@ export default function Licenses() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<LicenseCategory | 'All'>('All')
   const [statusFilter, setStatusFilter] = useState<LicenseStatus | 'All'>('All')
-  const [sortBy, setSortBy] = useState<'name' | 'expiry' | 'cost'>('expiry')
+  const [sortBy, setSortBy] = useState<'manual' | 'name' | 'expiry' | 'cost'>('manual')
   const [selectedId, setSelectedId] = useState<string | null>(
     () => licenses[0]?.id ?? null
   )
@@ -388,6 +395,7 @@ export default function Licenses() {
        l.licenseKey.toLowerCase().includes(query.toLowerCase()))
     )
     .sort((a, b) => {
+      if (sortBy === 'manual') return compareRecordOrder(a, b)
       if (sortBy === 'expiry') return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
       if (sortBy === 'cost') return b.cost - a.cost
       return a.name.localeCompare(b.name)
@@ -489,6 +497,7 @@ export default function Licenses() {
 
         <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
           className="px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-xs text-ink-secondary focus:border-blue-500 focus:outline-none transition-colors">
+          <option value="manual">{tr("Manual order")}</option>
           <option value="expiry">{tr("Sort: Expiry")}</option>
           <option value="cost">{tr("Sort: Cost")}</option>
           <option value="name">{tr("Sort: Name")}</option>
@@ -532,7 +541,7 @@ export default function Licenses() {
                         <div className="flex items-start gap-2">
                           {lic.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 mt-0.5 flex-shrink-0" />}
                           <div className="min-w-0">
-                            <p className="text-ink-primary font-medium truncate max-w-[180px]">{lic.name}</p>
+                            <p className="text-ink-primary font-medium truncate max-w-[180px]"><RecordIndex index={lic.sortIndex} />{lic.name}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`text-[9px] font-mono px-1 py-0.5 rounded border font-semibold ${cc.bg} ${cc.text}`}>{tr(lic.category)}</span>
                               <span className="text-[10px] text-ink-muted">{tr(lic.type)}</span>
@@ -571,7 +580,7 @@ export default function Licenses() {
           )}
           {selected ? (
             <div className="sticky top-0">
-              <LicenseDetail
+              <LicenseDetail key={selected.id}
                 license={selected}
                 onEdit={() => setModal({ open: true, initial: selected })}
                 onDelete={() => handleDelete(selected.id)}

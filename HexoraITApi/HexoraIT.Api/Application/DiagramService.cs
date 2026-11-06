@@ -19,7 +19,7 @@ public sealed class DiagramService(AppDbContext db, IMapper mapper, ICurrentUser
         if (!await userContext.HasPermissionAsync(organizationId, "diagram")) return new(StatusCodes.Status403Forbidden);
         var nodes = await db.DiagramNodes.Where(node => node.OrganizationId == organizationId &&
             (node.AssetId == null || db.Assets.Any(asset => asset.Id == node.AssetId && asset.OrganizationId == organizationId)))
-            .ToListAsync(cancellationToken);
+            .OrderBy(node => node.SortIndex ?? int.MaxValue).ThenBy(node => node.Id).ToListAsync(cancellationToken);
         var nodeIds = nodes.Select(node => node.Id).ToList();
         var edges = await db.DiagramEdges.Where(edge => edge.OrganizationId == organizationId &&
             nodeIds.Contains(edge.SourceNodeId) && nodeIds.Contains(edge.TargetNodeId)).ToListAsync(cancellationToken);
@@ -51,7 +51,8 @@ public sealed class DiagramService(AppDbContext db, IMapper mapper, ICurrentUser
         await db.SaveChangesAsync(cancellationToken);
 
         var nodes = mapper.Map<List<DiagramNode>>(dto.Nodes);
-        nodes.ForEach(node => node.OrganizationId = organizationId);
+        var existingOrder = existingNodes.ToDictionary(node => node.Id, node => node.SortIndex);
+        nodes.ForEach(node => { node.OrganizationId = organizationId; node.SortIndex = existingOrder.GetValueOrDefault(node.Id); });
         var edges = mapper.Map<List<DiagramEdge>>(dto.Edges);
         edges.ForEach(edge => edge.OrganizationId = organizationId);
         db.DiagramNodes.AddRange(nodes);

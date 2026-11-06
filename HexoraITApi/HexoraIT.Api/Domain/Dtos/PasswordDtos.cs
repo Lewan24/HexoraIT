@@ -5,7 +5,7 @@ using HexoraITApi.Domain.Validation;
 namespace HexoraITApi.Domain.Dtos;
 
 public record PasswordListDto(Guid Id, string Name, string Username, string Category,
-    List<string> Tags, DateTime UpdatedAt, PasswordStrength Strength, bool Starred, string Notes);
+    List<string> Tags, DateTime UpdatedAt, PasswordStrength Strength, bool Starred, string Notes, int? SortIndex = null);
 
 public record CreatePasswordDto(
     [Required, StringLength(200)] string Name, [StringLength(500)] string Username,

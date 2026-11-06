@@ -89,6 +89,9 @@ namespace HexoraITApi.Migrations
                     b.Property<string>("Serial")
                         .HasColumnType("text");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -293,6 +296,9 @@ namespace HexoraITApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -355,6 +361,9 @@ namespace HexoraITApi.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -393,6 +402,9 @@ namespace HexoraITApi.Migrations
                     b.Property<string>("HiddenSections")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<int>("MaxItems")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
@@ -473,6 +485,9 @@ namespace HexoraITApi.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<double>("X")
                         .HasColumnType("double precision");
 
@@ -505,6 +520,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid?>("ParentFolderId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
@@ -601,6 +619,9 @@ namespace HexoraITApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Tags")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -635,6 +656,10 @@ namespace HexoraITApi.Migrations
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)");
 
+                    b.Property<bool>("IsAutoManaged")
+                        .IsConcurrencyToken()
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasColumnType("text");
@@ -646,6 +671,9 @@ namespace HexoraITApi.Migrations
                     b.Property<string>("PlainText")
                         .HasColumnType("text");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -653,6 +681,10 @@ namespace HexoraITApi.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssetId")
+                        .IsUnique()
+                        .HasFilter("\"IsAutoManaged\" = TRUE AND \"AssetId\" IS NOT NULL");
 
                     b.HasIndex("SubnetId");
 
@@ -687,6 +719,9 @@ namespace HexoraITApi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Severity")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SortIndex")
                         .HasColumnType("integer");
 
                     b.Property<int>("Status")
@@ -729,6 +764,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
@@ -801,6 +839,9 @@ namespace HexoraITApi.Migrations
                     b.Property<int>("SeatsUsed")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -864,6 +905,9 @@ namespace HexoraITApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -876,12 +920,22 @@ namespace HexoraITApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("HiddenModules")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("Initials")
                         .IsRequired()
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTemporary")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
@@ -976,6 +1030,9 @@ namespace HexoraITApi.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -1032,8 +1089,15 @@ namespace HexoraITApi.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SubnetIds")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Tags")
                         .IsRequired()
@@ -1072,6 +1136,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -1117,6 +1184,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
@@ -1169,6 +1239,7 @@ namespace HexoraITApi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("BlobPath")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1189,6 +1260,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<long>("Size")
                         .HasColumnType("bigint");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1237,6 +1311,13 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -1382,6 +1463,9 @@ namespace HexoraITApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Starred")
                         .HasColumnType("boolean");
 
@@ -1445,6 +1529,9 @@ namespace HexoraITApi.Migrations
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SortIndex")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

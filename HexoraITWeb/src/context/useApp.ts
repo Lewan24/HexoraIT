@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import type {
-  Organization, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Toast,
   OrgMember,
@@ -12,11 +12,16 @@ import type { OrgMembership } from '../api/types'
 export interface AppContextValue {
   access: import('../api/types').OrganizationAccess | undefined
   accessError: string
+  hiddenModules: string[]
   canRead: (resource: string, id?: string) => boolean
   canWrite: (resource: string, id?: string) => boolean
+  orgsLoading: boolean
+  orgsError: string
+  refreshOrgs: () => Promise<void>
+  setOrgArchived: (id: string, archived: boolean) => Promise<void>
   orgs: OrgMembership[]; currentOrg: OrgMembership | undefined
-  switchOrg: (id: string) => void; addOrg: (o: Omit<Organization, 'id'>) => Promise<void>
-  updateOrg: (id: string, o: Omit<Organization, 'id'>) => Promise<void>
+  switchOrg: (id: string) => void; addOrg: (o: CreateOrganizationInput) => Promise<OrgMembership>
+  updateOrg: (id: string, o: OrganizationInput) => Promise<void>
   inviteMember: (orgId: string, email: string, role: OrgRole) => Promise<OrgMember>
   removeMember: (orgId: string, userId: string) => Promise<void>
   deleteOrg: (orgId: string) => Promise<void>
@@ -39,6 +44,7 @@ export interface AppContextValue {
   toggleStarPassword: (id: string) => Promise<void>
   revealPassword: (id: string) => Promise<string>
 
+  syncNetworkAssets: () => Promise<import('../api/resources').NetworkSyncResult>
   addSubnet: (s: Omit<Subnet, 'id' | 'ips'>) => Promise<void>
   updateSubnet: (s: Subnet) => Promise<void>
   deleteSubnet: (id: string) => Promise<void>
@@ -81,6 +87,7 @@ export interface AppContextValue {
 
   addTask: (t: Omit<Task, 'id' | 'createdAt'>) => Promise<void>
   updateTask: (t: Task) => Promise<void>
+  updateTaskStatus: (id: string, status: Task['status']) => Promise<void>
   deleteTask: (id: string) => Promise<void>
 
   addGroup: (g: Omit<Group, 'id' | 'createdAt'>) => Promise<void>

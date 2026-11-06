@@ -225,3 +225,15 @@ html[data-theme="light"] {
   --color-indigo-400: #4f46e5;
   --color-sky-400: #0369a1;
 }
+
+/* Keep task collections inside their columns as the board grows. */
+.workspace-main > div.task-workspace {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 7rem);
+  min-height: 28rem;
+  padding: 1rem;
+}
+@media (min-width: 768px) {
+  .workspace-main > div.task-workspace { padding: 1rem 1.5rem; }
+}

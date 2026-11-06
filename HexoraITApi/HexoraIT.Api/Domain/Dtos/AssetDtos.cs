@@ -5,7 +5,7 @@ using HexoraITApi.Domain.Validation;
 namespace HexoraITApi.Domain.Dtos;
 
 public record AssetDto(Guid Id, string Name, AssetType Type, AssetStatus Status, string Location,
-    string Owner, string Ip, DateTime UpdatedAt, bool Starred, List<string> Tags, string Notes, string? Serial);
+    string Owner, string Ip, DateTime UpdatedAt, bool Starred, List<string> Tags, string Notes, string? Serial, int? SortIndex = null);
 
 public record CreateAssetDto(
     [Required, StringLength(200)] string Name, AssetType Type, AssetStatus Status,

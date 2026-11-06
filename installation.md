@@ -250,9 +250,16 @@ Browser https://it.example.com
    Forward all paths to this one frontend destination; no custom `/api` location
    or separate API hostname is needed. Retain NPM's standard Host,
    X-Forwarded-For and X-Forwarded-Proto headers.
-5. In NPM's Advanced configuration set `client_max_body_size 100000000;` to match
+5. In NPM's Advanced configuration set `client_max_body_size 2148532224;` to match
    the frontend and largest API upload request limit. API endpoint limits still
-   apply. For slow operations also set `proxy_read_timeout 120s;`.
+   apply. For large uploads also set `client_body_timeout 3600s;`,
+   `proxy_send_timeout 3600s;`, `proxy_read_timeout 3600s;` and
+   `proxy_request_buffering off;`. The file explorer accepts up to 2 GiB per file;
+   document attachment endpoints retain their existing smaller limits. ASP.NET
+   buffers multipart files above 64 KiB to its temporary directory before storage.
+   Provision temporary and permanent disk space for simultaneous uploads (a file
+   can briefly require twice its size). Set `ASPNETCORE_TEMP` to a suitable mounted
+   directory when container temporary storage is too small.
 6. Build and start with `docker compose --profile database up -d --build`.
    Building is required to include this checkout's new Nginx configuration;
    existing published `latest` images may still contain the previous setup.

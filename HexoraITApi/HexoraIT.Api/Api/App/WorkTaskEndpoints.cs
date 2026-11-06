@@ -13,6 +13,10 @@ public static class WorkTaskEndpoints
         group.MapGet("/{id:guid}", GetByIdAsync).Produces<WorkTaskDto>().Produces(StatusCodes.Status404NotFound);
         group.MapPost("", CreateAsync).AddEndpointFilter<DataAnnotationsValidationFilter<CreateWorkTaskDto>>().Produces<WorkTaskDto>(StatusCodes.Status201Created).ProducesValidationProblem().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden);
         group.MapPut("/{id:guid}", UpdateAsync).AddEndpointFilter<DataAnnotationsValidationFilter<UpdateWorkTaskDto>>().Produces(StatusCodes.Status204NoContent).ProducesValidationProblem().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
+        group.MapPatch("/{id:guid}/status", async (Guid id, UpdateTaskStatusDto dto, IWorkTaskService service, CancellationToken token) =>
+            (await service.UpdateStatusAsync(id, dto, token)).ToHttpResult())
+            .AddEndpointFilter<DataAnnotationsValidationFilter<UpdateTaskStatusDto>>().Produces<UpdateTaskStatusDto>()
+            .ProducesValidationProblem().Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status409Conflict);
         group.MapDelete("/{id:guid}", DeleteAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         return endpoints;
     }

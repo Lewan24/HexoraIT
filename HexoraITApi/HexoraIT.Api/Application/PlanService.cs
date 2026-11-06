@@ -27,7 +27,7 @@ public sealed class PlanService(AppDbContext db, IMapper mapper, ICurrentUserCon
         var query = db.Plans.AsQueryable();
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<PlanDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(totalCount, window));
     }
@@ -44,6 +44,8 @@ public sealed class PlanService(AppDbContext db, IMapper mapper, ICurrentUserCon
             return new(StatusCodes.Status403Forbidden);
         if (!await AssetsAreAvailableAsync(organizationId, dto.AssetIds, cancellationToken))
             return new(StatusCodes.Status400BadRequest, "Plan references an unavailable asset.");
+        if (!await SubnetsAreAvailableAsync(organizationId, dto.SubnetIds, cancellationToken))
+            return new(StatusCodes.Status400BadRequest, "Plan references an unavailable network.");
         var item = mapper.Map<Plan>(dto);
         item.OrganizationId = organizationId;
         item.CreatedAt = DateTime.UtcNow;
@@ -60,6 +62,8 @@ public sealed class PlanService(AppDbContext db, IMapper mapper, ICurrentUserCon
             return new(StatusCodes.Status403Forbidden);
         if (!await AssetsAreAvailableAsync(item.OrganizationId, dto.AssetIds, cancellationToken))
             return new(StatusCodes.Status400BadRequest, "Plan references an unavailable asset.");
+        if (!await SubnetsAreAvailableAsync(item.OrganizationId, dto.SubnetIds, cancellationToken))
+            return new(StatusCodes.Status400BadRequest, "Plan references an unavailable network.");
         mapper.Map(dto, item);
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
@@ -74,6 +78,14 @@ public sealed class PlanService(AppDbContext db, IMapper mapper, ICurrentUserCon
         db.Plans.Remove(item);
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
+    }
+
+    private async Task<bool> SubnetsAreAvailableAsync(Guid organizationId, List<Guid>? subnetIds, CancellationToken token)
+    {
+        if (subnetIds is null) return true;
+        if (subnetIds.Count > 1000 || subnetIds.Contains(Guid.Empty)) return false;
+        var ids = subnetIds.Distinct().ToList();
+        return ids.Count == 0 || await db.Subnets.CountAsync(subnet => subnet.OrganizationId == organizationId && ids.Contains(subnet.Id), token) == ids.Count;
     }
 
     private async Task<bool> AssetsAreAvailableAsync(Guid organizationId, IEnumerable<Guid> assetIds, CancellationToken cancellationToken)

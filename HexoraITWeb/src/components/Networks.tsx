@@ -1,6 +1,10 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
-import { Plus, Search, Network, Globe, Wifi, Server, Shield, Lock, Edit2, Trash2, X, ChevronDown, Dot, Loader2 } from 'lucide-react'
+import { Plus, Search, Network, Globe, Wifi, Server, Shield, Lock, Edit2, Trash2, X, ChevronDown, Dot, Loader2, RefreshCw } from 'lucide-react'
+import RecordOrderButton from './RecordOrderButton'
+import { compareRecordOrder } from '../lib/recordOrder'
+import type { NetworkSyncResult } from '../api/resources'
 import { useApp } from '../context/useApp'
 import type { Subnet, IPEntry, IPEntryStatus, SubnetType } from '../api/types'
 
@@ -171,6 +175,7 @@ function IPModal({ initial, assets, onClose, onSave }: {
           </div>
           <button onClick={() => !submitting && onClose()} disabled={submitting} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
+        {initial?.isAutoManaged && <p className="mx-5 mt-4 text-xs text-amber-400">{tr("Saving edits makes this entry manual, so future asset updates will preserve it.")}</p>}
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -254,7 +259,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-ink-primary">{subnet.name}</span>
+            <span className="text-sm font-medium text-ink-primary"><RecordIndex index={subnet.sortIndex} />{subnet.name}</span>
             <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md border font-semibold ${tc.bg} ${tc.color}`}>{subnet.type}</span>
             {subnet.vlan != null && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-navy-700 text-ink-muted border border-edge-subtle">{tr("VLAN")} {subnet.vlan}</span>}
           </div>
@@ -305,16 +310,13 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-edge-subtle">
-                  {[...subnet.ips].sort((a, b) => {
-                    const toNum = (ip: string) => ip.split('.').reduce((acc, oct) => acc * 256 + (parseInt(oct) || 0), 0)
-                    return toNum(a.ip) - toNum(b.ip)
-                  }).map(entry => {
+                  {[...subnet.ips].sort(compareRecordOrder).map(entry => {
                     const sc = IP_STATUS[entry.status]
                     const assignedAsset = entry.assetId ? assets.find(a => a.id === entry.assetId) : null
                     const isDeleting = deletingIpId === entry.id
                     return (
                       <tr key={entry.id} className="group hover:bg-navy-700/40 transition-colors">
-                        <td className="px-4 py-2.5 font-mono text-ink-primary font-medium">{entry.ip}</td>
+                        <td className="px-4 py-2.5 font-mono text-ink-primary font-medium"><RecordIndex index={entry.sortIndex} />{entry.ip}{entry.isAutoManaged && <span className="ml-2 text-[9px] text-blue-400">{tr("Automatic")}</span>}</td>
                         <td className="px-4 py-2.5 font-mono text-ink-secondary">{entry.label || <span className="text-ink-muted italic">—</span>}</td>
                         <td className="px-4 py-2.5">
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border ${sc.badge}`}>
@@ -352,6 +354,7 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
             <button onClick={() => setIPModal({ open: true })}
               className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">
               <Plus size={12} />  {tr("Add IP Entry")} </button>
+            <RecordOrderButton resources={['ip-entries']} parentId={subnet.id} />
           </div>
         </div>
       )}
@@ -376,7 +379,10 @@ function SubnetRow({ subnet, assets, onEdit, onDelete, onAddIP, onEditIP, onDele
 
 export default function Networks() {
   useLocale()
-  const { assets, subnets, isLoading, addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry, currentOrg } = useApp()
+  const { assets, subnets, isLoading, addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry, currentOrg, syncNetworkAssets, access, canRead, toast } = useApp()
+  const [syncing, setSyncing] = useState(false)
+  const [syncState, setSyncState] = useState<{ organizationId: string; result: NetworkSyncResult } | null>(null)
+  const syncResult = syncState?.organizationId === currentOrg?.id ? syncState?.result : null
   const [query, setQuery] = useState('')
   const [subnetModal, setSubnetModal] = useState<{ open: boolean; initial?: Subnet }>({ open: false })
   const [deletingSubnetId, setDeletingSubnetId] = useState<string | null>(null)
@@ -396,6 +402,16 @@ export default function Networks() {
     type: type as SubnetType,
     count: subnets.filter(s => s.type === type).length,
   })).filter(t => t.count > 0)
+
+  const syncAssets = async () => {
+    if (syncing) return
+    setSyncing(true)
+    const organizationId = currentOrg?.id
+    try { const result = await syncNetworkAssets(); if (organizationId) setSyncState({ organizationId, result }); toast(tr('Network assets synchronized')) }
+    catch { /* The provider reports the server error. */ }
+    finally { setSyncing(false) }
+  }
+  const canSync = canRead('assets') && access?.permissions.some(rule => rule.resource === 'networks' && rule.canRead && rule.canWrite)
 
   const handleDeleteSubnet = async (id: string) => {
     setDeletingSubnetId(id)
@@ -417,17 +433,25 @@ export default function Networks() {
   return (
     <div className="p-6 max-w-[1100px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-xl font-semibold text-ink-primary">{tr("Networks")}</h1>
           <p className="text-xs text-ink-muted mt-0.5 font-mono">
             {currentOrg ? tr("{{value1}} · ", { value1: currentOrg.name }) : ''}{subnets.length}  {tr("subnet")}{subnets.length !== 1 ? tr("s") : ''} · {totalIPs}  {tr("IPs tracked ·")} {usedIPs}  {tr("in use")} </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {canSync && <button disabled={syncing || subnets.length === 0} onClick={() => void syncAssets()} className="flex items-center gap-2 rounded-lg border border-edge-default bg-navy-800 px-3 py-2 text-sm text-ink-secondary hover:bg-navy-700 disabled:opacity-40"><RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />{tr(syncing ? 'Synchronizing…' : 'Update from assets')}</button>}
         <button onClick={() => setSubnetModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
           <Plus size={14} />  {tr("Add Subnet")} </button>
+        </div>
       </div>
+      {syncResult && <section className="mb-5 space-y-2 rounded-xl border border-edge-default bg-navy-800 p-4 text-xs text-ink-secondary" aria-live="polite">
+        <p>{tr('Added: {{added}}, updated: {{updated}}, unchanged: {{unchanged}}, skipped: {{skipped}}.', { added: syncResult.added, updated: syncResult.updated, unchanged: syncResult.unchanged, skipped: syncResult.skipped })}</p>
+        <p className="text-ink-muted">{tr('Manual entries are preserved. Only automatically managed entries are updated; no entries are deleted.')}</p>
+        {syncResult.issueCount > 0 && <details><summary className="cursor-pointer text-amber-400">{tr('Review {{count}} synchronization issues', { count: syncResult.issueCount })}</summary><ul className="mt-2 max-h-52 space-y-1 overflow-y-auto">{syncResult.issues.map((issue, index) => <li key={index} className="break-words">{issue.name} · {issue.ip || '—'} · {tr(`network-sync-${issue.reason}`)}</li>)}</ul>{syncResult.issueCount > syncResult.issues.length && <p className="mt-2 text-ink-muted">{tr('Showing the first {{count}} issues.', { count: syncResult.issues.length })}</p>}</details>}
+      </section>}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -477,8 +501,7 @@ export default function Networks() {
             {query ? tr("No subnets match your search") : tr("No subnets yet")}
           </p>
           {!query && (
-            <button onClick={() => setSubnetModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-               {tr("Add your first subnet")} </button>
+            <button onClick={() => setSubnetModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{tr("Add your first subnet")}</button>
           )}
         </div>
       ) : (

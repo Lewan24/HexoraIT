@@ -16,7 +16,8 @@ public record AuthResponseDto(string Token, DateTime ExpiresAt, UserDto User, Li
 
 public record UserDto(Guid Id, string Email, string DisplayName, string SystemRole);
 
-public record OrganizationSummaryDto(Guid Id, string Name, string Role);
+public record OrganizationSummaryDto(Guid Id, string Name, string Role, string Color = "", string Initials = "",
+    string Description = "", bool IsTemporary = false, bool IsArchived = false, DateTime? ArchivedAt = null);
 
 public record ChangePasswordDto(
     [Required, StringLength(200)] string CurrentPassword,

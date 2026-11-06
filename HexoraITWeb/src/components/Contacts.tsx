@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
@@ -196,7 +197,7 @@ function ContactItem({ contact, selected, onClick }: { contact: Contact; selecte
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           {contact.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
-          <p className="text-xs font-semibold text-ink-primary truncate">{contact.name}</p>
+          <p className="text-xs font-semibold text-ink-primary truncate"><RecordIndex index={contact.sortIndex} />{contact.name}</p>
         </div>
         <p className="text-[11px] text-ink-muted truncate">{contact.company}{contact.role && contact.company ? ' · ' : ''}{contact.role}</p>
         {contact.phone && <p className="text-[10px] text-ink-muted font-mono truncate">{contact.phone}</p>}
@@ -220,7 +221,7 @@ function ContactDetail({ contact, onEdit, onDelete, onToggleStar }: {
         <div className="flex items-start gap-3">
           <AvatarCircle name={contact.name} size="lg" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-ink-primary">{contact.name}</p>
+            <p className="text-sm font-semibold text-ink-primary"><RecordIndex index={contact.sortIndex} />{contact.name}</p>
             {contact.role && <p className="text-xs text-ink-secondary mt-0.5">{contact.role}</p>}
             {contact.company && (
               <div className="flex items-center gap-1 mt-1">

@@ -17,6 +17,8 @@ public static class SubnetEndpoints
         group.MapPost("/{subnetId:guid}/ips", AddIpAsync).AddEndpointFilter<DataAnnotationsValidationFilter<CreateIPEntryDto>>().Produces<IPEntryDto>().ProducesValidationProblem().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         group.MapPut("/{subnetId:guid}/ips/{entryId:guid}", UpdateIpAsync).AddEndpointFilter<DataAnnotationsValidationFilter<UpdateIPEntryDto>>().Produces(StatusCodes.Status204NoContent).ProducesValidationProblem().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         group.MapDelete("/{subnetId:guid}/ips/{entryId:guid}", DeleteIpAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
+        group.MapPost("/sync-assets", async (Guid organizationId, NetworkAssetSyncService service, CancellationToken token) =>
+            (await service.SyncAsync(organizationId, token)).ToHttpResult()).Produces<NetworkSyncResultDto>().Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status409Conflict);
         return endpoints;
     }
     private static async Task<IResult> GetAllAsync(Guid? organizationId, [AsParameters] PaginationParameters pagination, ISubnetService service, HttpResponse response, CancellationToken token) => (await service.GetAllAsync(organizationId, pagination, token)).ToHttpResult(response);

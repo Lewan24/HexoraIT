@@ -30,6 +30,7 @@ public class PasswordEntry : BaseEntity
 
 public class Subnet : BaseEntity
 {
+    public long SyncRevision { get; set; }
     public string Name { get; set; } = "";
     public string Cidr { get; set; } = "";
     public int? Vlan { get; set; }
@@ -40,8 +41,10 @@ public class Subnet : BaseEntity
     public List<IPEntry> Ips { get; set; } = [];
 }
 
-public class IPEntry
+public class IPEntry : IOrderedRecord
 {
+    public int? SortIndex { get; set; }
+    public bool IsAutoManaged { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid SubnetId { get; set; }
     public Subnet Subnet { get; set; } = null!;
@@ -112,6 +115,7 @@ public class Plan : BaseEntity
     public DateOnly TargetDate { get; set; }
     public List<string> Tags { get; set; } = [];
     public List<Guid> AssetIds { get; set; } = [];
+    public List<Guid> SubnetIds { get; set; } = [];
     public decimal EstimatedCost { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -189,8 +193,9 @@ public class WarrantyItem : BaseEntity
     public string? DocumentBlobPath { get; set; }
 }
 
-public class DiagramNode
+public class DiagramNode : IOrderedRecord
 {
+    public int? SortIndex { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid OrganizationId { get; set; }
     public DiagramDeviceType DeviceType { get; set; }

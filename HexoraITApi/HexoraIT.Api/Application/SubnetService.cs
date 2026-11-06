@@ -28,7 +28,7 @@ public sealed class SubnetService(AppDbContext db, IMapper mapper, ICurrentUserC
         var query = db.Subnets.AsQueryable();
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<SubnetDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
@@ -55,6 +55,7 @@ public sealed class SubnetService(AppDbContext db, IMapper mapper, ICurrentUserC
         if (item is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(item.OrganizationId, "networks", true, item.Id)) return new(StatusCodes.Status403Forbidden);
         mapper.Map(dto, item);
+        item.SyncRevision++;
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
     }
@@ -78,6 +79,7 @@ public sealed class SubnetService(AppDbContext db, IMapper mapper, ICurrentUserC
         var entry = mapper.Map<IPEntry>(dto);
         entry.SubnetId = subnetId;
         db.IPEntries.Add(entry);
+        subnet.SyncRevision++;
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status200OK, mapper.Map<IPEntryDto>(entry));
     }
@@ -91,6 +93,8 @@ public sealed class SubnetService(AppDbContext db, IMapper mapper, ICurrentUserC
         if (entry is null) return new(StatusCodes.Status404NotFound);
         if (!await AssetIsAvailableAsync(subnet.OrganizationId, dto.AssetId, cancellationToken)) return new(StatusCodes.Status400BadRequest, "IP entry references an unavailable asset.");
         mapper.Map(dto, entry);
+        entry.IsAutoManaged = false;
+        subnet.SyncRevision++;
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
     }
@@ -103,6 +107,7 @@ public sealed class SubnetService(AppDbContext db, IMapper mapper, ICurrentUserC
         var entry = await db.IPEntries.FirstOrDefaultAsync(ip => ip.Id == entryId && ip.SubnetId == subnetId, cancellationToken);
         if (entry is null) return new(StatusCodes.Status404NotFound);
         db.IPEntries.Remove(entry);
+        subnet.SyncRevision++;
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
     }

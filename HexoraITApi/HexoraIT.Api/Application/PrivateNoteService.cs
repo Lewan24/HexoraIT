@@ -21,7 +21,7 @@ public sealed class PrivateNoteService(AppDbContext db, ICurrentUserContext user
         if (!Pagination.TryResolve(pagination, out var window)) return new(StatusCodes.Status400BadRequest, "Both page and pageSize must be supplied together.");
         var query = OwnedNotes(organizationId).AsNoTracking();
         var total = await query.CountAsync(cancellationToken);
-        var notes = await query.OrderByDescending(note => note.UpdatedAt).ThenBy(note => note.Id)
+        var notes = await query.OrderBy(note => note.SortIndex ?? int.MaxValue).ThenBy(note => note.Id)
             .Skip(window.Offset).Take(window.PageSize).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, notes, Pagination: new PaginationMetadata(total, window));
     }

@@ -1,9 +1,9 @@
 import { http, qs } from './http'
 import type {
-  Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Organization, OrganizationSummary,
-  OrgMember,
+  OrgMember, OrgMembership,
   OrgRole,
   AdminUser,
   SystemRole,
@@ -31,15 +31,19 @@ export const dashboardApi = {
 }
 
 export const organizationsApi = {
-  getAll: () => http.getAllPages<OrganizationSummary>('/organizations'),
+  getCustomization: (id: string) => http.get<{ hiddenModules: string[] }>(`/organizations/${id}/customization`),
+  saveCustomization: (id: string, hiddenModules: string[]) => http.put<void>(`/organizations/${id}/customization`, { hiddenModules }),
+  getAll: () => http.getAllPages<OrgMembership>('/organizations'),
   getDeleted: () => http.getAllPages<OrganizationSummary>('/organizations/deleted'),
   getById: (id: string) => http.get<Organization>(`/organizations/${id}`),
-  create: (data: Omit<Organization, 'id'>) => http.post<Organization>('/organizations', data),
-  update: (id: string, data: Omit<Organization, 'id'>) => http.put<void>(`/organizations/${id}`, data),
+  create: (data: CreateOrganizationInput) => http.post<Organization>('/organizations', data),
+  update: (id: string, data: OrganizationInput) => http.put<void>(`/organizations/${id}`, data),
   getMembers: (id: string) => http.getAllPages<OrgMember>(`/organizations/${id}/members`),
   inviteMember: (id: string, email: string, role: OrgRole, customRoleId?: string) =>
     http.post<OrgMember>(`/organizations/${id}/members`, { email, role, customRoleId }),
   removeMember: (id: string, userId: string) => http.delete<void>(`/organizations/${id}/members/${userId}`),
+  archive: (id: string) => http.post<void>(`/organizations/${id}/archive`),
+  unarchive: (id: string) => http.post<void>(`/organizations/${id}/unarchive`),
   softDelete: (id: string) => http.delete<void>(`/organizations/${id}`),
   restore: (id: string) => http.post<void>(`/organizations/${id}/restore`),
 }
@@ -55,7 +59,7 @@ export const assetsApi = {
 
 export const passwordsApi = {
   getAll: (organizationId: string) => http.getAllPages<PasswordEntry>(`/passwords${qs({ organizationId })}`),
-  reveal: (id: string) => http.getString(`/passwords/${id}/reveal`),
+  reveal: (id: string) => http.get<string>(`/passwords/${id}/reveal`),
   create: (organizationId: string, data: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) =>
     http.post<PasswordEntry>(`/passwords${qs({ organizationId })}`, data),
   update: (id: string, data: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password?: string }) =>
@@ -64,7 +68,13 @@ export const passwordsApi = {
   toggleStar: (id: string) => http.patch<{ starred: boolean }>(`/passwords/${id}/star`),
 }
 
+export interface NetworkSyncResult {
+  added: number; updated: number; unchanged: number; skipped: number; issueCount: number
+  issues: { assetId: string | null; name: string; ip: string; reason: string }[]
+}
+
 export const subnetsApi = {
+  syncAssets: (organizationId: string) => http.post<NetworkSyncResult>(`/subnets/sync-assets${qs({ organizationId })}`),
   getAll: (organizationId: string) => http.getAllPages<Subnet>(`/subnets${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Subnet, 'id' | 'ips'>) =>
     http.post<Subnet>(`/subnets${qs({ organizationId })}`, data),
@@ -138,6 +148,7 @@ export const projectsApi = {
 }
 
 export const tasksApi = {
+  updateStatus: (id: string, status: Task['status']) => http.patch<{ status: Task['status'] }>(`/tasks/${id}/status`, { status }),
   getAll: (organizationId: string) => http.getAllPages<Task>(`/tasks${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Task, 'id' | 'createdAt'>) =>
     http.post<Task>(`/tasks${qs({ organizationId })}`, { ...data, dueDate: requiredApiDate(data.dueDate) }),
@@ -181,6 +192,7 @@ export const filesApi = {
     http.getAllPages<StoredFile>(`/files${qs({ organizationId, folderId })}`),
   upload: (organizationId: string, file: File, folderId?: string) =>
     http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId })}`, file),
+  replace: (id: string, file: File) => http.upload<StoredFile>(`/files/${id}/replace`, file),
   deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
   getContentBlob: (id: string) => http.getBlob(`/files/${id}/content`),
   downloadFile: (id: string) => http.getBlob(`/files/${id}/download`),
@@ -192,9 +204,9 @@ export const filesApi = {
 
 export const versionApi = {
   getCurrentVersion: () => 
-    http.getString(`/version`),
+    http.get<string>(`/version`),
   getLatestVersion: () => 
-    http.getString(`/version/latest`)
+    http.get<string>(`/version/latest`)
 }
 
 export interface GlobalEmailSettings {

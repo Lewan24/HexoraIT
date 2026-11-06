@@ -30,6 +30,7 @@ export default function OrganizationRoles() {
 function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string; owner: boolean }) {
   useLocale()
   const { toast, orgs } = useApp()
+  const [section, setSection] = useState('roles')
   const [clientId, setClientId] = useState('')
   const [client, setClient] = useState({ email: '', displayName: '', password: '' })
   const [copyRole, setCopyRole] = useState<OrganizationRole | null>(null)
@@ -115,17 +116,22 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
 
   return (
     <div className="space-y-5 text-ink-primary">
-      <div className="flex items-center justify-between gap-3">
+      <nav aria-label={tr('Organization management')} className="flex flex-wrap gap-2 border-b border-edge-default pb-4">
+        {([['roles', 'Organization roles'], ['members', 'Member roles'], ['clients', 'Clients'], ['create-client', 'Create client account'], ['add-member', 'Add an existing user']] as const).map(([id, title]) =>
+          <button key={id} aria-pressed={section === id} className={`${buttonClass} ${section === id ? 'bg-blue-500/15 text-blue-300 border-blue-500/40' : ''}`} onClick={() => { setSection(id); setDraft(null); setClientId('') }}>{tr(title)}</button>)}
+      </nav>
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      {section === 'roles' && <section className="space-y-4 rounded-xl border border-edge-default bg-navy-800 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-semibold">{tr("Organization roles")}</h2><p className="text-xs text-ink-muted">{orgName}</p></div>
         <button className={buttonClass} disabled={busy} onClick={() => { setClientId(''); setDraft(newRole()) }}>{tr("New role")}</button>
       </div>
-      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       <div className="space-y-2">
         {roles.length === 0 && <p className="text-sm text-ink-muted">{tr("No custom roles yet. Create a role and choose its permissions.")}</p>}
         {roles.map(role => (
-          <div key={role.id} className="flex items-center justify-between gap-2 rounded-lg border border-edge-default p-3">
+          <div key={role.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-edge-default p-3">
             <span>{role.name}</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className={buttonClass} disabled={busy} onClick={() => { setClientId(''); setDraft(structuredClone(role)) }}>{tr("Edit")}</button>
               <button className={buttonClass} disabled={busy} onClick={() => { setCopyRole(role); setTargets([]); setConfirmOverwrite(false); setConflicts([]) }}>{tr('Copy to organizations')}</button>
               <button className={buttonClass} disabled={busy || members.some(m => m.customRoleId === role.id)}
@@ -139,6 +145,8 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           </div>
         ))}
       </div>
+
+      </section>}
 
       {draft && (
         <fieldset disabled={busy} className="space-y-4 rounded-xl border border-edge-default bg-navy-800 p-4">
@@ -191,6 +199,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
         </fieldset>
       )}
 
+      {section === 'members' && <section className="space-y-4 rounded-xl border border-edge-default bg-navy-800 p-4">
       <h3 className="font-semibold">{tr("Member roles")}</h3>
       <p className="text-xs text-ink-muted">{tr("Changes apply to subsequent API requests. Open applications refresh permissions automatically.")}</p>
       {members.filter(m => m.systemRole !== 'Client').map(member => (
@@ -211,16 +220,19 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           </select>
         </label>
       ))}
+      </section>}
+      {section === 'clients' && <section className="space-y-4 rounded-xl border border-edge-default bg-navy-800 p-4">
       <h3 className="font-semibold">{tr('Clients')}</h3>
       <p className="text-xs text-ink-muted">{tr('Clients belong to one organization. Reports and personal settings are always available.')}</p>
-      {members.filter(m => m.systemRole === 'Client').map(member => <div key={member.userId} className="flex items-center justify-between gap-3">
+      {members.filter(m => m.systemRole === 'Client').map(member => <div key={member.userId} className="flex flex-wrap items-center justify-between gap-3">
         <span>{member.displayName} · {member.email}</span>
         <button className={buttonClass} disabled={busy} onClick={() => run(async () => {
           const permissions = await rolesApi.clientPermissions(orgId, member.userId)
           setClientId(member.userId); setDraft({ id: '', name: member.displayName || member.email, permissions })
         })}>{tr('Client permissions')}</button>
       </div>)}
-      <form onSubmit={e => { e.preventDefault(); void run(async () => {
+      </section>}
+      {section === 'create-client' && <form onSubmit={e => { e.preventDefault(); void run(async () => {
         await rolesApi.createClient(orgId, client)
         setClient({ email: '', displayName: '', password: '' })
         setMembers(await organizationsApi.getMembers(orgId))
@@ -233,7 +245,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           <label className="block text-xs">{tr('Password')}<input required type="password" autoComplete="new-password" minLength={15} maxLength={200} className={inputClass} value={client.password} onChange={e => setClient({ ...client, password: e.target.value })} /></label>
           <button className={buttonClass}>{tr('Create client account')}</button>
         </fieldset>
-      </form>
+      </form>}
       {copyRole && <div role="dialog" aria-modal="true" aria-label={tr('Copy to organizations')} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
         <div className="max-h-[85vh] overflow-auto w-full max-w-lg rounded-xl bg-navy-800 p-6 space-y-4">
           <h3>{tr('Copy to organizations')}: {copyRole.name}</h3>
@@ -257,7 +269,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           <button className={buttonClass} disabled={busy} onClick={() => setCopyRole(null)}>{tr('Cancel')}</button>
         </div>
       </div>}
-      <fieldset disabled={busy} className="space-y-2 border-t border-edge-default pt-4">
+      {section === 'add-member' && <fieldset disabled={busy} className="space-y-3 rounded-xl border border-edge-default bg-navy-800 p-4">
         <legend className="text-sm">{tr("Add an existing user")}</legend>
         <input className={inputClass} aria-label={tr("Member email")} placeholder={tr("person@company.com")} type="email" value={email} onChange={e => setEmail(e.target.value)} />
         <select className={inputClass} aria-label={tr("New member role")} value={inviteRole} onChange={e => setInviteRole(e.target.value)}>{roleOptions}</select>
@@ -267,7 +279,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           setMembers(await organizationsApi.getMembers(orgId))
           setEmail('')
         })}>{tr("Add member")}</button>
-      </fieldset>
+      </fieldset>}
     </div>
   )
 }

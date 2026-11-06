@@ -11,7 +11,7 @@ public record ContractDocumentDto(
 
 public record ContractDto(Guid Id, string Name, string Vendor, ContractCategory Category, DateOnly StartDate,
     DateOnly EndDate, decimal Value, string Currency, bool AutoRenew, string Notes, bool Starred, ContractStatus Status,
-    ContractDocumentDto? Document);
+    ContractDocumentDto? Document, int? SortIndex = null);
 
 public record CreateContractDto([Required, StringLength(200)] string Name, [StringLength(200)] string Vendor,
     ContractCategory Category, DateOnly StartDate, DateOnly EndDate,

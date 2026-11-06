@@ -11,17 +11,19 @@ export default function PermissionGate({ view, children }: { view: View; childre
   const isClient = user?.systemRole === 'Client'
   const { access, accessError, canRead, canWrite, currentOrg, isLoading } = useApp()
   // Static application help is available independently of organization access.
+  if (view === 'home') return isClient ? <p className="p-6">{tr('Access forbidden')}</p> : children
   if (view === 'help') return children
   if (view === 'settings' && isClient) return children
-  if ((view === 'adminpanel' && user?.systemRole === 'Admin') || (!currentOrg && view === 'settings')) return children
+  if ((view === 'adminpanel' && user?.systemRole === 'Admin') || ((!currentOrg || currentOrg.isArchived) && view === 'settings')) return children
   if (isClient && ['dashboard', 'private-notes', 'adminpanel'].includes(view)) return <p className="p-6">{tr('Access forbidden')}</p>
   if (view === 'reports' && !isClient) return <p className="p-6">{tr('Access forbidden')}</p>
   if (!currentOrg) return <div className="p-6 text-ink-muted">{isClient ? tr('No organization is assigned. Contact your caretaker.') : tr("Select or create an organization in Settings.")}</div>
+  if (currentOrg.isArchived) return <div role="status" className="p-6 text-ink-muted">{tr("This organization is archived. Ask an owner or administrator to reactivate it.")}</div>
   if (accessError) return <div role="alert" className="p-6 text-red-400">{accessError}</div>
   if (!access) return <div className="p-6 text-ink-muted">{tr("Loading organization permissions…")}</div>
   if (view === 'reports' && isClient) return children
   if (view === 'private-notes') return children
-  const resource = view === 'asset-detail' ? 'assets' : view
+  const resource = view === 'asset-detail' ? 'assets' : ['organization-customization', 'organization-documentation'].includes(view) ? 'settings' : view
   if (!canRead(resource)) {
     return (
       <div role="alert" className="p-8 flex flex-col items-center gap-3 text-center text-ink-secondary">
