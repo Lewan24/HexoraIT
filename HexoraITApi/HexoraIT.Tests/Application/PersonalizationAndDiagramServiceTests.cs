@@ -64,8 +64,10 @@ public sealed class PersonalizationAndDiagramServiceTests : IDisposable
     {
         var (_, organization) = _fixture.SeedUserWithOrg();
         var service = new DashboardLayoutService(_fixture.Db, _fixture.UserContext);
-        await service.SaveAsync(organization.Id, new(["a", "b"], ["c"]));
+        await service.SaveAsync(organization.Id, new(["a", "b"], ["c"], 8));
         (await service.GetAsync(organization.Id)).Value.Should().BeOfType<DashboardLayoutDto>().Subject.SectionOrder.Should().Equal("a", "b");
+        ((DashboardLayoutDto)(await service.GetAsync(organization.Id)).Value!).MaxItems.Should().Be(8);
+        (await service.SaveAsync(organization.Id, new([], [], 100))).StatusCode.Should().Be(400);
         (await service.ResetAsync(organization.Id)).StatusCode.Should().Be(StatusCodes.Status204NoContent);
         (await service.GetAsync(organization.Id)).Value.Should().BeNull();
     }

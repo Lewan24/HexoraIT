@@ -28,7 +28,7 @@ public sealed class PasswordVaultService(AppDbContext db, IMapper mapper, ICurre
         var query = db.Passwords.AsQueryable();
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<PasswordListDto>(mapper.ConfigurationProvider).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }

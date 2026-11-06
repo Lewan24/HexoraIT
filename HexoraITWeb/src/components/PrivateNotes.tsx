@@ -1,9 +1,11 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useEffect, useState } from 'react'
 import { http } from '../api/http'
+import { orderRecords, type RecordOrderEvent } from '../lib/recordOrder'
 import { useApp } from '../context/useApp'
 
-type Note = { id: string; title: string; content: string; updatedAt: string }
+type Note = { sortIndex?: number | null; id: string; title: string; content: string; updatedAt: string }
 const fieldClass = 'w-full rounded-lg border border-edge-default bg-navy-800 p-3 text-ink-primary'
 const buttonClass = 'rounded-lg border border-edge-default px-3 py-2 text-sm disabled:opacity-50'
 
@@ -31,6 +33,17 @@ function NotesEditor({ orgId }: { orgId: string }) {
     return () => { cancelled = true }
   }, [endpoint])
 
+  useEffect(() => {
+    const update = (event: Event) => {
+      const detail = (event as CustomEvent<RecordOrderEvent>).detail
+      if (detail?.organizationId !== orgId || detail.resource !== 'private-notes') return
+      const indices = new Map(detail.changes.map(change => [change.id, change.sortIndex]))
+      setNotes(previous => orderRecords(previous.map(note => indices.has(note.id) ? { ...note, sortIndex: indices.get(note.id)! } : note)))
+    }
+    window.addEventListener('organization-record-order-changed', update)
+    return () => window.removeEventListener('organization-record-order-changed', update)
+  }, [orgId])
+
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
     setError('')
@@ -45,7 +58,7 @@ function NotesEditor({ orgId }: { orgId: string }) {
     const saved = draft.id
       ? await http.put<Note>(`${endpoint}/${draft.id}`, body)
       : await http.post<Note>(endpoint, body)
-    setNotes(previous => [saved, ...previous.filter(n => n.id !== saved.id)])
+    setNotes(previous => orderRecords([saved, ...previous.filter(n => n.id !== saved.id)]))
     setDraft(null)
   })
 
@@ -74,7 +87,7 @@ function NotesEditor({ orgId }: { orgId: string }) {
       </div>
     </fieldset>}
     {notes.map(note => <article key={note.id} className="space-y-3 rounded-xl border border-edge-default p-4">
-      <h2 className="font-semibold">{note.title}</h2>
+      <h2 className="font-semibold"><RecordIndex index={note.sortIndex} />{note.title}</h2>
       <p className="whitespace-pre-wrap break-words">{note.content}</p>
       <p className="text-xs text-ink-muted">{new Date(note.updatedAt).toLocaleString(locale())}</p>
       <div className="flex gap-2">

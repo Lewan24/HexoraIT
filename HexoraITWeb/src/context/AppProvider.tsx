@@ -1,9 +1,9 @@
 import { tr, useLocale } from '../i18n'
-import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react'
 import { AppContext } from './useApp'
 import { useAuth } from './useAuth'
 import type {
-  Organization, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Toast,
   OrgMembership,
@@ -19,6 +19,7 @@ import {
 import { ApiError } from '../api/http'
 import { v7 as uuidv7 } from 'uuid';
 import { rolesApi } from '../api/roles'
+import { orderRecords, type RecordOrderEvent } from '../lib/recordOrder'
 import { hasPermission } from '../lib/permissions'
 import type { OrganizationAccess } from '../api/types'
 
@@ -32,6 +33,7 @@ function emptyOrgState() {
   }
 }
 
+const EMPTY_MODULES: string[] = []
 const CURRENT_ORG_KEY = 'current_org_id'
 
 function readCurrentOrganization(): string {
@@ -45,22 +47,30 @@ function storeCurrentOrganization(id: string) {
   } catch { /* Storage may be disabled. */ }
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, loadOrganizationData = true }: { children: ReactNode; loadOrganizationData?: boolean }) {
   useLocale()
   const { isAuthenticated } = useAuth()
 
+  const orgRequestVersion = useRef({ version: 0 })
+  const [orgsLoading, setOrgsLoading] = useState(true)
+  const [orgsError, setOrgsError] = useState('')
   const [orgs, setOrgs] = useState<OrgMembership[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string>(readCurrentOrganization)
+  const currentOrgRef = useRef(currentOrgId)
+  useEffect(() => { currentOrgRef.current = currentOrgId }, [currentOrgId])
   const [data, setData] = useState(emptyOrgState())
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
+  const [customization, setCustomization] = useState<{ orgId: string; hiddenModules: string[] }>()
+  const hiddenModules = customization?.orgId === currentOrgId ? customization.hiddenModules : EMPTY_MODULES
   const [accessState, setAccessState] = useState<{ orgId: string; access: OrganizationAccess }>()
   const [loadedAccess, setLoadedAccess] = useState<OrganizationAccess>()
   const [accessError, setAccessError] = useState('')
   const access = accessState?.orgId === currentOrgId ? accessState.access : undefined
-  const canRead = (resource: string, id?: string) => hasPermission(access, resource, false, id)
-  const canWrite = (resource: string, id?: string) => hasPermission(access, resource, true, id)
+  const currentOrgArchived = orgs.find(org => org.id === currentOrgId)?.isArchived ?? false
+  const canRead = (resource: string, id?: string) => !currentOrgArchived && !hiddenModules.includes(resource) && hasPermission(access, resource, false, id)
+  const canWrite = (resource: string, id?: string) => !currentOrgArchived && !hiddenModules.includes(resource) && hasPermission(access, resource, true, id)
 
   const toast = useCallback((message: string, type: Toast['type'] = 'success') => {
     if (!message) return
@@ -80,42 +90,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [toast])
 
+  const refreshOrgs = useCallback(async () => {
+    if (!isAuthenticated) return
+    const requestVersion = ++orgRequestVersion.current.version
+    try {
+      const full = await organizationsApi.getAll()
+      if (requestVersion !== orgRequestVersion.current.version) return
+      setOrgs(previous => JSON.stringify(previous) === JSON.stringify(full) ? previous : full)
+      setOrgsError('')
+      setCurrentOrgId(previous => {
+        // Keep an archived selection until navigation returns to the organization hub.
+        const next = full.some(org => org.id === previous) ? previous : (full.find(org => !org.isArchived)?.id ?? '')
+        storeCurrentOrganization(next)
+        return next
+      })
+    } catch (error) {
+      if (requestVersion !== orgRequestVersion.current.version) return
+      setOrgsError(error instanceof Error ? error.message : tr('Failed to load organizations'))
+    } finally { if (requestVersion === orgRequestVersion.current.version) setOrgsLoading(false) }
+  }, [isAuthenticated])
+
   useEffect(() => {
     if (!isAuthenticated) {
-      queueMicrotask(() => {
-        setOrgs([])
-        setCurrentOrgId('')
-        setData(emptyOrgState())
-        setIsLoading(false)
-      })
+      queueMicrotask(() => { setOrgs([]); setCurrentOrgId(''); setData(emptyOrgState()); setIsLoading(false); setOrgsLoading(false) })
       return
     }
-
-    organizationsApi.getAll()
-      .then(async summaries => {
-        const full = await Promise.all(
-          summaries.map(async s => ({
-            ...(await organizationsApi.getById(s.id)),
-            role: s.role
-          }))
-        )
-
-        setOrgs(full)
-
-        setCurrentOrgId(prev => {
-          const stillValid = full.some(o => o.id === prev)
-          const next = stillValid ? prev : (full[0]?.id ?? '')
-
-          if (next) {
-            storeCurrentOrganization(next)
-          }
-
-          return next
-        })
-      })
-      .catch(() => toast(tr("Failed to load organizations"), 'error'))
-
-  }, [isAuthenticated, toast])
+    let active = true
+    const requests = orgRequestVersion.current
+    queueMicrotask(() => { if (active) void refreshOrgs() })
+    const refresh = () => { void refreshOrgs() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('organization-list-changed', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('organization-list-changed', refresh)
+      active = false
+      requests.version++
+    }
+  }, [isAuthenticated, refreshOrgs])
 
   useEffect(() => {
     if (!isAuthenticated || !currentOrgId) return
@@ -123,7 +137,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const refresh = async () => {
       try {
         const next = await rolesApi.access(currentOrgId)
+        const preferences = { hiddenModules: next.hiddenModules ?? [] }
         if (!cancelled) {
+          setCustomization(previous => previous?.orgId === currentOrgId && JSON.stringify(previous.hiddenModules) === JSON.stringify(preferences.hiddenModules) ? previous : { orgId: currentOrgId, ...preferences })
           setAccessError('')
           setAccessState(previous =>
             previous?.orgId === currentOrgId && JSON.stringify(previous.access) === JSON.stringify(next)
@@ -151,9 +167,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    if (!currentOrgId || !access || !isAuthenticated) {
-      queueMicrotask(() => setData(emptyOrgState()))
-      queueMicrotask(() => setIsLoading(false))
+    if (!loadOrganizationData || !currentOrgId || !access || !isAuthenticated || currentOrgArchived) {
+      queueMicrotask(() => { setData(emptyOrgState()); setLoadedAccess(undefined); setIsLoading(false) })
       return
     }
 
@@ -163,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
 
     const load = <T,>(resource: string, fetch: () => Promise<T[]>) =>
-      hasPermission(access, resource) ? fetch() : Promise.resolve([] as T[])
+      !hiddenModules.includes(resource) && hasPermission(access, resource) ? fetch() : Promise.resolve([] as T[])
 
     Promise.all([
       load('assets', () => assetsApi.getAll(currentOrgId)),
@@ -179,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       load('projects', () => projectsApi.getAll(currentOrgId)),
       load('groups', () => groupsApi.getAll(currentOrgId)),
       load('warranty', () => warrantyApi.getAll(currentOrgId)),
-      hasPermission(access, 'diagram') ? diagramApi.get(currentOrgId) : Promise.resolve({ nodes: [], edges: [] }),
+      !hiddenModules.includes('diagram') && hasPermission(access, 'diagram') ? diagramApi.get(currentOrgId) : Promise.resolve({ nodes: [], edges: [] }),
     ]).then(([
       assets, passwords, subnets, licenses, contacts, contracts,
       plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems, diagram,
@@ -194,31 +209,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => {
       if (!cancelled) {
         setData(emptyOrgState())
+        // A failed collection request must not leave the view waiting forever.
+        setLoadedAccess(access)
         toast(tr("Failed to load organization data"), 'error')
       }
     }).finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
-  }, [currentOrgId, access, isAuthenticated, toast])
+  }, [currentOrgId, access, isAuthenticated, currentOrgArchived, hiddenModules, loadOrganizationData, toast])
 
   const currentOrg = orgs.find(o => o.id === currentOrgId)
 
   const switchOrg = useCallback((id: string) => {
+    if (id === currentOrgId || orgs.some(org => org.id === id && org.isArchived)) return
     setData(emptyOrgState())
     setAccessState(undefined)
     setAccessError('')
     storeCurrentOrganization(id)
     setCurrentOrgId(id)
-  }, [])
+  }, [orgs, currentOrgId])
 
-  const addOrg = useCallback(async (o: Omit<Organization, 'id'>) => {
+  const addOrg = useCallback(async (o: CreateOrganizationInput) => {
     const created = await guarded(() => organizationsApi.create(o), 'Failed to create organization')
-    setOrgs(prev => [...prev, { ...created, role: 'Owner' }])
+    orgRequestVersion.current.version++
+    const membership: OrgMembership = { ...created, role: 'Owner' }
+    setOrgs(prev => [...prev, membership])
+    window.dispatchEvent(new Event('organization-list-changed'))
     toast(tr("Organization \"{{value1}}\" created", { value1: o.name }))
+    return membership
   }, [guarded, toast])
 
-  const updateOrg = useCallback(async (id: string, o: Omit<Organization, 'id'>) => {
+  const updateOrg = useCallback(async (id: string, o: OrganizationInput) => {
     await guarded(() => organizationsApi.update(id, o), 'Failed to update organization')
+    orgRequestVersion.current.version++
     setOrgs(prev => prev.map(x => x.id === id ? { ...x, ...o } : x))
+    window.dispatchEvent(new Event('organization-list-changed'))
     toast(tr("Organization \"{{value1}}\" updated", { value1: o.name }))
   }, [guarded, toast])
 
@@ -229,9 +253,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeMember = useCallback(async (orgId: string, userId: string) => {
     await guarded(() => organizationsApi.removeMember(orgId, userId), 'Failed to remove member')
     if (userId === user?.id) {
+      orgRequestVersion.current.version++
       setOrgs(prev => prev.filter(o => o.id !== orgId))
+      window.dispatchEvent(new Event('organization-list-changed'))
       if (currentOrgId === orgId) {
-        const next = orgs.find(o => o.id !== orgId)
+        const next = orgs.find(o => o.id !== orgId && !o.isArchived)
         switchOrg(next?.id ?? '')
       }
     }
@@ -239,9 +265,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteOrg = useCallback(async (orgId: string) => {
     await guarded(() => organizationsApi.softDelete(orgId), 'Failed to delete organization')
+    orgRequestVersion.current.version++
     setOrgs(prev => prev.filter(o => o.id !== orgId))
+    window.dispatchEvent(new Event('organization-list-changed'))
     if (currentOrgId === orgId) {
-      const next = orgs.find(o => o.id !== orgId)
+      const next = orgs.find(o => o.id !== orgId && !o.isArchived)
       switchOrg(next?.id ?? '')
     }
     toast(tr("Organization deleted"), 'info')
@@ -249,11 +277,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const restoreOrg = useCallback(async (orgId: string) => {
     await guarded(() => organizationsApi.restore(orgId), 'Failed to restore organization')
-    const summaries = await organizationsApi.getAll()
-    const full = await Promise.all(summaries.map(async s => ({ ...(await organizationsApi.getById(s.id)), role: s.role })))
+    const full = await organizationsApi.getAll()
     setOrgs(full)
     toast(tr("Organization restored"))
   }, [guarded, toast])
+
+  const setOrgArchived = useCallback(async (id: string, archived: boolean) => {
+    await guarded(() => archived ? organizationsApi.archive(id) : organizationsApi.unarchive(id),
+      archived ? 'Failed to archive organization' : 'Failed to reactivate organization')
+    const updated = await organizationsApi.getById(id)
+    orgRequestVersion.current.version++
+    setOrgs(previous => previous.map(org => org.id === id ? { ...org, ...updated } : org))
+    window.dispatchEvent(new Event('organization-list-changed'))
+    toast(tr(archived ? 'Organization archived' : 'Organization reactivated'))
+  }, [guarded, toast])
+
+  const syncNetworkAssets = useCallback(async () => {
+    const result = await guarded(() => subnetsApi.syncAssets(currentOrgId), 'Failed to synchronize network assets')
+    const subnets = await guarded(() => subnetsApi.getAll(currentOrgId), 'Failed to load networks')
+    if (currentOrgRef.current === currentOrgId) setData(previous => ({ ...previous, subnets }))
+    return result
+  }, [currentOrgId, guarded])
+
+  useEffect(() => {
+    const update = (event: Event) => {
+      const detail = (event as CustomEvent<RecordOrderEvent>).detail
+      if (!detail || detail.organizationId !== currentOrgId) return
+      const indices = new Map(detail.changes.map(change => [change.id, change.sortIndex]))
+      const keys: Record<string, keyof ReturnType<typeof emptyOrgState>> = {
+        assets: 'assets', passwords: 'passwords', networks: 'subnets', licenses: 'licenses', contacts: 'contacts', contracts: 'contracts',
+        plans: 'plans', incidents: 'incidents', knowledge: 'knowledgeArticles', tasks: 'tasks', projects: 'projects', groups: 'groups', warranty: 'warrantyItems', diagram: 'diagramNodes',
+      }
+      if (detail.resource === 'ip-entries') setData(previous => ({ ...previous, subnets: previous.subnets.map(subnet => ({ ...subnet, ips: subnet.ips.map(entry => indices.has(entry.id) ? { ...entry, sortIndex: indices.get(entry.id)! } : entry) })) }))
+      else {
+        const key = keys[detail.resource]
+        if (key) setData(previous => ({ ...previous, [key]: previous[key].map(entry => indices.has(entry.id) ? { ...entry, sortIndex: indices.get(entry.id)! } : entry) }))
+      }
+    }
+    window.addEventListener('organization-record-order-changed', update)
+    return () => window.removeEventListener('organization-record-order-changed', update)
+  }, [currentOrgId])
 
   // ── Assets ──
   const addAsset = useCallback(async (a: Omit<Asset, 'id' | 'updatedAt'>) => {
@@ -608,17 +671,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(d => ({ ...d, diagramNodes: nodes, diagramEdges: edges }))
   }, [currentOrgId, guarded])
 
+  const orderedData = useMemo(() => ({ ...data,
+    assets: orderRecords(data.assets),
+    passwords: orderRecords(data.passwords),
+    licenses: orderRecords(data.licenses),
+    contacts: orderRecords(data.contacts),
+    contracts: orderRecords(data.contracts),
+    plans: orderRecords(data.plans),
+    incidents: orderRecords(data.incidents),
+    knowledgeArticles: orderRecords(data.knowledgeArticles),
+    tasks: orderRecords(data.tasks),
+    projects: orderRecords(data.projects),
+    groups: orderRecords(data.groups),
+    warrantyItems: orderRecords(data.warrantyItems),
+    diagramNodes: orderRecords(data.diagramNodes),
+    subnets: orderRecords(data.subnets).map(subnet => ({ ...subnet, ips: orderRecords(subnet.ips) })),
+  }), [data])
+
   // Never expose data from the previous organization or permission revision to sidebar/search consumers.
-  const visibleData = isAuthenticated && access && loadedAccess === access ? data : emptyOrgState()
+  const visibleData = loadOrganizationData && isAuthenticated && !currentOrgArchived && access && loadedAccess === access ? orderedData : emptyOrgState()
   const value = {
-    access, accessError, canRead, canWrite,
-    orgs, currentOrg, switchOrg, addOrg, updateOrg,inviteMember, removeMember, deleteOrg, restoreOrg,
+    access, accessError, hiddenModules, canRead, canWrite,
+    orgs, orgsLoading, orgsError, refreshOrgs, setOrgArchived, currentOrg, switchOrg, addOrg, updateOrg,inviteMember, removeMember, deleteOrg, restoreOrg,
     ...visibleData,
-    isLoading: isLoading || (!!access && loadedAccess !== access),
+    isLoading: loadOrganizationData && (isLoading || (!!access && loadedAccess !== access)),
     toasts, dismissToast, toast,
     addAsset, updateAsset, deleteAsset, toggleStarAsset,
     addPassword, updatePassword, deletePassword, toggleStarPassword, revealPassword,
-    addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry,
+    syncNetworkAssets, addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry,
     addLicense, updateLicense, deleteLicense, toggleStarLicense,
     addContact, updateContact, deleteContact, toggleStarContact,
     reloadContracts, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract,

@@ -7,8 +7,12 @@ import Login from './components/Login'
 import Layout from './components/Layout'
 import ToastContainer from './components/ui/Toast'
 import { useAuth } from './context/useAuth'
+import { useApp } from './context/useApp'
 import PermissionGate from './components/PermissionGate'
 
+const OrganizationDocumentation = lazy(() => import('./components/OrganizationDocumentation'))
+const OrganizationHub = lazy(() => import('./components/OrganizationHub'))
+const OrganizationCustomization = lazy(() => import('./components/OrganizationCustomization'))
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const AssetInventory = lazy(() => import('./components/AssetInventory'))
 const AssetDetails = lazy(() => import('./components/AssetDetails'))
@@ -32,7 +36,7 @@ const ClientReports = lazy(() => import('./components/ClientReports'))
 const UserGuide = lazy(() => import('./components/UserGuide'))
 
 export type View =
-  | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
+  | 'home' | 'organization-documentation' | 'organization-customization' | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
   | 'networks' | 'licenses' | 'contacts' | 'contracts'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
   | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes' | 'reports' | 'help'
@@ -40,7 +44,7 @@ export type View =
 function AuthenticatedApp() {
   useLocale()
   const { logout, user } = useAuth()
-  const [view, setView] = useState<View>(user?.systemRole === 'Client' ? 'reports' : 'dashboard')
+  const [view, setView] = useState<View>(user?.systemRole === 'Client' ? 'reports' : 'home')
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
   const navigate = (v: View, id?: string) => {
@@ -51,6 +55,9 @@ function AuthenticatedApp() {
 
   const content = (() => {
     switch (view) {
+      case 'home': return <OrganizationHub navigate={navigate} />
+      case 'organization-documentation': return <OrganizationDocumentation />
+      case 'organization-customization': return <div className="mx-auto max-w-4xl p-4 sm:p-6"><OrganizationCustomization onExport={() => navigate('organization-documentation')} /></div>
       case 'help': return <UserGuide />
       case 'reports': return <ClientReports />
       case 'dashboard':    return <Dashboard navigate={navigate} />
@@ -77,7 +84,8 @@ function AuthenticatedApp() {
   })()
 
   return (
-    <AppProvider>
+    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram'].includes(view)}>
+      <OrganizationLifecycleRedirect view={view} navigate={navigate} />
       <Layout currentView={view} navigate={navigate} onLogout={logout}>
         <PermissionGate view={view}>
           <Suspense fallback={(
@@ -92,6 +100,15 @@ function AuthenticatedApp() {
       <ToastContainer/>
     </AppProvider>
   )
+}
+
+function OrganizationLifecycleRedirect({ view, navigate }: { view: View; navigate: (view: View) => void }) {
+  const { currentOrg } = useApp()
+  const { user } = useAuth()
+  useEffect(() => {
+    if (currentOrg?.isArchived && !['home', 'settings', 'help', 'adminpanel'].includes(view) && user?.systemRole !== 'Client') navigate('home')
+  }, [currentOrg?.isArchived, view, user?.systemRole, navigate])
+  return null
 }
 
 function Gate() {

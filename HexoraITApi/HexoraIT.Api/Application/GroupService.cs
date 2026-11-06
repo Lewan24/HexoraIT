@@ -36,7 +36,7 @@ public sealed class GroupService(
         if (organizationId is { } id) query = query.Where(group => group.OrganizationId == id);
         var totalCount = await query.CountAsync(cancellationToken);
         var groups = await query
-            .OrderBy(group => group.Id)
+            .OrderBy(group => group.SortIndex ?? int.MaxValue).ThenBy(group => group.Id)
             .Skip(window.Offset)
             .Take(window.PageSize)
             .ProjectTo<GroupDto>(mapper.ConfigurationProvider)

@@ -28,10 +28,10 @@ public sealed class WarrantyService(AppDbContext db, IMapper mapper, ICurrentUse
         if (organizationId is { } organization && !await userContext.HasPermissionAsync(organization, "warranty")) return new(StatusCodes.Status403Forbidden);
         var query = db.WarrantyItems.AsQueryable(); if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .Select(item => new WarrantyItemDto(item.Id, item.Name, item.Vendor, item.SerialNumber, item.PurchaseDate, item.WarrantyEndDate,
                 item.WarrantyType, item.ContactName, item.ContactPhone, item.ContactEmail, item.Notes, item.AssetId, item.Starred, item.Status,
-                item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0))).ToListAsync(token);
+                item.DocumentName == null ? null : new(item.DocumentName, item.DocumentMimeType ?? "", item.DocumentSize ?? 0), item.SortIndex)).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
     public async Task<ApiOperationResult> GetByIdAsync(Guid id, CancellationToken token = default)

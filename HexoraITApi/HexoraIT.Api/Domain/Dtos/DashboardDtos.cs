@@ -5,4 +5,5 @@ using HexoraITApi.Domain.Validation;
 
 public record DashboardLayoutDto(
     [Required, StringCollection(100, 100)] List<string> SectionOrder,
-    [Required, StringCollection(100, 100)] List<string> HiddenSections);
+    [Required, StringCollection(100, 100)] List<string> HiddenSections,
+    [Range(1, 10)] int MaxItems = 5);

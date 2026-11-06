@@ -161,3 +161,11 @@ test("disabled localStorage falls back to an in-memory bearer token", async () =
   assert.deepEqual(await http.get("/health"), { ok: true })
   assert.equal(authorization, "Bearer memory-token")
 })
+
+test('JSON secrets are decoded once and preserve quotes belonging to the password', async () => {
+  const secret = '"quoted"\\password'
+  globalThis.fetch = async () => new Response(JSON.stringify(secret), {
+    headers: { 'Content-Type': 'application/json' },
+  })
+  assert.equal(await http.get('/passwords/example/reveal'), secret)
+})

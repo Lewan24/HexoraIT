@@ -15,6 +15,7 @@ public interface IFileExplorerService
     Task<ApiOperationResult> DeleteFolderAsync(Guid id, CancellationToken token = default);
     Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default);
     Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default);
+    Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default);
     Task<ApiOperationResult> GetContentAsync(Guid id, bool download, CancellationToken token = default);
     Task<ApiOperationResult> DeleteFileAsync(Guid id, CancellationToken token = default);
     Task<ApiOperationResult> RenameFolderAsync(Guid id, RenameFolderDto dto, CancellationToken token = default);
@@ -32,7 +33,7 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         if (!Pagination.TryResolve(pagination, out var window)) return new(StatusCodes.Status400BadRequest, "Both page and pageSize must be supplied together.");
         var query = db.FileFolders.Where(folder => folder.OrganizationId == organizationId && folder.ParentFolderId == parentFolderId);
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(folder => folder.Name).ThenBy(folder => folder.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(folder => folder.SortIndex ?? int.MaxValue).ThenBy(folder => folder.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<FileFolderDto>(mapper.ConfigurationProvider).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
@@ -77,7 +78,7 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         var query = db.StoredFiles.Where(file => file.OrganizationId == organizationId &&
             (file.FolderId == folderId || (folderId == null && !db.FileFolders.Any(folder => folder.Id == file.FolderId && folder.OrganizationId == organizationId))));
         var total = await query.CountAsync(token);
-        var items = await query.OrderBy(file => file.Name).ThenBy(file => file.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(file => file.SortIndex ?? int.MaxValue).ThenBy(file => file.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<StoredFileDto>(mapper.ConfigurationProvider).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
@@ -85,7 +86,7 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
     public async Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default)
     {
         if (!await userContext.HasPermissionAsync(organizationId, "files", true)) return new(StatusCodes.Status403Forbidden);
-        ValidatedUpload validated; try { validated = await FileUploadSecurity.ValidateAsync(file, 100_000_000, token); } catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
+        ValidatedUpload validated; try { validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token); } catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
         if (folderId is { } target && !await db.FileFolders.AnyAsync(folder => folder.Id == target && folder.OrganizationId == organizationId, token))
             return new(StatusCodes.Status400BadRequest, "Target folder does not exist.");
         await using var content = file.OpenReadStream();
@@ -93,6 +94,33 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         var stored = new StoredFile { OrganizationId = organizationId, Name = validated.FileName, MimeType = validated.ContentType, Size = file.Length, BlobPath = path, FolderId = folderId };
         db.StoredFiles.Add(stored);
         try { await db.SaveChangesAsync(token); } catch { await DeleteBlobSafelyAsync(path, "after a database failure"); throw; }
+        return new(StatusCodes.Status200OK, mapper.Map<StoredFileDto>(stored));
+    }
+
+    public async Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default)
+    {
+        var stored = await db.StoredFiles.FirstOrDefaultAsync(item => item.Id == id, token);
+        if (stored is null) return new(StatusCodes.Status404NotFound);
+        if (!await userContext.HasPermissionAsync(stored.OrganizationId, "files", true, stored.Id))
+            return new(StatusCodes.Status403Forbidden);
+        ValidatedUpload validated;
+        try { validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token); }
+        catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
+        await using var content = file.OpenReadStream();
+        var path = await storage.SaveAsync(content, validated.FileName, validated.ContentType);
+        var previousPath = stored.BlobPath;
+        stored.BlobPath = path;
+        stored.Name = validated.FileName;
+        stored.MimeType = validated.ContentType;
+        stored.Size = file.Length;
+        try { await db.SaveChangesAsync(token); }
+        catch (DbUpdateConcurrencyException)
+        {
+            await DeleteBlobSafelyAsync(path, "after a concurrent replacement");
+            return new(StatusCodes.Status409Conflict, "This file changed during the upload. Refresh and try again.");
+        }
+        catch { await DeleteBlobSafelyAsync(path, "after a replacement database failure"); throw; }
+        await DeleteBlobSafelyAsync(previousPath, "after replacing its content");
         return new(StatusCodes.Status200OK, mapper.Map<StoredFileDto>(stored));
     }
 

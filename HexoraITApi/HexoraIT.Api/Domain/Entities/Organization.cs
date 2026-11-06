@@ -7,6 +7,10 @@ public class Organization
     public string Color { get; set; } = "";
     public string Initials { get; set; } = "";
     public string Description { get; set; } = "";
+    public List<string> HiddenModules { get; set; } = [];
+    public bool IsTemporary { get; set; }
+    public bool IsArchived { get; set; }
+    public DateTime? ArchivedAt { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
 

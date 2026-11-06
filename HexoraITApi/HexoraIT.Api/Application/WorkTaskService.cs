@@ -26,7 +26,7 @@ public sealed class WorkTaskService(AppDbContext db, IMapper mapper, ICurrentUse
         if (organizationId is { } id) query = query.Where(item => item.OrganizationId == id);
         if (projectId is { } project) query = query.Where(item => item.ProjectId == project);
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
+        var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<WorkTaskDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }

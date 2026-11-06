@@ -1,7 +1,8 @@
 namespace HexoraITApi.Domain.Entities;
 
-public class PrivateNote
+public class PrivateNote : IOrderedRecord
 {
+    public int? SortIndex { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid OrganizationId { get; set; }
     public Guid UserId { get; set; }

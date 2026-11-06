@@ -1,52 +1,4 @@
 services:
-
-  # OPTIONAL // depends if you have already postgres and want just another DB
-  db:
-    image: postgres:17
-
-    profiles: # remove if you want to import it to like portainer and run everything
-      - database
-
-    container_name: postgres
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: HexoraITApp
-      POSTGRES_USER: HexoraIT
-      POSTGRES_PASSWORD: ${HEXORAIT_DB_PASSWORD:?Set HEXORAIT_DB_PASSWORD}
-
-    ports:
-      - "5432:5432"
-
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      
-    networks:
-      hexorait_app:
-        ipv4_address: 172.40.0.10
-      
-  # Just ui to check the postgresql its fully optional if you have already client or another app to check out dbs
-  adminer:
-    image: adminer
-
-    profiles: # remove if you want to import it to like portainer and run everything
-      - database
-
-    container_name: adminer
-
-    restart: unless-stopped
-
-    ports:
-      - "8082:8080"
-
-    depends_on:
-      - db
-      
-    networks:
-      hexorait_app:
-        ipv4_address: 172.40.0.11
-
   api:
     image: lewan24/hexorait-api:latest
     build: ./HexoraITApi/HexoraIT.Api
@@ -137,6 +89,5 @@ networks:
         - subnet: 172.40.0.0/24
 
 volumes:
-  postgres-data:
   hexorait-storage:
   hexorait-dataprotectionkeys-storage:

@@ -42,7 +42,7 @@ public sealed class SecurityPipelineTests
     [Theory]
     [InlineData("/api/projects", 5)]
     [InlineData("/api/tasks", 5)]
-    [InlineData("/api/subnets", 8)]
+    [InlineData("/api/subnets", 9)]
     public void ProjectTaskAndSubnetMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
     {
         using var factory = new SecurityWebApplicationFactory();
@@ -136,11 +136,14 @@ public sealed class SecurityPipelineTests
         var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
             .Endpoints.OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/files", StringComparison.Ordinal) == true).ToList();
-        endpoints.Should().HaveCount(12);
+        endpoints.Should().HaveCount(13);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
-        endpoints.Single(endpoint => endpoint.RoutePattern.RawText == "/api/files/upload")
-            .Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>()?.MaxRequestBodySize
-            .Should().Be(100_000_000);
+        foreach (var route in new[] { "/api/files/upload", "/api/files/{id:guid}/replace" })
+            endpoints.Single(endpoint => endpoint.RoutePattern.RawText == route)
+                .Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>()?.MaxRequestBodySize
+                .Should().Be(FileUploadSecurity.MaxRequestBytes);
+        factory.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Features.FormOptions>>()
+            .Value.MultipartBodyLengthLimit.Should().Be(FileUploadSecurity.MaxFileBytes);
     }
 
     [Fact]
@@ -178,7 +181,7 @@ public sealed class SecurityPipelineTests
                 !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
                 !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
             .ToList();
-        endpoints.Should().HaveCount(12);
+        endpoints.Should().HaveCount(21);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 

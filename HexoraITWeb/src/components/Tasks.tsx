@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import {
@@ -316,7 +317,7 @@ function TaskCard({ task, onEdit, onMove, onPreview }: {
   return (
     <div className="bg-navy-800 border border-edge-subtle rounded-xl px-3.5 py-3 hover:border-edge-default transition-all group hover:scale-[1.02]">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0 cursor-pointer" onClick={onPreview}>{task.title}</p>
+        <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0 cursor-pointer" onClick={onPreview}><RecordIndex index={task.sortIndex} />{task.title}</p>
         <button onClick={onPreview} className="p-1 rounded text-ink-muted hover:text-cyan-400 hover:bg-navy-700 cursor-pointer">
             <Eye size={14} className='text-green-500'/>
         </button>
@@ -522,7 +523,7 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
               <div key={p.id} className={`flex items-center hover:bg-navy-700 transition-colors ${activeId === p.id ? 'text-blue-400' : 'text-ink-secondary'}`}>
                 <button onClick={() => { onSelect(p.id); setOpen(false) }} className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left text-xs min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                  <span className="truncate">{p.name}</span>
+                  <span className="truncate"><RecordIndex index={p.sortIndex} />{p.name}</span>
                   <span className="text-[10px] text-ink-muted flex-shrink-0">{p.taskCount}</span>
                   {activeId === p.id && <Check size={11} className="ml-auto flex-shrink-0" />}
                 </button>

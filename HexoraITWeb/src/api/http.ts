@@ -183,6 +183,15 @@ export const http = {
     return res.blob()
   },
 
+  postBlob: async (path: string, body: unknown, signal?: AbortSignal): Promise<Blob> => {
+    if (config.appMode === "mock") {
+      const { mockApi } = await import("./mockApi")
+      return mockApi.request<Blob>("POST", path, JSON.stringify(body), "blob")
+    }
+    const response = await checkedFetch(path, { method: "POST", body: JSON.stringify(body), signal })
+    return response.blob()
+  },
+
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",

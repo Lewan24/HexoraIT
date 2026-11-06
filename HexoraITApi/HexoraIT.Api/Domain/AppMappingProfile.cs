@@ -59,7 +59,8 @@ public class AppMappingProfile : Profile
                         src.DocumentName,
                         src.DocumentMimeType ?? "",
                         src.DocumentSize ?? 0
-                    )
+                    ),
+                src.SortIndex
             ));
         CreateMap<CreateContractDto, Contract>();
         CreateMap<UpdateContractDto, Contract>();
@@ -113,7 +114,8 @@ public class AppMappingProfile : Profile
                         src.DocumentName,
                         src.DocumentMimeType ?? "",
                         src.DocumentSize ?? 0
-                    )
+                    ),
+                src.SortIndex
             ));
         CreateMap<CreateWarrantyItemDto, WarrantyItem>()
             .ForMember(
@@ -127,7 +129,7 @@ public class AppMappingProfile : Profile
             );
 
         CreateMap<DiagramNode, DiagramNodeDto>();
-        CreateMap<DiagramNodeDto, DiagramNode>();
+        CreateMap<DiagramNodeDto, DiagramNode>().ForMember(d => d.SortIndex, o => o.Ignore());
 
         CreateMap<DiagramEdge, DiagramEdgeDto>()
             .ConstructUsing(s => new DiagramEdgeDto(s.Id, s.SourceNodeId, s.TargetNodeId, s.Label, s.ConnectionType));

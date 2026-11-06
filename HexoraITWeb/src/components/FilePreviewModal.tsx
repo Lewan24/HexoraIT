@@ -36,6 +36,8 @@ export default function FilePreviewModal({ file, onClose }: Props) {
       setLoading(true)
       setError(false)
       try {
+        const limit = kind === 'text' ? MAX_TEXT_PREVIEW_BYTES : kind === 'docx' ? MAX_DOCUMENT_PREVIEW_BYTES : kind === 'xlsx' ? MAX_SPREADSHEET_PREVIEW_BYTES : 100 * 1024 * 1024
+        if (file.size > limit) throw new Error('File is too large to preview safely.')
         if (kind === 'pdf' || kind === 'image') {
           const blob = await filesApi.getContentBlob(file.id)
           if (cancelled) return
@@ -98,7 +100,7 @@ export default function FilePreviewModal({ file, onClose }: Props) {
           URL.revokeObjectURL(createdUrl);
       }
     }
-  }, [file.id, file.mimeType, kind, language])
+  }, [file.size, file.id, file.mimeType, kind, language])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }

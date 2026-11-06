@@ -14,8 +14,8 @@ public record PlanDto(
     List<string> Tags,
     List<Guid> AssetIds,
     decimal EstimatedCost,
-    DateTime CreatedAt
-);
+    DateTime CreatedAt,
+    int? SortIndex = null);
 
 public record CreatePlanDto(
     [Required, StringLength(200)] string Title,

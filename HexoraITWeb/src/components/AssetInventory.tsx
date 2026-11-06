@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import AssetForm from './AssetForm'
 import { ASSET_TYPES, ASSET_STATUSES } from '../lib/assetOptions'
 import { tr, useLocale } from '../i18n'
@@ -7,6 +8,7 @@ import {
   Edit2, Trash2, Eye, Server, Monitor, Router, HardDrive, Wifi,
   ChevronLeft, ChevronRight, Star, X, Printer, Phone, Loader2, Camera, Video,
 } from 'lucide-react'
+import { compareRecordOrder } from '../lib/recordOrder'
 import { useApp } from '../context/useApp'
 import type { Asset, AssetType, AssetStatus } from '../api/types'
 import type { View } from '../App'
@@ -97,7 +99,7 @@ export default function AssetInventory({ navigate }: Props) {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
-  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortKey, setSortKey] = useState<SortKey | 'manual'>('manual')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(1)
@@ -114,6 +116,7 @@ export default function AssetInventory({ navigate }: Props) {
       (a.name.toLowerCase().includes(query.toLowerCase()) || a.ip.includes(query) || a.location.toLowerCase().includes(query.toLowerCase()) || a.owner.toLowerCase().includes(query.toLowerCase()))
     )
     .sort((a, b) => {
+      if (sortKey === 'manual') return compareRecordOrder(a, b)
       const av = String(a[sortKey]); const bv = String(b[sortKey])
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
@@ -172,6 +175,7 @@ export default function AssetInventory({ navigate }: Props) {
     <div className="p-6">
       <style>{"@keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }"}</style>
 
+      {sortKey !== 'manual' && <button onClick={() => setSortKey('manual')} className="mb-3 text-xs text-blue-400">{tr("Manual order")}</button>}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -235,7 +239,7 @@ export default function AssetInventory({ navigate }: Props) {
           <div key={asset.id} className="bg-navy-800 border border-edge-subtle rounded-xl p-4 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link font-medium text-sm">{asset.name}</button>
+                <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link font-medium text-sm"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
                 <StatusBadge status={asset.status} />
               </div>
               <p className="text-[10px] font-mono text-ink-muted">{asset.ip} · {asset.location}</p>
@@ -309,7 +313,7 @@ export default function AssetInventory({ navigate }: Props) {
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link hover:text-blue-300 font-medium transition-colors">{asset.name}</button>
+                    <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link hover:text-blue-300 font-medium transition-colors"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
                     <p className="text-ink-muted font-mono mt-0.5 text-[10px]">{asset.ip}</p>
                   </td>
                   <td className="px-3 py-3">

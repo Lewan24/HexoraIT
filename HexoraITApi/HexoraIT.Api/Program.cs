@@ -21,6 +21,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = FileUploadSecurity.MaxFileBytes;
+    options.MemoryBufferThreshold = 64 * 1024;
+});
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
@@ -56,6 +61,8 @@ builder.Services.AddScoped<ILicenseService, LicenseService>();
 builder.Services.AddScoped<IPlanService, PlanService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IWorkTaskService, WorkTaskService>();
+builder.Services.AddScoped<RecordOrderService>();
+builder.Services.AddScoped<NetworkAssetSyncService>();
 builder.Services.AddScoped<ISubnetService, SubnetService>();
 builder.Services.AddScoped<IPrivateNoteService, PrivateNoteService>();
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
@@ -66,6 +73,9 @@ builder.Services.AddScoped<IWarrantyService, WarrantyService>();
 builder.Services.AddScoped<IFileExplorerService, FileExplorerService>();
 builder.Services.AddScoped<IClientReportService, ClientReportService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<OrganizationCustomizationService>();
+builder.Services.AddScoped<HexoraITApi.Application.Documentation.DocumentationService>();
+builder.Services.AddSingleton<HexoraITApi.Application.Documentation.IDocumentationPdfRenderer, HexoraITApi.Application.Documentation.DocumentationPdfRenderer>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
 builder.Services.AddScoped<IEmailSecretProtector, EmailSecretProtector>();
@@ -126,6 +136,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 builder.Services.AddRateLimiter(options =>
 {
+    options.AddPolicy("documentation-export", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 4, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("client-audit", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
         { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -297,6 +310,7 @@ app.MapPlanEndpoints();
 app.MapProjectEndpoints();
 app.MapWorkTaskEndpoints();
 app.MapSubnetEndpoints();
+app.MapRecordOrderEndpoints();
 app.MapPrivateNoteEndpoints();
 app.MapDashboardLayoutEndpoints();
 app.MapDiagramEndpoints();
@@ -308,6 +322,7 @@ app.MapClientReportEndpoints();
 app.MapAdminEndpoints();
 app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
+app.MapDocumentationEndpoints();
 app.MapOrganizationRoleEndpoints();
 app.MapEmailSettingsEndpoints();
 

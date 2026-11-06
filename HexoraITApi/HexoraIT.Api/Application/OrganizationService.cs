@@ -17,6 +17,7 @@ public interface IOrganizationService
     Task<ApiOperationResult> InviteMemberAsync(Guid id, InviteMemberDto dto, CancellationToken token = default);
     Task<ApiOperationResult> RemoveMemberAsync(Guid id, Guid userId, CancellationToken token = default);
     Task<ApiOperationResult> DeleteAsync(Guid id, CancellationToken token = default);
+    Task<ApiOperationResult> SetArchivedAsync(Guid id, bool archived, CancellationToken token = default);
     Task<ApiOperationResult> RestoreAsync(Guid id, CancellationToken token = default);
 }
 
@@ -29,9 +30,12 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
         var total = await query.CountAsync(token);
         var rows = await query.OrderBy(item => item.Organization.Name).ThenBy(item => item.OrganizationId)
             .Skip(window.Offset).Take(window.PageSize)
-            .Select(item => new { item.OrganizationId, item.Organization.Name, item.Role }).ToListAsync(token);
+            .Select(item => new { item.OrganizationId, item.Organization.Name, item.Role, item.Organization.Color,
+                item.Organization.Initials, item.Organization.Description, item.Organization.IsTemporary,
+                item.Organization.IsArchived, item.Organization.ArchivedAt }).ToListAsync(token);
         var items = rows.Select(item => new OrganizationSummaryDto(
-            item.OrganizationId, item.Name, item.Role.ToString())).ToList();
+            item.OrganizationId, item.Name, item.Role.ToString(), item.Color, item.Initials, item.Description,
+            item.IsTemporary, item.IsArchived, item.ArchivedAt)).ToList();
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
 
@@ -58,7 +62,11 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
     public async Task<ApiOperationResult> CreateAsync(CreateOrganizationDto dto, CancellationToken token = default)
     {
         if (await IsClientAsync(token)) return new(StatusCodes.Status403Forbidden);
+        if (dto.HiddenModules is not null && !OrganizationCustomizationService.ValidModules(dto.HiddenModules))
+            return new(StatusCodes.Status400BadRequest, "Invalid organization modules.");
         var item = mapper.Map<Organization>(dto);
+        item.HiddenModules = dto.HiddenModules?.Distinct().Order().ToList()
+            ?? OrganizationCustomizationService.DefaultHiddenModules(dto.IsTemporary);
         db.Organizations.Add(item);
         db.UserOrganizations.Add(new UserOrganization { UserId = userContext.UserId, OrganizationId = item.Id, Role = OrgRole.Owner });
         await db.SaveChangesAsync(token);
@@ -143,6 +151,19 @@ public sealed class OrganizationService(AppDbContext db, IMapper mapper, ICurren
             .Select(member => (OrgRole?)member.Role).FirstOrDefaultAsync(token);
         if (role != OrgRole.Owner) return new(StatusCodes.Status403Forbidden);
         item.IsDeleted = false; item.DeletedAt = null; await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);
+    }
+
+    public async Task<ApiOperationResult> SetArchivedAsync(Guid id, bool archived, CancellationToken token = default)
+    {
+        if (!await userContext.HasAccessAsync(id) || await userContext.GetRoleAsync(id) is not (OrgRole.Admin or OrgRole.Owner))
+            return new(StatusCodes.Status403Forbidden);
+        var item = await db.Organizations.FirstOrDefaultAsync(org => org.Id == id, token);
+        if (item is null) return new(StatusCodes.Status404NotFound);
+        if (item.IsArchived == archived) return new(StatusCodes.Status204NoContent);
+        item.IsArchived = archived;
+        item.ArchivedAt = archived ? DateTime.UtcNow : null;
+        await db.SaveChangesAsync(token);
+        return new(StatusCodes.Status204NoContent);
     }
 
     private Task<bool> IsClientAsync(CancellationToken token) => db.Users.AnyAsync(user => user.Id == userContext.UserId && user.SystemRole == SystemRole.Client, token);

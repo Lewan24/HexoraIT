@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
 import {
@@ -239,7 +240,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
             <Shield size={16} className="text-cyan-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-semibold text-ink-primary truncate">{item.name}</h1>
+            <h1 className="text-base sm:text-lg font-semibold text-ink-primary truncate"><RecordIndex index={item.sortIndex} />{item.name}</h1>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border flex items-center gap-1 ${statusInfo.badge}`}>
                 <StatusIcon size={9} />{tr(statusInfo.label)}
@@ -361,7 +362,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
           <div className="relative bg-navy-800 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm p-6" style={{ animation: 'modalIn 0.15s ease-out' }} onClick={e => e.stopPropagation()}>
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"><Trash2 size={18} className="text-red-400" /></div>
             <h3 className="text-sm font-semibold text-ink-primary text-center mb-1">{tr("Delete Warranty")}</h3>
-            <p className="text-xs text-ink-muted text-center mb-5">{tr("Delete")} <span className="text-ink-primary font-mono">{item.name}</span>{tr("? This cannot be undone.")}</p>
+            <p className="text-xs text-ink-muted text-center mb-5">{tr("Delete")} <span className="text-ink-primary font-mono"><RecordIndex index={item.sortIndex} />{item.name}</span>{tr("? This cannot be undone.")}</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs transition-colors border border-edge-default disabled:opacity-40">{tr("Cancel")}</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
@@ -472,7 +473,7 @@ export default function Warranty() {
               <div key={w.id} onClick={() => selectItem(w.id)}
                 className={`w-full px-4 py-3 text-left transition-all hover:bg-navy-800/80 cursor-pointer ${effectiveSelectedId === w.id ? 'bg-navy-800 md:border-r-2 md:border-blue-500' : ''}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs font-medium text-ink-primary truncate">{w.name}</span>
+                  <span className="text-xs font-medium text-ink-primary truncate"><RecordIndex index={w.sortIndex} />{w.name}</span>
                   <button onClick={e => { e.stopPropagation(); toggleStarWarranty(w.id) }}
                     className={`flex-shrink-0 transition-colors ${w.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-yellow-400'}`}>
                     <Star size={10} fill={w.starred ? 'currentColor' : 'none'} />

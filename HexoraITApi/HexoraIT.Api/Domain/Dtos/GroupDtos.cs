@@ -5,7 +5,7 @@ using HexoraITApi.Domain.Validation;
 namespace HexoraITApi.Domain.Dtos;
 
 public record GroupDto(Guid Id, string Name, GroupType Type, string Description, string Purpose,
-    List<string> Members, List<Guid> LinkedAssets, List<string> Tags, DateTime CreatedAt);
+    List<string> Members, List<Guid> LinkedAssets, List<string> Tags, DateTime CreatedAt, int? SortIndex = null);
 
 public record CreateGroupDto(
     [Required, StringLength(200)] string Name, GroupType Type,

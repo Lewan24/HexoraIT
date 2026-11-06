@@ -7,5 +7,6 @@ public class DashboardLayout
     public Guid OrganizationId { get; set; }
     public List<string> SectionOrder { get; set; } = [];
     public List<string> HiddenSections { get; set; } = [];
+    public int MaxItems { get; set; } = 5;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

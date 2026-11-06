@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
 import {
@@ -226,7 +227,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ink-primary group-hover:text-ink-primary transition-colors">
-            {plan.title}
+            <RecordIndex index={plan.sortIndex} />{plan.title}
             {plan.estimatedCost > 0 && (
               <span className="inline-flex items-center gap-1 ml-5 text-orange-400">
                  {tr("Estimated cost:")} <span className='inline-flex items-center gap-1'>

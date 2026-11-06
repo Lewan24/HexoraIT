@@ -5,7 +5,7 @@ using HexoraITApi.Domain.Validation;
 namespace HexoraITApi.Domain.Dtos;
 
 public record IncidentDto(Guid Id, string Title, IncidentSeverity Severity, IncidentStatus Status, string Description,
-    string Resolution, List<string> AffectedSystems, DateTime OccurredAt, DateTime? ResolvedAt, List<string> Tags);
+    string Resolution, List<string> AffectedSystems, DateTime OccurredAt, DateTime? ResolvedAt, List<string> Tags, int? SortIndex = null);
 
 public record CreateIncidentDto(
     [Required, StringLength(200)] string Title, IncidentSeverity Severity, IncidentStatus Status,

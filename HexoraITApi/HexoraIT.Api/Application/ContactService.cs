@@ -37,7 +37,7 @@ public sealed class ContactService(
         if (organizationId is { } id) query = query.Where(contact => contact.OrganizationId == id);
         var totalCount = await query.CountAsync(cancellationToken);
         var contacts = await query
-            .OrderBy(contact => contact.Id)
+            .OrderBy(contact => contact.SortIndex ?? int.MaxValue).ThenBy(contact => contact.Id)
             .Skip(window.Offset)
             .Take(window.PageSize)
             .ProjectTo<ContactDto>(mapper.ConfigurationProvider)

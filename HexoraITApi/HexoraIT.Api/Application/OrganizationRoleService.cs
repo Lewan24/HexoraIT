@@ -26,22 +26,23 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
 {
     public async Task<ApiOperationResult> GetAccessAsync(Guid organizationId, CancellationToken token = default)
     {
-        if (!await userContext.HasAccessAsync(organizationId)) return Forbidden();
         var member = await db.UserOrganizations.AsNoTracking()
+            .Include(m => m.Organization).Include(m => m.User)
             .Include(m => m.CustomRole).ThenInclude(r => r!.Permissions)
-            .SingleAsync(m => m.OrganizationId == organizationId && m.UserId == userContext.UserId, token);
-        if (await db.Users.AnyAsync(u => u.Id == userContext.UserId && u.SystemRole == SystemRole.Client, token))
+            .FirstOrDefaultAsync(m => m.OrganizationId == organizationId && m.UserId == userContext.UserId && !m.Organization.IsDeleted, token);
+        if (member is null) return Forbidden();
+        if (member.User.SystemRole == SystemRole.Client)
         {
             var individual = await db.ClientPermissions
                 .Where(p => p.UserId == userContext.UserId && p.OrganizationId == organizationId)
                 .Select(p => new PermissionDto(p.Resource, p.ResourceId, p.CanRead, p.CanWrite)).ToListAsync(token);
-            return Ok(new OrganizationAccessDto("Client", false, individual));
+            return Ok(new OrganizationAccessDto("Client", false, individual, member.Organization.HiddenModules));
         }
         var permissions = member.CustomRoleId is null
             ? OrganizationResources.All.Select(r => new PermissionDto(r, Guid.Empty, true, member.Role >= OrgRole.Member)).ToList()
             : member.CustomRole!.Permissions.Select(ToDto).ToList();
         return Ok(new OrganizationAccessDto(member.CustomRole?.Name ?? member.Role.ToString(),
-            member.CustomRoleId is null && member.Role >= OrgRole.Admin, permissions));
+            member.CustomRoleId is null && member.Role >= OrgRole.Admin, permissions, member.Organization.HiddenModules));
     }
 
     public async Task<ApiOperationResult> GetRolesAsync(Guid organizationId, PaginationParameters? pagination, CancellationToken token = default)

@@ -1,3 +1,4 @@
+import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
@@ -24,10 +25,15 @@ function iconFor(file: StoredFile) {
 }
 
 interface Crumb { id?: string; name: string }
-const MAX_UPLOAD_BYTES = 100_000_000
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
 const MAX_FILES_PER_BATCH = 20
 
 export default function FileExplorer() {
+  const { currentOrg } = useApp()
+  return <FileExplorerContent key={currentOrg?.id ?? 'none'} />
+}
+
+function FileExplorerContent() {
   useLocale()
   const { currentOrg, toast, canWrite } = useApp()
   const [breadcrumbs, setBreadcrumbs] = useState<Crumb[]>([{ id: undefined, name: 'Files' }])
@@ -43,6 +49,8 @@ export default function FileExplorer() {
   const [deleting, setDeleting] = useState(false)
   const [previewFile, setPreviewFile] = useState<StoredFile | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const replacementInputRef = useRef<HTMLInputElement>(null)
+  const replacementTarget = useRef<StoredFile | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [renameTarget, setRenameTarget] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -71,12 +79,17 @@ export default function FileExplorer() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const refresh = (event: Event) => { const detail = (event as CustomEvent).detail; if (detail?.organizationId === currentOrg?.id && ['files', 'folders'].includes(detail.resource)) void load() }
+    window.addEventListener('organization-record-order-changed', refresh)
+    return () => window.removeEventListener('organization-record-order-changed', refresh)
+  }, [load, currentOrg?.id])
 
   const openFolder = (folder: FileFolder) => setBreadcrumbs(prev => [...prev, { id: folder.id, name: folder.name }])
   const jumpTo = (index: number) => setBreadcrumbs(prev => prev.slice(0, index + 1))
 
   const handleUpload = useCallback(async (fileList: FileList | File[]) => {
-    if (!currentOrg || !canCreate)
+    if (uploading || !currentOrg || !canCreate)
         return
 
     if (previewFile)
@@ -90,7 +103,7 @@ export default function FileExplorer() {
       return
     }
     if (filesArr.some(file => file.size > MAX_UPLOAD_BYTES)) {
-      toast(tr("Each file must be smaller than 100 MB."), 'error')
+      toast(tr("Each file must be at most 2 GiB."), 'error')
       return
     }
 
@@ -112,7 +125,26 @@ export default function FileExplorer() {
         toast(filesArr.length === 1 ? tr("File uploaded") : tr("{{value1}} files uploaded", { value1: filesArr.length }))
 
     await load()
-  }, [currentOrg, canCreate, previewFile, toast, load, currentFolderId])
+  }, [uploading, currentOrg, canCreate, previewFile, toast, load, currentFolderId])
+
+  const handleReplace = async (file: File) => {
+    const target = replacementTarget.current
+    replacementTarget.current = null
+    if (!target || uploading || !canWrite('files', target.id)) return
+    if (file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
+      toast(tr('Choose a non-empty file up to 2 GiB.'), 'error')
+      return
+    }
+    if (file.name !== target.name && !window.confirm(tr('Replace “{{oldName}}” with “{{newName}}”? The previous content will be lost.', { oldName: target.name, newName: file.name }))) return
+    setUploading(true)
+    try {
+      await filesApi.replace(target.id, file)
+      toast(tr('File updated'))
+      await load()
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : tr('Failed to update file'), 'error')
+    } finally { setUploading(false) }
+  }
 
   const handleCreateFolder = async () => {
     if (!currentOrg || !newFolderName.trim() || creatingFolder) return
@@ -178,6 +210,9 @@ export default function FileExplorer() {
     <div className="p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(canCreate && previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); if (canCreate) void handleUpload(e.dataTransfer.files) }}>
 
+      <input ref={replacementInputRef} type="file" className="hidden" aria-label={tr('Update file')}
+        onChange={e => { const file = e.target.files?.[0]; if (file) void handleReplace(file); e.target.value = '' }} />
+      <p className="mb-3 text-xs text-ink-muted">{tr('Maximum file size: 2 GiB')}</p>
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
         <div>
@@ -232,7 +267,7 @@ export default function FileExplorer() {
               <button onClick={() => openFolder(folder)}
                 className="w-full flex flex-col items-center gap-2 p-4 rounded-xl bg-navy-800 border border-edge-subtle hover:border-edge-strong hover:bg-navy-750 transition-colors">
                 <Folder size={32} className="text-blue-400 fill-blue-400/20" />
-                <p className="text-xs text-ink-primary truncate w-full text-center">{folder.name}</p>
+                <p className="text-xs text-ink-primary truncate w-full text-center"><RecordIndex index={folder.sortIndex} />{folder.name}</p>
               </button>
               {canCreate && <button onClick={() => setMenuOpenId(menuOpenId === folder.id ? null : folder.id)}
                 className="absolute top-2 right-2 p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -274,6 +309,9 @@ export default function FileExplorer() {
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Download size={13} className='text-indigo-500' />
                     </button>
+                    {canWrite('files', file.id) && <button disabled={uploading} title={tr('Update file')} onClick={() => { replacementTarget.current = file; replacementInputRef.current?.click() }}
+                      className="p-2 rounded-lg text-blue-400 hover:bg-navy-700 disabled:opacity-50">
+                      <Upload size={13} /></button>}
                     {canWrite('files', file.id) && <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Trash2 size={13} className='text-red-500' />
@@ -290,7 +328,7 @@ export default function FileExplorer() {
 
                   <div onClick={() => previewable && setPreviewFile(file)} className='cursor-pointer flex flex-col justify-center items-center gap-2 w-full'>
                     {iconFor(file)}
-                    <p className="text-xs text-ink-primary truncate w-full text-center px-1">{file.name}</p>
+                    <p className="text-xs text-ink-primary truncate w-full text-center px-1"><RecordIndex index={file.sortIndex} />{file.name}</p>
                     <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>
                   </div>
                 </div>

@@ -32,7 +32,7 @@ test('runtime configuration is present locally and mandatory in the container', 
 
 test('file write controls and client-side upload limits follow backend permissions', async () => {
   const explorer = await read('../src/components/FileExplorer.tsx')
-  assert.match(explorer, /MAX_UPLOAD_BYTES = 100_000_000/)
+  assert.match(explorer, /MAX_UPLOAD_BYTES = 2 \* 1024 \* 1024 \* 1024/)
   assert.match(explorer, /MAX_FILES_PER_BATCH = 20/)
   assert.match(explorer, /const canCreate = canWrite\('files'\)/)
   assert.match(explorer, /canWrite\('files', file\.id\)/)

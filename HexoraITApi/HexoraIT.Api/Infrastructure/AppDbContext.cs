@@ -155,6 +155,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
         
         b.Entity<Organization>(e =>
         {
+            e.Property(o => o.HiddenModules).HasJsonStringList();
             e.Property(o => o.Name).HasMaxLength(200).IsRequired();
             e.Property(o => o.Color).HasMaxLength(20);
             e.Property(o => o.Initials).HasMaxLength(8);
@@ -316,8 +317,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        b.Entity<Subnet>().Property(s => s.SyncRevision).IsConcurrencyToken();
+        b.Entity<IPEntry>().Property(ip => ip.IsAutoManaged).IsConcurrencyToken();
+        b.Entity<IPEntry>().HasIndex(ip => ip.AssetId).IsUnique()
+            .HasFilter("\"IsAutoManaged\" = TRUE AND \"AssetId\" IS NOT NULL");
+
         b.Entity<StoredFile>(e =>
         {
+            e.Property(f => f.BlobPath).IsConcurrencyToken();
             e.Property(f => f.Name).HasMaxLength(260).IsRequired();
             e.HasOne<FileFolder>()
                 .WithMany()
