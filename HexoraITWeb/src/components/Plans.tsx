@@ -36,7 +36,8 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
   onDelete?: () => Promise<void>
 }) {
   useLocale()
-  const { assets } = useApp()
+  const { assets, subnets, canWrite } = useApp()
+  const editable = canWrite('plans', initial?.id)
 
   const [form, setForm] = useState({
     title: initial?.title ?? '',
@@ -47,7 +48,9 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
     tags: initial?.tags.join(', ') ?? '',
     estimatedCost: initial?.estimatedCost ?? 0,
     assetIds: initial?.assetIds ?? [],
+    subnetIds: initial?.subnetIds ?? [],
   })
+  const [linkedSearch, setLinkedSearch] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -73,7 +76,8 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
         targetDate: form.targetDate,
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
         estimatedCost: Number(form.estimatedCost),
-        assetIds: form.assetIds
+        assetIds: form.assetIds,
+        subnetIds: form.subnetIds
       })
     } catch {
       setSubmitting(false)
@@ -108,12 +112,12 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
         style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-edge-subtle">
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">{initial ? tr("Edit Plan") : tr("Add Plan")}</h2>
+            <h2 className="text-sm font-semibold text-ink-primary">{initial ? (editable ? tr("Edit Plan") : tr("Plan details")) : tr("Add Plan")}</h2>
             <p className="text-[11px] text-ink-muted mt-0.5">{tr("Strategic initiative or project plan")}</p>
           </div>
           <button onClick={() => !busy && onClose()} disabled={busy} className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors disabled:opacity-40"><X size={14} /></button>
         </div>
-        <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+        <fieldset disabled={busy || !editable} className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Title *")}</label>
             <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={tr("e.g. Network Upgrade Q3")} maxLength={200} className={inp(errors.title)} autoFocus disabled={busy} />
@@ -153,6 +157,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
               placeholder={"25000"} className={inp()} disabled={busy}
             />
           </div>
+          <label className="block"><span className="sr-only">{tr('Search linked resources')}</span><input type="search" value={linkedSearch} onChange={event => setLinkedSearch(event.target.value)} placeholder={tr('Search linked resources')} maxLength={200} className={inp()} /></label>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">
                {tr("Linked Assets")} </label>
@@ -163,11 +168,11 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
                    {tr("No assets available")} </p>
               )}
 
-              {assets.map(asset => (
+              {assets.filter(asset => asset.name.toLowerCase().includes(linkedSearch.toLowerCase())).map(asset => (
                 <label
                   key={asset.id}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-navy-600 cursor-pointer">
-                  <input type="checkbox" checked={form.assetIds.includes(asset.id)} onChange={() => toggleAsset(asset.id)}/>
+                  <input type="checkbox" disabled={busy} checked={form.assetIds.includes(asset.id)} onChange={() => toggleAsset(asset.id)}/>
 
                   <span className="text-xs text-ink-primary">
                     {asset.name}
@@ -181,13 +186,25 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
                 {form.assetIds.length}  {tr("asset(s) selected")} </p>
             )}
           </div>
+          <div className="space-y-2">
+            <label className="block text-[11px] font-medium text-ink-secondary">{tr('Linked networks')}</label>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-edge-default bg-navy-700 p-2">
+              {subnets.length === 0 && <p className="p-2 text-xs text-ink-muted">{tr('No networks available')}</p>}
+              {subnets.filter(subnet => `${subnet.name} ${subnet.cidr}`.toLowerCase().includes(linkedSearch.toLowerCase())).map(subnet => <label key={subnet.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-navy-600">
+                <input type="checkbox" disabled={busy} checked={form.subnetIds.includes(subnet.id)} onChange={() => setForm(previous => ({ ...previous, subnetIds: previous.subnetIds.includes(subnet.id) ? previous.subnetIds.filter(id => id !== subnet.id) : [...previous.subnetIds, subnet.id] }))} />
+                <span className="min-w-0 text-xs text-ink-primary">{subnet.name}<span className="ml-2 font-mono text-[10px] text-ink-muted">{subnet.cidr}</span></span>
+              </label>)}
+            </div>
+            {form.subnetIds.filter(id => !subnets.some(subnet => subnet.id === id)).map(id => <div key={id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/25 p-2 text-xs text-ink-muted"><span>{tr('Unavailable linked network')}</span><button type="button" disabled={busy || !editable} onClick={() => setForm(previous => ({ ...previous, subnetIds: previous.subnetIds.filter(value => value !== id) }))} className="text-blue-400">{tr('Remove link')}</button></div>)}
+            {form.subnetIds.length > 0 && <p className="text-[10px] text-ink-muted">{tr('Selected networks: {{count}}', { count: form.subnetIds.length })}</p>}
+          </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Tags (comma-separated)")}</label>
             <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder={tr("network, infrastructure, q3")} maxLength={10099} className={inp()} disabled={busy} />
           </div>
-        </div>
+        </fieldset>
         <div className="flex items-center justify-between px-6 py-4 border-t border-edge-subtle bg-navy-900/40">
-          {initial && onDelete ? (
+          {initial && onDelete && editable ? (
             confirmDelete ? (
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-ink-muted">{tr("Delete this plan?")}</span>
@@ -202,7 +219,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
           ) : <div />}
           <div className="flex gap-2">
             <button onClick={() => !busy && onClose()} disabled={busy} className="px-4 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 text-ink-secondary text-xs border border-edge-default transition-colors disabled:opacity-40">{tr("Cancel")}</button>
-            <button onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
+            <button hidden={!editable} onClick={submit} disabled={busy} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
               style={{ boxShadow: '0 1px 10px rgba(37,99,235,0.3)' }}>
               {submitting && <Loader2 size={11} className="animate-spin" />}
               {submitting ? tr("Saving…") : initial ? tr("Save Changes") : tr("Add Plan")}
@@ -218,6 +235,7 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
 
 function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
   useLocale()
+  const { subnets } = useApp()
   const sc = STATUS_CONFIG[plan.status]
   const pc = PRIORITY_CONFIG[plan.priority]
 
@@ -266,6 +284,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
         )}
       </div>
 
+      {!!plan.subnetIds?.length && <div className="mt-2 flex flex-wrap gap-1.5">{plan.subnetIds.slice(0, 3).map(id => { const subnet = subnets.find(network => network.id === id); return <span key={id} className="rounded-md border border-blue-500/20 bg-blue-500/5 px-2 py-1 text-[10px] text-blue-400">{subnet ? `${subnet.name} · ${subnet.cidr}` : tr('Linked network')}</span> })}{plan.subnetIds.length > 3 && <span className="text-xs text-ink-muted">+{plan.subnetIds.length - 3}</span>}</div>}
       {plan.tags.length > 0 && (
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           <Tag size={9} className="text-ink-muted" />
@@ -282,7 +301,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
 
 export default function Plans() {
   useLocale()
-  const { plans, isLoading, addPlan, updatePlan, deletePlan } = useApp()
+  const { plans, isLoading, addPlan, updatePlan, deletePlan, canWrite } = useApp()
   const [statusFilter, setStatusFilter] = useState<PlanStatus | 'all'>('all')
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all')
   const [modal, setModal] = useState<{ open: boolean; initial?: Plan }>({ open: false })
@@ -330,7 +349,7 @@ export default function Plans() {
           <h1 className="text-xl font-semibold text-ink-primary">{tr("Plans")}</h1>
           <p className="text-xs text-ink-muted mt-0.5">{plans.length}  {tr("plans total")}</p>
         </div>
-        <button onClick={() => setModal({ open: true })}
+        <button hidden={!canWrite('plans')} onClick={() => setModal({ open: true })}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white text-sm font-medium transition-all flex-shrink-0"
           style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
           <Plus size={14} />  {tr("New Plan")} </button>
@@ -384,7 +403,7 @@ export default function Plans() {
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <CheckCircle2 size={28} className="text-ink-muted opacity-30" />
           <p className="text-sm text-ink-muted">{tr("No plans match your filters")}</p>
-          <button onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{tr("+ Add Plan")}</button>
+          <button hidden={!canWrite('plans')} onClick={() => setModal({ open: true })} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{tr("+ Add Plan")}</button>
         </div>
       ) : (
         <div className="space-y-3">

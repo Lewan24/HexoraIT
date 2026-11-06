@@ -115,6 +115,7 @@ public class Plan : BaseEntity
     public DateOnly TargetDate { get; set; }
     public List<string> Tags { get; set; } = [];
     public List<Guid> AssetIds { get; set; } = [];
+    public List<Guid> SubnetIds { get; set; } = [];
     public decimal EstimatedCost { get; set; }
     public DateTime CreatedAt { get; set; }
 }

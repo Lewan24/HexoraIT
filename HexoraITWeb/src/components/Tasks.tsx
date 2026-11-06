@@ -1,17 +1,18 @@
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useTaskDrag, TASK_STATUSES } from '../lib/useTaskDrag'
 import {
   Plus, X, Edit2, Trash2, Calendar,
-  User, CheckSquare, ChevronRight, ChevronLeft, Loader2,
-  FolderKanban, ChevronDown, Check, Layers, Eye
+  User, CheckSquare, Loader2, GripVertical, Search,
+  FolderKanban, ChevronDown, Check, Layers
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { Task, Priority, TaskStatus, Project } from '../api/types'
 import { renderMarkdown, renderMarkdownCompact } from '../lib/markdown'
 
 const PRIORITIES: Priority[] = ['high', 'medium', 'low']
-const STATUSES: TaskStatus[] = ['todo', 'in-progress', 'done']
+const STATUSES = TASK_STATUSES
 
 const PRIORITY_CONFIG: Record<Priority, { cls: string; dot: string; label: string }> = {
   high:   { cls: 'text-red-400 bg-red-500/10 border-red-500/25',     dot: 'bg-red-400',    label: 'High' },
@@ -302,79 +303,32 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
   )
 }
 
-function TaskCard({ task, onEdit, onMove, onPreview }: {
-  task: Task
-  onEdit: () => void
-  onMove: (dir: 'prev' | 'next') => void
-  onPreview: () => void
+function TaskCard({ task, onEdit, onStatus, onPreview, dragBindings, dragging, pending }: {
+  task: Task; onEdit: () => void; onStatus: (status: TaskStatus) => void; onPreview: () => void
+  dragBindings: ReturnType<typeof useTaskDrag>['bindings']; dragging: boolean; pending: boolean
 }) {
   const { canWrite } = useApp()
   useLocale()
+  const writable = canWrite('tasks', task.id)
   const pc = PRIORITY_CONFIG[task.priority]
-  const overdue = isOverdue(task.dueDate)
-  const statusIdx = STATUSES.indexOf(task.status)
-
-  return (
-    <div className="bg-navy-800 border border-edge-subtle rounded-xl px-3.5 py-3 hover:border-edge-default transition-all group hover:scale-[1.02]">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-xs font-semibold text-ink-primary leading-snug flex-1 min-w-0 cursor-pointer" onClick={onPreview}><RecordIndex index={task.sortIndex} />{task.title}</p>
-        <button onClick={onPreview} className="p-1 rounded text-ink-muted hover:text-cyan-400 hover:bg-navy-700 cursor-pointer">
-            <Eye size={14} className='text-green-500'/>
-        </button>
-
-        <button hidden={!canWrite('tasks', task.id)} onClick={onEdit} className="p-1 rounded text-ink-muted hover:text-ink-primary hover:bg-navy-700 cursor-pointer">
-            <Edit2 size={12} className='text-orange-500'/>
-        </button>
-      </div>
-
-      <div className='cursor-pointer' onClick={onPreview}>
-        <p className="mb-2 text-[10px] text-ink-muted">{tr('Created by')}: {task.createdByName || tr('Unknown author')} · {new Date(task.createdAt).toLocaleString()}</p>
-        {task.description.trim() && (
-          <div className="space-y-0.5 mb-2">{renderMarkdownCompact(task.description)}</div>
-        )}
-
-        <div className="flex items-center gap-1.5 flex-wrap mb-2">
-          <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${pc.cls}`}>
-            <span className={`w-1 h-1 rounded-full ${pc.dot}`} />{tr(pc.label)}
-          </span>
-          {task.assignee && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-ink-muted">
-              <User size={9} /> {task.assignee}
-            </span>
-          )}
-        </div>
-        {(task.dueDate || task.tags.length > 0) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {task.dueDate && task.dueDate !== '0001-01-01' && (
-              <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${overdue && task.status !== 'done' ? 'text-red-400' : 'text-ink-muted'}`}>
-                <Calendar size={9} /> {task.dueDate}
-                {overdue && task.status !== 'done' && <span className="text-[9px]">{tr("· overdue")}</span>}
-              </span>
-            )}
-            {task.tags.slice(0, 2).map(t => (
-              <span key={t} className="text-[9px] text-ink-muted px-1 py-0.5 rounded bg-navy-700 border border-edge-subtle">{t}</span>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-edge-subtle">
-        <button
-          onClick={() => onMove('prev')}
-          disabled={!canWrite('tasks', task.id) || statusIdx === 0}
-          className="cursor-pointer bg-transparent border border-cyan-600 flex hover:scale-[1.1] hover:border-cyan-300 items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
-          <ChevronLeft size={10} /> {statusIdx > 0 ? tr(STATUS_CONFIG[STATUSES[statusIdx - 1]!].label) : ''}
-        </button>
-        <div className="flex-1" />
-        <button
-          onClick={() => onMove('next')}
-          disabled={!canWrite('tasks', task.id) || statusIdx === STATUSES.length - 1}
-          className="cursor-pointer bg-transparent border border-cyan-600 hover:scale-[1.1] hover:border-cyan-300 flex items-center gap-0.5 text-[10px] disabled:opacity-30 disabled:cursor-not-allowed transition-all px-1.5 py-0.5 rounded">
-          {statusIdx < STATUSES.length - 1 ? tr(STATUS_CONFIG[STATUSES[statusIdx + 1]!].label) : ''} <ChevronRight size={10} />
-        </button>
-      </div>
+  const overdue = isOverdue(task.dueDate) && task.status !== 'done'
+  return <article data-task-id={task.id} aria-busy={pending} className={`group rounded-xl border bg-navy-800 p-3 shadow-sm transition-colors ${dragging ? 'border-blue-500 opacity-40' : overdue ? 'border-red-500/25' : 'border-edge-subtle hover:border-edge-strong'}`}>
+    <div className="flex items-start gap-2">
+      {writable && <button {...dragBindings(task.id)} disabled={pending} type="button" aria-label={tr('Drag task {{name}}', { name: task.title })} title={tr('Drag to change status')} style={{ touchAction: 'none', cursor: pending ? 'not-allowed' : 'grab' }} className="-ml-1 cursor-grab rounded-md p-1 text-ink-muted hover:bg-navy-700 active:cursor-grabbing disabled:opacity-30"><GripVertical size={16} /></button>}
+      <button onClick={onPreview} className="min-w-0 flex-1 break-words text-left text-xs font-semibold leading-relaxed text-ink-primary hover:text-blue-400"><RecordIndex index={task.sortIndex} />{task.title}</button>
+      {writable && <button onClick={onEdit} disabled={pending} aria-label={tr('Edit task {{name}}', { name: task.title })} className="rounded-md p-1 text-ink-muted hover:bg-navy-700 hover:text-ink-primary disabled:opacity-30"><Edit2 size={12} /></button>}
     </div>
-  )
+    {task.description.trim() && <div className="mt-2 max-h-12 overflow-hidden space-y-0.5">{renderMarkdownCompact(task.description, 2)}</div>}
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[9px] ${pc.cls}`}><span className={`h-1 w-1 rounded-full ${pc.dot}`} />{tr(pc.label)}</span>
+      {task.dueDate && task.dueDate !== '0001-01-01' && <span className={`inline-flex items-center gap-1 text-[10px] ${overdue ? 'text-red-400' : 'text-ink-muted'}`}><Calendar size={10} />{task.dueDate}</span>}
+      {task.assignee && <span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-ink-muted"><User size={10} /><span className="max-w-28 truncate">{task.assignee}</span></span>}
+    </div>
+    <div className="mt-3 flex items-center justify-between gap-2 border-t border-edge-subtle pt-2">
+      <span className="min-w-0 truncate text-[9px] text-ink-muted" title={task.createdByName || tr('Unknown author')}>{task.createdByName || tr('Unknown author')}</span>
+      {writable ? <div className="flex items-center gap-1">{pending && <Loader2 size={12} className="animate-spin text-blue-400" />}<select disabled={pending} aria-label={tr('Status of {{name}}', { name: task.title })} value={task.status} onChange={event => onStatus(event.target.value as TaskStatus)} className="max-w-36 rounded-md border border-edge-default bg-navy-700 px-1.5 py-1 text-[10px] text-ink-secondary disabled:opacity-40">{STATUSES.map(status => <option key={status} value={status}>{tr(STATUS_CONFIG[status].label)}</option>)}</select></div> : <span className="text-[10px] text-ink-muted">{tr(STATUS_CONFIG[task.status].label)}</span>}
+    </div>
+  </article>
 }
 
 function TaskPreviewModal({
@@ -543,15 +497,34 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
 }
 
 export default function Tasks() {
+  const { currentOrg } = useApp()
+  return currentOrg ? <TaskWorkspace key={currentOrg.id} /> : null
+}
+
+function TaskWorkspace() {
   useLocale()
-  const { tasks, projects, isLoading, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, canWrite } = useApp()
+  const { tasks, projects, isLoading, addTask, updateTask, updateTaskStatus, deleteTask, addProject, updateProject, deleteProject, canWrite } = useApp()
   const [modal, setModal] = useState<{ open: boolean; initial?: Task }>({ open: false })
   const [projectModal, setProjectModal] = useState<{ open: boolean; initial?: Project } | null>(null)
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('todo')
   const [activeProjectId, setActiveProjectId] = useState<string>('all')
   const [previewTask, setPreviewTask] = useState<Task | null>(null)
+  const [query, setQuery] = useState('')
+  const [pending, setPending] = useState<Set<string>>(new Set())
+  const pendingRef = useRef(new Set<string>())
+  const [announcement, setAnnouncement] = useState('')
+  const changeStatus = async (id: string, status: TaskStatus) => {
+    const task = tasks.find(task => task.id === id)
+    if (!task || task.status === status || !canWrite('tasks', id) || pendingRef.current.has(id)) return
+    pendingRef.current.add(id); setPending(new Set(pendingRef.current))
+    try { await updateTaskStatus(id, status); setAnnouncement(tr('Task {{name}} moved to {{status}}', { name: task.title, status: tr(STATUS_CONFIG[status].label) })) }
+    catch { setAnnouncement(tr('Task status could not be saved')) }
+    finally { pendingRef.current.delete(id); setPending(new Set(pendingRef.current)) }
+  }
+  const { drag, bindings } = useTaskDrag((id, status) => { void changeStatus(id, status) })
 
-  const filteredTasks = tasks.filter(t => {
+
+  const filteredTasks = tasks.filter(t => `${t.title} ${t.description} ${t.assignee} ${t.tags.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase())).filter(t => {
     if (activeProjectId === 'all') return true
     if (activeProjectId === NO_PROJECT) return !t.projectId
     return t.projectId === activeProjectId
@@ -571,13 +544,6 @@ export default function Tasks() {
   const handleDeleteTask = async (id: string) => {
     await deleteTask(id)
     setModal({ open: false })
-  }
-
-  const moveTask = (task: Task, dir: 'prev' | 'next') => {
-    const idx = STATUSES.indexOf(task.status)
-    const nextIdx = dir === 'next' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= STATUSES.length) return
-    updateTask({ ...task, status: STATUSES[nextIdx]! })
   }
 
   const handleSaveProject = async (data: Omit<Project, 'id' | 'createdAt' | 'taskCount'>) => {
@@ -623,7 +589,7 @@ export default function Tasks() {
   const defaultProjectId = activeProjectId !== 'all' && activeProjectId !== NO_PROJECT ? activeProjectId : undefined
 
   return (
-    <div className="p-6 max-w-[1200px]">
+    <div className="task-workspace max-w-[1400px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
         <div>
@@ -637,7 +603,7 @@ export default function Tasks() {
       </div>
 
       {/* Project switcher */}
-      <div className="mb-5">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <ProjectSwitcher
           projects={projects}
           activeId={activeProjectId}
@@ -645,58 +611,32 @@ export default function Tasks() {
           onNew={() => setProjectModal({ open: true })}
           onEdit={p => setProjectModal({ open: true, initial: p })}
         />
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-edge-default bg-navy-800 px-3 py-2 text-ink-muted"><Search size={14} /><input type="search" style={{ minHeight: 0 }} aria-label={tr('Search tasks')} placeholder={tr('Search tasks')} maxLength={200} value={query} onChange={event => setQuery(event.target.value)} className="w-full bg-transparent text-xs text-ink-primary outline-none" /></label>
       </div>
+      <p className="mb-3 text-[11px] text-ink-muted">{tr('Drag cards by the handle to change status, or use the status menu. Saved indices determine the order within columns.')}</p>
+      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
 
       {/* Mobile status tabs */}
       <div className="flex items-center gap-1 mb-4 bg-navy-800 border border-edge-subtle rounded-xl p-1 w-fit lg:hidden">
         {STATUSES.map(s => (
-          <button key={s} onClick={() => setMobileStatus(s)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mobileStatus === s ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
+          <button key={s} data-task-status={s} onClick={() => setMobileStatus(s)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${drag?.target === s ? 'ring-2 ring-blue-400' : ''} ${mobileStatus === s ? 'bg-navy-600 text-ink-primary' : 'text-ink-muted hover:text-ink-secondary'}`}>
             {tr(STATUS_CONFIG[s].label)}
             <span className="ml-1.5 text-[10px] text-ink-muted">{byStatus(s).length}</span>
           </button>
         ))}
       </div>
 
-      {/* Kanban columns — desktop */}
-      <div className="hidden lg:grid grid-cols-3 gap-4">
-        {STATUSES.map(s => (
-          <div key={s} className={`bg-navy-800/50 border rounded-xl p-4 ${STATUS_CONFIG[s].col}`}>
-            {colHeader(s)}
-            {byStatus(s).length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2">
-                <CheckSquare size={20} className="text-ink-muted opacity-30" />
-                <p className="text-xs text-ink-muted">{tr("No tasks")}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {byStatus(s).map(task => (
-                  <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onMove={dir => moveTask(task, dir)} />
-                ))}
-              </div>
-            )}
+      <div data-task-board className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-3">
+        {STATUSES.map(status => <section key={status} data-task-status={status} aria-label={tr(STATUS_CONFIG[status].label)} className={`min-h-0 flex-col overflow-hidden rounded-2xl border bg-navy-900/30 ${mobileStatus === status ? 'flex' : 'hidden lg:flex'} ${drag?.target === status ? 'border-blue-400 bg-blue-500/5 ring-1 ring-blue-400/40' : STATUS_CONFIG[status].col}`}>
+          <div className="shrink-0 border-b border-edge-subtle px-4 pt-4">{colHeader(status)}</div>
+          <div data-task-scroll tabIndex={0} aria-label={tr('Tasks: {{status}}', { status: tr(STATUS_CONFIG[status].label) })} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 focus-visible:outline-2 focus-visible:outline-blue-400">
+            {byStatus(status).length === 0 ? <div className="flex h-full min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-edge-subtle"><CheckSquare size={22} className="text-ink-muted opacity-40" /><p className="text-xs text-ink-muted">{tr('No tasks')}</p>{drag && <p className="text-xs text-blue-400">{tr('Drop task here')}</p>}</div> : byStatus(status).map(task =>
+              <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onStatus={next => { void changeStatus(task.id, next) }} dragBindings={bindings} dragging={drag?.id === task.id} pending={pending.has(task.id)} />)}
           </div>
-        ))}
+        </section>)}
       </div>
-
-      {/* Mobile single column */}
-      <div className="lg:hidden">
-        <div className={`bg-navy-800/50 border rounded-xl p-4 ${STATUS_CONFIG[mobileStatus].col}`}>
-          {colHeader(mobileStatus)}
-          {byStatus(mobileStatus).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2">
-              <CheckSquare size={20} className="text-ink-muted opacity-30" />
-              <p className="text-xs text-ink-muted">{tr("No tasks")}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {byStatus(mobileStatus).map(task => (
-                <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onMove={dir => moveTask(task, dir)} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {drag && <div aria-hidden="true" className="pointer-events-none fixed z-[90] max-w-64 rounded-xl border border-blue-400 bg-navy-800 px-4 py-3 text-xs font-medium text-ink-primary shadow-2xl" style={{ left: Math.max(8, Math.min(drag.x + 14, window.innerWidth - 264)), top: Math.max(8, Math.min(drag.y + 14, window.innerHeight - 80)) }}>{tasks.find(task => task.id === drag.id)?.title}<p className="mt-1 text-[10px] text-blue-400">{drag.target ? tr(STATUS_CONFIG[drag.target].label) : tr('Choose a column')}</p></div>}
 
       {modal.open && (
         <TaskModal

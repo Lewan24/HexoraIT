@@ -207,6 +207,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
         {
             e.Property(p => p.Tags).HasJsonStringList();
             e.Property(p => p.AssetIds).HasJsonGuidList();
+            e.Property(p => p.SubnetIds).HasJsonGuidList();
             e.Property(p => p.EstimatedCost)
                 .HasColumnType("decimal(18,2)");
         });

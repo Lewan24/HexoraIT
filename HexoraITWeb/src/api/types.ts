@@ -92,7 +92,7 @@ export interface Contract extends OrderedRecord {
 export interface Plan extends OrderedRecord {
   id: string; title: string; description: string; priority: Priority
   status: PlanStatus; targetDate: string; tags: string[];
-  assetIds: string[]; estimatedCost: number; createdAt: string
+  assetIds: string[]; subnetIds?: string[]; estimatedCost: number; createdAt: string
 }
 
 export interface Incident extends OrderedRecord {

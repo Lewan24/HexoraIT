@@ -36,5 +36,5 @@ test('asset loading uses bounded automatic pagination', () => {
   assert.match(rolesSource, /http\.getAllPages<OrganizationRole>/)
   assert.match(rolesSource, /http\.getAllPages<ResourcePermission>/)
   assert.match(rolesSource, /http\.getAllPages<\{ id: string; name: string \}>/)
-  assert.match(privateNotesSource, /http\.getAllPages<Note>/)
+  assert.match(privateNotesSource, /http\s*\.getAllPages<Note>/)
 })

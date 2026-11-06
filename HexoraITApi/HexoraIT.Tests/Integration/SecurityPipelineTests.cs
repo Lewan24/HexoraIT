@@ -41,7 +41,7 @@ public sealed class SecurityPipelineTests
 
     [Theory]
     [InlineData("/api/projects", 5)]
-    [InlineData("/api/tasks", 5)]
+    [InlineData("/api/tasks", 6)]
     [InlineData("/api/subnets", 9)]
     public void ProjectTaskAndSubnetMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
     {

@@ -160,3 +160,36 @@ test('demo network synchronization is idempotent and preserves manual rows and m
   subnets = await mockApi.request('GET', '/subnets?organizationId=' + org)
   assert.equal(subnets.find(x => x.id === 'lan').ips.find(x => x.id === automatic.id).label, 'Manual')
 })
+
+test('private note cards store Markdown unchanged, remain scoped to their author and support saved indices', async () => {
+  localStorage.clear()
+  const auth = await signIn('admin@hexorait.local', 'DemoAdmin123!')
+  const org = auth.organizations[0].id, path = `/organizations/${org}/private-notes`
+  const content = '# Header\n**Bold**\nSecond line\n<script>text only</script>'
+  const note = await mockApi.request('POST', path, { title: 'Personal', content, userId: 'forged-author' })
+  assert.equal(note.userId, auth.user.id)
+  assert.equal(note.content, content)
+  await mockApi.request('PATCH', `/organizations/${org}/record-order/private-notes`, { changes: [{ id: note.id, sortIndex: 40 }] })
+  const saved = await mockApi.request('PUT', path + '/' + note.id, { title: 'Renamed', content })
+  assert.equal(saved.sortIndex, 40)
+  await signIn('demo@hexorait.local', 'DemoUser123!')
+  assert.deepEqual(await mockApi.request('GET', path), [])
+  await assert.rejects(mockApi.request('PUT', path + '/' + note.id, { title: 'Other author', content: '' }), error => error.status === 404)
+})
+
+test('drag status transport preserves task fields and rejects invalid or read-only changes', async () => {
+  localStorage.clear()
+  const auth = await signIn('admin@hexorait.local', 'DemoAdmin123!')
+  const org = auth.organizations[0].id
+  const task = (await mockApi.request('GET', '/tasks?organizationId=' + org))[0]
+  const previous = structuredClone(task)
+  const path = '/tasks/' + task.id + '/status'
+  await mockApi.request('PATCH', path, { status: 'done', title: 'Ignored title' })
+  const saved = (await mockApi.request('GET', '/tasks?organizationId=' + org)).find(x => x.id === task.id)
+  assert.deepEqual(saved, { ...previous, status: 'done' })
+  await assert.rejects(mockApi.request('PATCH', path, { status: 'invalid' }), error => error.status === 400)
+  const state = JSON.parse(localStorage.getItem('hexorait_demo_state_v1'))
+  state.memberships.find(x => x.userId === auth.user.id).role = 'ReadOnly'
+  localStorage.setItem('hexorait_demo_state_v1', JSON.stringify(state))
+  await assert.rejects(mockApi.request('PATCH', path, { status: 'todo' }), error => error.status === 403)
+})

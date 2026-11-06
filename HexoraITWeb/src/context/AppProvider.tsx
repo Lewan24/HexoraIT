@@ -601,6 +601,11 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     toast(tr("Task \"{{value1}}\" updated", { value1: t.title }))
   }, [guarded, toast])
 
+  const updateTaskStatus = useCallback(async (id: string, status: Task['status']) => {
+    const result = await guarded(() => tasksApi.updateStatus(id, status), 'Failed to update task')
+    if (currentOrgRef.current === currentOrgId) setData(previous => ({ ...previous, tasks: previous.tasks.map(task => task.id === id ? { ...task, status: result.status } : task) }))
+  }, [currentOrgId, guarded])
+
   const deleteTask = useCallback(async (id: string) => {
     const title = data.tasks.find(t => t.id === id)?.title
     await guarded(() => tasksApi.delete(id), 'Failed to delete task')
@@ -705,7 +710,7 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     addPlan, updatePlan, deletePlan,
     addIncident, updateIncident, deleteIncident,
     addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge,
-    addTask, updateTask, deleteTask,
+    addTask, updateTask, updateTaskStatus, deleteTask,
     addProject, updateProject, deleteProject,
     addGroup, updateGroup, deleteGroup,
     reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, uploadWarrantyDocument,

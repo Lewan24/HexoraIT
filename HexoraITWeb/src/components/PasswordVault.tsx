@@ -346,7 +346,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
       {selected.notes && (
         <div className="bg-navy-800 border border-edge-subtle rounded-xl p-4 sm:p-5 mb-4">
           <h3 className="text-xs font-semibold text-ink-primary mb-2">{tr("Notes")}</h3>
-          <p className="text-xs text-ink-secondary leading-relaxed">{selected.notes}</p>
+          <p className="whitespace-pre-wrap break-words text-xs text-ink-secondary leading-relaxed">{selected.notes}</p>
         </div>
       )}
 

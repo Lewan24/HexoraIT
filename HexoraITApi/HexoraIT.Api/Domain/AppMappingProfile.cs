@@ -66,8 +66,8 @@ public class AppMappingProfile : Profile
         CreateMap<UpdateContractDto, Contract>();
 
         CreateMap<Plan, PlanDto>();
-        CreateMap<CreatePlanDto, Plan>();
-        CreateMap<UpdatePlanDto, Plan>();
+        CreateMap<CreatePlanDto, Plan>().ForMember(d => d.SubnetIds, o => o.MapFrom(s => s.SubnetIds ?? new List<Guid>()));
+        CreateMap<UpdatePlanDto, Plan>().ForMember(d => d.SubnetIds, o => o.PreCondition(s => s.SubnetIds is not null));
 
         CreateMap<Incident, IncidentDto>();
         CreateMap<CreateIncidentDto, Incident>();

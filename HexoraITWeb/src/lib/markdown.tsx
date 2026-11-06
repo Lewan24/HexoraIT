@@ -1,5 +1,5 @@
 export function renderMarkdown(content: string): React.ReactNode[] {
-  const lines = content.split('\n')
+  const lines = content.replace(/\r\n?/g, '\n').split('\n')
   const nodes: React.ReactNode[] = []
   let i = 0
 
@@ -68,17 +68,17 @@ export function inlineFormat(text: string): React.ReactNode {
 }
 
 export function renderMarkdownCompact(content: string, maxLines = 3): React.ReactNode[] {
-  const lines = content.split('\n').filter(l => l.trim() !== '').slice(0, maxLines)
+  const lines = content.replace(/\r\n?/g, '\n').split('\n').filter(l => l.trim() !== '').slice(0, maxLines)
   return lines.map((line, i) => {
     if (line.startsWith('# ') || line.startsWith('## ') || line.startsWith('### ')) {
       const text = line.replace(/^#+\s*/, '')
-      return <p key={i} className="text-[11px] font-medium text-ink-secondary truncate">{text}</p>
+      return <p key={i} className="text-[11px] font-medium text-ink-secondary truncate">{inlineFormat(text)}</p>
     }
     if (line.startsWith('- [x] ') || line.startsWith('- [X] ')) {
       return (
         <div key={i} className="flex items-center gap-1.5 min-w-0">
           <span className="text-[9px] text-blue-400 flex-shrink-0">✓</span>
-          <span className="text-[11px] text-ink-muted line-through truncate">{line.slice(6)}</span>
+          <span className="text-[11px] text-ink-muted line-through truncate">{inlineFormat(line.slice(6))}</span>
         </div>
       )
     }
@@ -86,7 +86,7 @@ export function renderMarkdownCompact(content: string, maxLines = 3): React.Reac
       return (
         <div key={i} className="flex items-center gap-1.5 min-w-0">
           <div className="w-2.5 h-2.5 rounded-sm border border-edge-default flex-shrink-0" />
-          <span className="text-[11px] text-ink-muted truncate">{line.slice(6)}</span>
+          <span className="text-[11px] text-ink-muted truncate">{inlineFormat(line.slice(6))}</span>
         </div>
       )
     }
@@ -94,11 +94,11 @@ export function renderMarkdownCompact(content: string, maxLines = 3): React.Reac
       return (
         <div key={i} className="flex items-center gap-1.5 min-w-0">
           <span className="w-1 h-1 rounded-full bg-ink-muted flex-shrink-0" />
-          <span className="text-[11px] text-ink-muted truncate">{line.slice(2)}</span>
+          <span className="text-[11px] text-ink-muted truncate">{inlineFormat(line.slice(2))}</span>
         </div>
       )
     }
     if (line.startsWith('---')) return <hr key={i} className="border-edge-subtle my-1" />
-    return <p key={i} className="text-[11px] text-ink-muted truncate">{line}</p>
+    return <p key={i} className="text-[11px] text-ink-muted truncate">{inlineFormat(line)}</p>
   })
 }

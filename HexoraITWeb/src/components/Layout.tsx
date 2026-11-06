@@ -492,7 +492,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
         </header>
 
         <main className="workspace-main flex-1 overflow-y-auto">
-          {currentOrg && ['assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'files', 'private-notes', 'diagram'].includes(currentView) && <div className="flex justify-end px-4 pt-3 sm:px-6"><RecordOrderButton key={`${currentOrg.id}:${currentView}`} resources={currentView === 'tasks' ? ['tasks', 'projects'] : currentView === 'files' ? ['files', 'folders'] : [currentView]} /></div>}
+          {currentOrg && ['assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'files', 'private-notes', 'diagram'].includes(currentView) && <aside className="flex justify-end px-4 pt-3 sm:px-6"><RecordOrderButton key={`${currentOrg.id}:${currentView}`} resources={currentView === 'tasks' ? ['tasks', 'projects'] : currentView === 'files' ? ['files', 'folders'] : [currentView]} /></aside>}
           {children}
         </main>
       </div>

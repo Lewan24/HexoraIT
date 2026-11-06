@@ -34,6 +34,7 @@ type DemoState = {
   resources: Record<ResourceName, Entity[]>
   roles: Entity[]
   diagrams: Record<string, { nodes: unknown[]; edges: unknown[] }>
+  privateNotes?: Entity[]
   dashboards: Record<string, unknown>
   fileContents: Record<string, string>
 }
@@ -439,6 +440,7 @@ function ensureAdmin(user: DemoUser) {
 }
 
 function entityStatus(collection: string, item: Entity): Entity {
+  if (collection === "plans") return { ...item, subnetIds: item.subnetIds ?? [] }
   const today = new Date().toISOString().slice(0, 10)
   if (collection === "licenses")
     return {
@@ -678,31 +680,49 @@ async function request<T>(
       writeState(state)
       return undefined as T
     }
+    const noteMatch = tail.match(/^private-notes(?:\/([^/]+))?$/)
+    if (noteMatch) {
+      const membership = state.memberships.find(member => member.userId === user.id && member.organizationId === orgId)
+      if (!membership || user.systemRole === 'Client' || state.deletedOrganizationIds.includes(orgId)) throw new ApiError(403, 'Access forbidden.')
+      state.privateNotes ??= []
+      const own = state.privateNotes.filter(note => note.organizationId === orgId && note.userId === user.id)
+      const noteId = noteMatch[1], note = own.find(note => note.id === noteId)
+      if (method === 'GET' && !noteId) return own.sort(compareDemoOrder) as T
+      if (noteId && !note) throw new ApiError(404, 'Note not found.')
+      if (method === 'POST' || method === 'PUT') {
+        if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200 || typeof body.content !== 'string' || body.content.length > 100000) throw new ApiError(400, 'Invalid note.')
+        if (note) Object.assign(note, { title: body.title.trim(), content: body.content, updatedAt: now() })
+        else { const created = { id: id(), organizationId: orgId, userId: user.id, title: body.title.trim(), content: body.content, updatedAt: now() }; state.privateNotes.push(created); writeState(state); return created as T }
+        writeState(state); return note as T
+      }
+      if (method === 'DELETE' && note) { state.privateNotes = state.privateNotes.filter(item => item !== note); writeState(state); return undefined as T }
+    }
     if (tail.startsWith('record-order/')) {
       const resource = tail.slice('record-order/'.length)
       const permission = resource === 'folders' ? 'files' : resource === 'ip-entries' ? 'networks' : resource
-      if (!demoPermission(state, user, orgId, permission)) throw new ApiError(403, 'Access forbidden.')
+      const personal = resource === 'private-notes' && user.systemRole !== 'Client' && state.memberships.some(m => m.userId === user.id && m.organizationId === orgId) && !state.deletedOrganizationIds.includes(orgId)
+      if (!personal && !demoPermission(state, user, orgId, permission)) throw new ApiError(403, 'Access forbidden.')
       const collection = resource === 'networks' ? 'subnets' : resource === 'warranty' ? 'warranties' : resource
       let records: { entity: Entity; parentId?: string }[]
       if (resource === 'ip-entries') records = state.resources.subnets.filter(x => x.organizationId === orgId).flatMap(subnet => ((subnet.ips ?? []) as Entity[]).map(entity => ({ entity, parentId: subnet.id })))
       else if (resource === 'diagram') records = ((state.diagrams[orgId]?.nodes ?? []) as Entity[]).map(entity => ({ entity }))
-      else if (resource === 'private-notes') records = []
+      else if (resource === 'private-notes') records = (state.privateNotes ?? []).filter(note => note.organizationId === orgId && note.userId === user.id).map(entity => ({ entity }))
       else if (collection in state.resources) records = state.resources[collection as ResourceName].filter(x => x.organizationId === orgId).map(entity => ({ entity, parentId: (entity.folderId ?? entity.parentFolderId) as string | undefined }))
       else throw new ApiError(400, 'Unknown record section.')
-      records = records.filter(row => demoPermission(state, user, orgId, permission, false, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id))
+      records = records.filter(row => personal || demoPermission(state, user, orgId, permission, false, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id))
       if (method === 'GET') {
         const search = (url.searchParams.get('search') ?? '').toLowerCase(), parent = url.searchParams.get('parentId')
         const page = Math.max(1, Number(url.searchParams.get('page') ?? 1)), size = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize') ?? 200)))
         return records.filter(row => (!parent || row.parentId === parent) && String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? '').toLowerCase().includes(search))
           .sort((a, b) => compareDemoOrder(a.entity, b.entity)).slice((page - 1) * size, page * size).map(row => ({ id: row.entity.id, name: String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? ''), sortIndex: row.entity.sortIndex ?? null,
-            canWrite: demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id) })) as T
+            canWrite: personal || demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id) })) as T
       }
       if (method === 'PATCH') {
         const changes = body.changes as { id: string; sortIndex: number | null }[]
         if (!Array.isArray(changes) || !changes.length || changes.length > 500 || new Set(changes.map(x => x?.id)).size !== changes.length || changes.some(x => !x || !x.id || (x.sortIndex !== null && (!Number.isInteger(x.sortIndex) || x.sortIndex < 1 || x.sortIndex > 1_000_000)))) throw new ApiError(400, 'Invalid record indices.')
         const selected = changes.map(change => ({ change, row: records.find(row => row.entity.id === change.id) }))
         if (selected.some(x => !x.row)) throw new ApiError(400, 'Some records are unavailable in this organization.')
-        if (selected.some(({ row }) => !demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row!.parentId : resource === 'diagram' ? MODULE_ID : row!.entity.id))) throw new ApiError(403, 'Access forbidden.')
+        if (!personal && selected.some(({ row }) => !demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row!.parentId : resource === 'diagram' ? MODULE_ID : row!.entity.id))) throw new ApiError(403, 'Access forbidden.')
         for (const { change, row } of selected) row!.entity.sortIndex = change.sortIndex
         writeState(state)
         return changes as T
@@ -995,6 +1015,16 @@ async function request<T>(
     return undefined as T
   }
 
+  const taskStatus = route.match(/^\/tasks\/([^/]+)\/status$/)
+  if (taskStatus && method === 'PATCH') {
+    const task = state.resources.tasks.find(task => task.id === taskStatus[1])
+    if (!task || !demoPermission(state, user, String(task.organizationId), 'tasks', false, task.id)) throw new ApiError(404, 'Task not found.')
+    if (!demoPermission(state, user, String(task.organizationId), 'tasks', true, task.id)) throw new ApiError(403, 'Access forbidden.')
+    if (!['todo', 'in-progress', 'done'].includes(String(body.status))) throw new ApiError(400, 'Invalid status.')
+    task.status = body.status
+    writeState(state)
+    return { status: task.status } as T
+  }
   const revealMatch = route.match(/^\/passwords\/([^/]+)\/reveal$/)
   if (revealMatch && method === "GET") {
     const password = state.resources.passwords.find(

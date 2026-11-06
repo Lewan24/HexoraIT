@@ -22,7 +22,7 @@ public static class DocumentationLabels
         ["Severity"] = "Ważność", ["Occurred"] = "Wystąpienie", ["Resolved"] = "Rozwiązanie", ["Affected systems"] = "Dotknięte systemy",
         ["Resolution"] = "Sposób rozwiązania", ["Created"] = "Utworzono", ["Members"] = "Członkowie", ["Purpose"] = "Przeznaczenie",
         ["Folder"] = "Folder", ["File type"] = "Typ pliku", ["Size (bytes)"] = "Rozmiar (bajty)", ["Uploaded"] = "Przesłano",
-        ["Gateway"] = "Brama", ["IP entry"] = "Wpis IP", ["IP notes"] = "Notatki IP", ["IP details"] = "Szczegóły IP",
+        ["Linked network"] = "Powiązana sieć", ["Gateway"] = "Brama", ["IP entry"] = "Wpis IP", ["IP notes"] = "Notatki IP", ["IP details"] = "Szczegóły IP",
         ["Device type"] = "Typ urządzenia", ["Connection"] = "Połączenie", ["Yes"] = "Tak", ["No"] = "Nie",
         ["No records in the selected scope."] = "Brak wpisów w wybranym zakresie.",
         ["This document contains only the selected sections and fields. File attachments are listed, not embedded."] = "Dokument zawiera wyłącznie wybrane sekcje i pola. Załączniki są wymienione w wykazie, bez osadzania ich zawartości.",

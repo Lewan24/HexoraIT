@@ -148,6 +148,7 @@ export const projectsApi = {
 }
 
 export const tasksApi = {
+  updateStatus: (id: string, status: Task['status']) => http.patch<{ status: Task['status'] }>(`/tasks/${id}/status`, { status }),
   getAll: (organizationId: string) => http.getAllPages<Task>(`/tasks${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Task, 'id' | 'createdAt'>) =>
     http.post<Task>(`/tasks${qs({ organizationId })}`, { ...data, dueDate: requiredApiDate(data.dueDate) }),
@@ -203,9 +204,9 @@ export const filesApi = {
 
 export const versionApi = {
   getCurrentVersion: () => 
-    http.getString(`/version`),
+    http.get<string>(`/version`),
   getLatestVersion: () => 
-    http.getString(`/version/latest`)
+    http.get<string>(`/version/latest`)
 }
 
 export interface GlobalEmailSettings {

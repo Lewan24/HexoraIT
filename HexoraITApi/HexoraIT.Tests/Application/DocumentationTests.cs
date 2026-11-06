@@ -109,6 +109,20 @@ public sealed class DocumentationTests : IDisposable
     }
 
     [Fact]
+    public async Task PlanDocumentationIncludesOnlyLinkedNetworksFromTheSameOrganization()
+    {
+        var (_, org) = fixture.SeedUserWithOrg();
+        var other = new Organization { Name = "Other" };
+        var local = new Subnet { OrganizationId = org.Id, Name = "Office LAN", Cidr = "10.0.0.0/24" };
+        var foreign = new Subnet { OrganizationId = other.Id, Name = "Foreign network", Cidr = "172.16.0.0/16" };
+        fixture.Db.AddRange(other, local, foreign, new Plan { OrganizationId = org.Id, Title = "Upgrade", SubnetIds = [local.Id, foreign.Id] });
+        await fixture.Db.SaveChangesAsync();
+        (await Service().GenerateAsync(org.Id, new([new("plans")]))).StatusCode.Should().Be(200);
+        renderer.Snapshot!.Sections.Single().Records.Single().Fields.Where(field => field.Label == "Linked network")
+            .Should().ContainSingle(field => field.Value == "Office LAN (10.0.0.0/24)");
+    }
+
+    [Fact]
     public async Task InvalidScopesAndOversizedReportsAreRejectedWithoutTruncation()
     {
         var (_, org) = fixture.SeedUserWithOrg();

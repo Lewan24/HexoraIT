@@ -176,9 +176,15 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
                     records.Add(Text(R(x, x.Id, x.Title, F("Status", x.Status), F("Priority", x.Priority), F("Assignee", x.Assignee), F("Due date", x.DueDate)), "Description", x.Description));
                 break;
             case "plans":
+                var planNetworks = await user.HasPermissionAsync(org, "networks")
+                    ? await db.Subnets.AsNoTracking().Where(network => network.OrganizationId == org).Select(network => new { network.Id, network.Name, network.Cidr }).ToDictionaryAsync(network => network.Id, token)
+                    : null;
                 foreach (var x in await ReadAsync(db.Plans.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
                 {
                     var record = Text(R(x, x.Id, x.Title, F("Status", x.Status), F("Priority", x.Priority), F("Target date", x.TargetDate)), "Description", x.Description);
+                    if (planNetworks is not null)
+                        foreach (var id in x.SubnetIds)
+                            if (planNetworks.TryGetValue(id, out var network)) record.Fields.Add(F("Linked network", $"{network.Name} ({network.Cidr})"));
                     if (options.IncludeFinancials) record.Fields.Add(F("Estimated cost", x.EstimatedCost));
                     records.Add(record);
                 }

@@ -15,7 +15,8 @@ public record PlanDto(
     List<Guid> AssetIds,
     decimal EstimatedCost,
     DateTime CreatedAt,
-    int? SortIndex = null);
+    int? SortIndex = null,
+    List<Guid>? SubnetIds = null);
 
 public record CreatePlanDto(
     [Required, StringLength(200)] string Title,
@@ -25,7 +26,8 @@ public record CreatePlanDto(
     DateOnly TargetDate,
     [Required, StringCollection(100, 100)] List<string> Tags,
     [Required, CollectionCount(1000)] List<Guid> AssetIds,
-    [Range(typeof(decimal), "-9999999999999999.99", "9999999999999999.99")] decimal EstimatedCost
+    [Range(typeof(decimal), "-9999999999999999.99", "9999999999999999.99")] decimal EstimatedCost,
+    [CollectionCount(1000)] List<Guid>? SubnetIds = null
 );
 
 public record UpdatePlanDto(
@@ -36,5 +38,6 @@ public record UpdatePlanDto(
     DateOnly TargetDate,
     [Required, StringCollection(100, 100)] List<string> Tags,
     [Required, CollectionCount(1000)] List<Guid> AssetIds,
-    [Range(typeof(decimal), "-9999999999999999.99", "9999999999999999.99")] decimal EstimatedCost
+    [Range(typeof(decimal), "-9999999999999999.99", "9999999999999999.99")] decimal EstimatedCost,
+    [CollectionCount(1000)] List<Guid>? SubnetIds = null
 );

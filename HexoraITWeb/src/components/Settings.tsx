@@ -25,13 +25,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  ExternalLink,
 } from "lucide-react"
 
 import { useApp } from "../context/useApp"
 
 import { useAuth } from "../context/useAuth"
 
-import { organizationsApi } from "../api/resources"
+import applicationLogo from "../../public/logo/HexoraIT_HexLogoNoBg.png"
+
+import { versionApi, organizationsApi } from "../api/resources"
 
 import { ApiError } from "../api/http"
 
@@ -1420,6 +1423,12 @@ function NotificationsSection() {
 
 function AboutSection() {
   useLocale()
+  const [version, setVersion] = useState<string>()
+  useEffect(() => {
+    let active = true
+    versionApi.getCurrentVersion().then(value => { if (active) setVersion(value) }).catch(() => { if (active) setVersion('') })
+    return () => { active = false }
+  }, [])
   const [resetting, setResetting] = useState(false)
 
   const resetDemo = () => {
@@ -1438,20 +1447,20 @@ function AboutSection() {
       <SectionCard>
         <SectionHeader title={tr("Application")} />
         <div className="px-5 py-5 flex items-center gap-4">
-          <div
-            className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0"
-            style={{ boxShadow: "0 0 20px rgba(37,99,235,0.4)" }}
-          >
-            <Shield size={22} className="text-white" />
-          </div>
+          <img src={applicationLogo} alt="HexoraIT" className="h-14 w-14 shrink-0 object-contain" />
           <div>
             <p className="text-sm font-semibold text-ink-primary">
-              {tr("ITDocs")}
+              HexoraIT
             </p>
             <p className="text-xs text-ink-muted">
               {tr("IT Documentation Platform")}
             </p>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-edge-subtle px-5 py-4 text-xs">
+          <span className="rounded-lg border border-edge-default bg-navy-700 px-3 py-2 text-ink-secondary">{tr('Current version')}: <span className="font-mono">{version === undefined ? tr('loading...') : version || tr('Unavailable')}</span></span>
+          <a href="https://github.com/Lewan24/HexoraIT" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-edge-default px-3 py-2 text-ink-secondary hover:text-blue-400">{tr('Project on GitHub')}<ExternalLink size={12} /></a>
+          <a href="https://github.com/Lewan24" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-ink-muted hover:text-blue-400">Lewan24<ExternalLink size={12} /></a>
         </div>
       </SectionCard>
 

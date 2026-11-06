@@ -87,6 +87,7 @@ export interface AppContextValue {
 
   addTask: (t: Omit<Task, 'id' | 'createdAt'>) => Promise<void>
   updateTask: (t: Task) => Promise<void>
+  updateTaskStatus: (id: string, status: Task['status']) => Promise<void>
   deleteTask: (id: string) => Promise<void>
 
   addGroup: (g: Omit<Group, 'id' | 'createdAt'>) => Promise<void>
