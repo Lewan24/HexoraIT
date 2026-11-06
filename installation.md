@@ -250,11 +250,12 @@ Browser https://it.example.com
    Forward all paths to this one frontend destination; no custom `/api` location
    or separate API hostname is needed. Retain NPM's standard Host,
    X-Forwarded-For and X-Forwarded-Proto headers.
-5. In NPM's Advanced configuration set `client_max_body_size 2148532224;` to match
+5. In NPM's Advanced configuration set `client_max_body_size 68720525312;` to match
    the frontend and largest API upload request limit. API endpoint limits still
    apply. For large uploads also set `client_body_timeout 3600s;`,
    `proxy_send_timeout 3600s;`, `proxy_read_timeout 3600s;` and
-   `proxy_request_buffering off;`. The file explorer accepts up to 2 GiB per file;
+   `proxy_request_buffering off;` and `proxy_buffering off;`.
+   The file explorer accepts up to 8 GiB per file; organization archive imports accept up to 64 GiB;
    document attachment endpoints retain their existing smaller limits. ASP.NET
    buffers multipart files above 64 KiB to its temporary directory before storage.
    Provision temporary and permanent disk space for simultaneous uploads (a file

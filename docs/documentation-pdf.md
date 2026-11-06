@@ -1,5 +1,24 @@
 # Eksport dokumentacji do PDF
 
+## Układ dokumentu
+
+Krótkie wpisy (np. konta dostępowe, licencje, kontakty i urządzenia) są prezentowane
+w kartach w dwóch kolumnach. Każda karta ma własny tytuł, numer, etykiety pól
+i wyróżnione wartości. Hasła i klucze licencji mają dodatkowe tło;
+pojawiają się wyłącznie po zatwierdzeniu eksportu sekretów.
+
+Dłuższe wpisy zajmują pełną szerokość strony. Artykuły i notatki przepływają
+między stronami, a krótkie karty pozostają w całości na jednej stronie.
+O wyborze układu decyduje długość i struktura wpisu. Długie wartości bez spacji
+są zawijane bez obcinania danych i bez dodawania myślników.
+Sekcje mają krótkie wprowadzenia w języku raportu. Zachowane są spis treści,
+numeracja stron, osadzone czcionki i dotychczasowe zasady doboru danych.
+
+Przykładowy PDF można wygenerować podczas testu `CardLayoutRenders` przez
+ustawienie zmiennej `HEXORA_DOCUMENTATION_CARD_SAMPLE` na docelową ścieżkę pliku.
+
+## Wybór zakresu eksportu
+
 W aktywnej organizacji właściciel lub administrator może wybrać
 **Dokumentacja PDF** w menu albo na ekranie **Dostosuj organizację**.
 Uprawnienia są sprawdzane przez API przy pobieraniu opcji, wybieraniu wpisów

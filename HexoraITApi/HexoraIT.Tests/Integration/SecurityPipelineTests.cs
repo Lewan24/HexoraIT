@@ -143,7 +143,7 @@ public sealed class SecurityPipelineTests
                 .Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>()?.MaxRequestBodySize
                 .Should().Be(FileUploadSecurity.MaxRequestBytes);
         factory.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Features.FormOptions>>()
-            .Value.MultipartBodyLengthLimit.Should().Be(FileUploadSecurity.MaxFileBytes);
+            .Value.MultipartBodyLengthLimit.Should().Be(HexoraITApi.Application.DataTransfer.ArchiveSchema.MaxArchiveBytes + 1024 * 1024);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class SecurityPipelineTests
                 !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
                 !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
             .ToList();
-        endpoints.Should().HaveCount(21);
+        endpoints.Should().HaveCount(27);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 

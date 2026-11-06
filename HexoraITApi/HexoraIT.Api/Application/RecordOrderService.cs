@@ -8,7 +8,7 @@ namespace HexoraITApi.Application;
 
 public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user)
 {
-    public static readonly string[] Resources = [.. OrganizationResources.All.Where(resource => resource is not ("dashboard" or "settings")), "folders", "ip-entries", "private-notes"];
+    public static readonly string[] Resources = [.. OrganizationResources.All.Where(resource => resource is not ("dashboard" or "settings" or "data-transfer")), "folders", "ip-entries", "private-notes"];
     private static string Permission(string resource) => resource switch { "folders" => "files", "ip-entries" => "networks", _ => resource };
     private async Task<bool> CanReadAsync(Guid org, string resource, CancellationToken token) =>
         Resources.Contains(resource) && await user.HasAccessAsync(org) &&

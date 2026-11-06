@@ -9,7 +9,7 @@ public sealed record OrganizationCustomizationDto(List<string> HiddenModules);
 public sealed class OrganizationCustomizationService(AppDbContext db, ICurrentUserContext userContext)
 {
     public static readonly string[] CustomizableModules = OrganizationResources.All
-        .Where(resource => resource is not ("dashboard" or "settings")).ToArray();
+        .Where(resource => resource is not ("dashboard" or "settings" or "data-transfer")).ToArray();
 
     public static List<string> DefaultHiddenModules(bool temporary) => temporary
         ? CustomizableModules.Except(["assets", "passwords", "contacts", "contracts", "knowledge", "files"]).ToList()

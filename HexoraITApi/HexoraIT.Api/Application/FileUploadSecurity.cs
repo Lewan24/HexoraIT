@@ -7,7 +7,7 @@ public sealed record ValidatedUpload(string FileName, string ContentType);
 
 public static class FileUploadSecurity
 {
-    public const long MaxFileBytes = 2L * 1024 * 1024 * 1024;
+    public const long MaxFileBytes = 8L * 1024 * 1024 * 1024;
     public const long MaxRequestBytes = MaxFileBytes + 1024 * 1024;
     private const int SignatureLength = 16;
     private const int MaxArchiveEntries = 10_000;

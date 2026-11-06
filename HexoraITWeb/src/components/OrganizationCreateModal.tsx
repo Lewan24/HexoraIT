@@ -37,12 +37,13 @@ export default function OrganizationCreateModal({ onClose, onCreated }: {
     finally { setBusy(false) }
   }
   return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm" onClick={() => { if (!busy) onClose() }} onKeyDown={event => { if (event.key === 'Escape' && !busy) onClose() }}>
-    <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="create-organization-title" onClick={event => event.stopPropagation()} className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-edge-default bg-navy-800 shadow-2xl">
-      <div className="flex items-center justify-between border-b border-edge-subtle px-5 py-4">
+    <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="create-organization-title" onClick={event => event.stopPropagation()} className="flex max-h-[calc(100dvh-1.5rem)] min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-edge-default bg-navy-800 shadow-2xl">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-edge-subtle px-5 py-4">
         <div><h2 id="create-organization-title" className="font-semibold text-ink-primary">{tr('New Organization')}</h2><p className="mt-1 text-xs text-ink-muted">{tr('Choose a workspace type and tailor its modules from the start.')}</p></div>
         <button type="button" disabled={busy} onClick={onClose} aria-label={tr('Close')} className="rounded p-2 text-ink-muted hover:bg-navy-700"><X size={18} /></button>
       </div>
-      <fieldset disabled={busy} className="min-h-0 space-y-5 overflow-y-auto p-5">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+      <fieldset disabled={busy} className="min-w-0 space-y-5 p-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[false, true].map(value => <button type="button" key={String(value)} aria-pressed={temporary === value} onClick={() => selectType(value)} className={`rounded-xl border p-4 text-left transition-colors ${temporary === value ? 'border-blue-500/50 bg-blue-500/10' : 'border-edge-default hover:bg-navy-700'}`}>
             {value ? <BriefcaseBusiness size={20} className="mb-3 text-amber-400" /> : <Building2 size={20} className="mb-3 text-blue-400" />}
@@ -55,7 +56,8 @@ export default function OrganizationCreateModal({ onClose, onCreated }: {
         <fieldset><legend className="mb-2 text-xs text-ink-secondary">{tr('Color')}</legend><div className="flex flex-wrap gap-2">{COLORS.map(value => <button type="button" key={value} aria-label={`${tr('Color')} ${value}`} aria-pressed={color === value} onClick={() => setColor(value)} className="flex h-7 w-7 items-center justify-center rounded-full border-2" style={{ backgroundColor: value, borderColor: color === value ? 'white' : 'transparent' }}>{color === value && <Check size={13} className="text-white" />}</button>)}</div></fieldset>
         <div className="border-t border-edge-subtle pt-4"><p className="mb-3 text-xs leading-relaxed text-ink-muted">{tr('Select the sections your team needs. You can change them later in Customize organization.')}</p><OrganizationModules hidden={hidden} onChange={setHidden} disabled={busy} /></div>
       </fieldset>
-      <div className="border-t border-edge-subtle px-5 py-4">
+      </div>
+      <div className="shrink-0 border-t border-edge-subtle px-5 py-4">
         {error && <p role="alert" className="mb-3 text-sm text-red-400">{error}</p>}
         <div className="flex justify-end gap-2"><button type="button" disabled={busy} onClick={onClose} className="rounded-lg border border-edge-default px-4 py-2 text-sm text-ink-secondary disabled:opacity-50">{tr('Cancel')}</button><button type="submit" disabled={busy || !name.trim()} className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-400 disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />}{tr(busy ? 'Creating…' : 'Create')}</button></div>
       </div>
