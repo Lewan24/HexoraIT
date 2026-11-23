@@ -7,6 +7,9 @@ export interface OperationTemplate {
   version: number
   schemaJson: string
   contentHash: string
+  organizationId?: string | null
+  active?: boolean
+  settingToken?: string
 }
 export interface OperationRecord {
   id: string
@@ -54,6 +57,7 @@ export interface OperationDetail {
   revisions: OperationRevision[]
   allowedTransitions: string[]
   canEdit: boolean
+  canPolicyException?: boolean
 }
 export interface OperationList {
   items: OperationRecord[]
@@ -79,7 +83,55 @@ export interface OperationInput {
   actualEnd?: string | null
 }
 const base = (org: string) => `/operations/${encodeURIComponent(org)}`
+export interface OperationPolicy {
+  revisionToken: string
+  standardPreApproved: boolean
+  requireLowRiskApproval: boolean
+  requireNormalApproval: boolean
+  separateHighRiskDuties: boolean
+  allowLowRiskSelfApproval: boolean
+  allowDocumentedExceptions: boolean
+  retentionDays: number
+  reportingRulesJson: string
+}
+export interface OperationSettings {
+  policy: OperationPolicy
+  canManage: boolean
+}
+export interface OperationMember {
+  id: string
+  name: string
+}
 export const operationsApi = {
+  settings: (org: string) =>
+    http.get<OperationSettings>(`${base(org)}/settings`),
+  savePolicy: (org: string, policy: OperationPolicy) =>
+    http.put<OperationPolicy>(`${base(org)}/settings`, policy),
+  members: (org: string) =>
+    http.get<OperationMember[]>(`${base(org)}/members`),
+  clone: (org: string, id: string) =>
+    http.post(`${base(org)}/templates/${id}/clone`),
+  importTemplate: (org: string, schemaJson: string) =>
+    http.post(`${base(org)}/templates/import`, { schemaJson }),
+  validateTemplate: (org: string, schemaJson: string) =>
+    http.post<OperationSchema>(`${base(org)}/templates/validate`, {
+      schemaJson,
+    }),
+  publish: (
+    org: string,
+    key: string,
+    expectedVersionId: string,
+    schemaJson: string,
+  ) =>
+    http.post(`${base(org)}/templates/${encodeURIComponent(key)}/versions`, {
+      expectedVersionId,
+      schemaJson,
+    }),
+  activate: (org: string, template: OperationTemplate, active: boolean) =>
+    http.put(
+      `${base(org)}/templates/${encodeURIComponent(template.key)}/activation`,
+      { revisionToken: template.settingToken, active },
+    ),
   templates: (org: string) =>
     http.get<OperationTemplate[]>(`${base(org)}/templates`),
   list: (org: string, filters: Record<string, string>) =>
@@ -98,11 +150,13 @@ export const operationsApi = {
     revisionToken: string,
     target: string,
     reason: string,
+    exceptionReason = "",
   ) =>
     http.post(`${base(org)}/records/${id}/transitions`, {
       revisionToken,
       target,
       reason,
+      exceptionReason,
     }),
   revision: (org: string, id: string, revision: string) =>
     http.get<{ snapshotJson: string }>(

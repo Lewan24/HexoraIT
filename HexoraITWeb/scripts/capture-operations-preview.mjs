@@ -23,7 +23,7 @@ try {
   ws.onmessage = event => { const data = JSON.parse(event.data); if (pending.has(data.id)) { const { resolve, reject } = pending.get(data.id); pending.delete(data.id); data.error ? reject(new Error(data.error.message)) : resolve(data.result) } }
   function call(method, params = {}) { return new Promise((resolve, reject) => { const id = ++counter; pending.set(id, { resolve, reject }); ws.send(JSON.stringify({ id, method, params })) }) }
   await call('Page.enable')
-  for (const [name, width, height] of [['operations-gpo-dark', 1280, 1600], ['operations-gpo-light', 390, 1600], ['license-perpetual-light', 1280, 1100], ['license-perpetual-dark', 1280, 1100], ['license-subscription-light', 1280, 1100]]) {
+  for (const [name, width, height] of [['operations-gpo-dark', 1280, 1600], ['operations-gpo-light', 390, 1600], ['operations-library-dark', 1280, 1600], ['operations-library-light', 390, 1600], ['operations-policy-dark', 1280, 1200], ['operations-policy-light', 390, 1600], ['license-perpetual-light', 1280, 1100], ['license-perpetual-dark', 1280, 1100], ['license-subscription-light', 1280, 1100]]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 500 })
     await call('Page.navigate', { url: new URL(name + '.html', output).href })
     await new Promise(resolve => setTimeout(resolve, 500))

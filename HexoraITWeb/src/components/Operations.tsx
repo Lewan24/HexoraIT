@@ -9,16 +9,22 @@ import {
   type OperationInput,
   type OperationList,
   type OperationTemplate,
+  type OperationSettings,
+  type OperationMember,
 } from "../api/operations"
 import {
   validateOperationForm,
   type OperationSchema,
   type OperationValues,
+  operationDefaults,
 } from "../lib/operationForm"
 import OperationForm, {
   operationButtonClass as button,
   operationInputClass as input,
 } from "./OperationForm"
+import OperationPolicyEditor, {
+  OperationTemplateLibrary,
+} from "./OperationAdministration"
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : tr("Unable to load records.")
@@ -54,6 +60,11 @@ function OperationWorkspace({
   const [selected, setSelected] = useState<string>()
   const [creating, setCreating] = useState<OperationTemplate>()
   const [templates, setTemplates] = useState<OperationTemplate[]>([])
+  const [settings, setSettings] = useState<OperationSettings>()
+  const latestTemplates = templates.filter(
+    (t, i, all) =>
+      t.active !== false && all.findIndex((v) => v.key === t.key) === i,
+  )
   const [list, setList] = useState<OperationList>()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("")
@@ -67,15 +78,12 @@ function OperationWorkspace({
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let active = true
-    operationsApi
-      .templates(org)
-      .then((data) => {
-        if (active)
-          setTemplates(
-            data.filter(
-              (t, i, all) => all.findIndex((v) => v.key === t.key) === i,
-            ),
-          )
+    Promise.all([operationsApi.templates(org), operationsApi.settings(org)])
+      .then(([data, configuration]) => {
+        if (active) {
+          setTemplates(data)
+          setSettings(configuration)
+        }
       })
       .catch((e) => {
         if (active) setError(errorText(e))
@@ -83,7 +91,7 @@ function OperationWorkspace({
     return () => {
       active = false
     }
-  }, [org])
+  }, [org, refresh])
   useEffect(() => {
     let active = true
     const timer = setTimeout(() => {
@@ -92,7 +100,8 @@ function OperationWorkspace({
       operationsApi
         .list(org, {
           search,
-          status: section === "approvals" ? "Awaiting Approval" : status,
+          status: section === "approvals" ? "" : status,
+          ...(section === "approvals" ? { pendingApprovals: "true" } : {}),
           risk,
           type,
           sort,
@@ -174,7 +183,7 @@ function OperationWorkspace({
               }
             >
               <option value="">{tr("Select template")}</option>
-              {templates.map((t) => {
+              {latestTemplates.map((t) => {
                 const s = JSON.parse(t.schemaJson) as OperationSchema
                 return (
                   <option key={t.id} value={t.id}>
@@ -211,6 +220,16 @@ function OperationWorkspace({
           </button>
         ))}
       </nav>
+      {settings?.canManage && (
+        <button
+          className={`${button} ${
+            section === "policy" ? "border-blue-500 text-blue-400" : ""
+          }`}
+          onClick={() => setSection("policy")}
+        >
+          {tr("Organization operations policy")}
+        </button>
+      )}
       {error && (
         <p
           role="alert"
@@ -220,46 +239,19 @@ function OperationWorkspace({
         </p>
       )}
       {section === "templates" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {templates.map((t) => {
-            const schema = JSON.parse(t.schemaJson) as OperationSchema
-            return (
-              <article
-                key={t.id}
-                className="rounded-xl border border-edge-subtle bg-navy-800 p-5"
-              >
-                <h2 className="font-medium text-ink-primary">
-                  {t.key} ·{" "}
-                  {i18n.language === "en" ? schema.name.en : schema.name.pl}
-                </h2>
-                <p className="mt-2 text-sm text-ink-secondary">
-                  {i18n.language === "en"
-                    ? schema.description.en
-                    : schema.description.pl}
-                </p>
-                <p className="mt-3 text-xs text-ink-muted">
-                  v{t.version} · {schema.controls.join(" · ")}
-                </p>
-                <details className="mt-4 text-xs text-ink-secondary">
-                  <summary className="cursor-pointer">
-                    {tr("Template schema")}
-                  </summary>
-                  <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all">
-                    {JSON.stringify(schema, null, 2)}
-                  </pre>
-                </details>
-                {canWrite("operations") && (
-                  <button
-                    className={`${button} mt-4`}
-                    onClick={() => setCreating(t)}
-                  >
-                    {tr("New record")}
-                  </button>
-                )}
-              </article>
-            )
-          })}
-        </div>
+        <OperationTemplateLibrary
+          org={org}
+          templates={templates}
+          canManage={settings?.canManage ?? false}
+          onChanged={() => setRefresh((n) => n + 1)}
+          onCreate={canWrite("operations") ? setCreating : undefined}
+        />
+      ) : section === "policy" && settings?.canManage ? (
+        <OperationPolicyEditor
+          org={org}
+          initial={settings.policy}
+          onSaved={(policy) => setSettings((s) => (s ? { ...s, policy } : s))}
+        />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -284,7 +276,7 @@ function OperationWorkspace({
               <select
                 className={`${input} mt-1`}
                 disabled={section === "approvals"}
-                value={section === "approvals" ? "Awaiting Approval" : status}
+                value={section === "approvals" ? "" : status}
                 onChange={(e) => {
                   setStatus(e.target.value)
                   setPage(1)
@@ -460,26 +452,42 @@ function OperationEditor({
   const [schema, setSchema] = useState<OperationSchema | undefined>(() =>
     template ? JSON.parse(template.schemaJson) as OperationSchema : undefined,
   )
-  const [form, setForm] = useState<OperationInput>({
+  const [form, setForm] = useState<OperationInput>(() => ({
     templateVersionId: template?.id ?? "",
     title: "",
     description: "",
-    values: {},
+    values: operationDefaults(schema?.fields ?? []),
     risk: "Medium",
     priority: "Medium",
     changeType: "Normal",
     assetId: assetId ?? null,
     plannedStart: null,
     plannedEnd: null,
-  })
+  }))
+  const [members, setMembers] = useState<OperationMember[]>([])
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [target, setTarget] = useState("")
   const [reason, setReason] = useState("")
+  const [exceptionReason, setExceptionReason] = useState("")
   const [snapshot, setSnapshot] = useState<string>()
   const [reload, setReload] = useState(0)
+  useEffect(() => {
+    let active = true
+    operationsApi
+      .members(org)
+      .then((data) => {
+        if (active) setMembers(data)
+      })
+      .catch((e) => {
+        if (active) setError(errorText(e))
+      })
+    return () => {
+      active = false
+    }
+  }, [org])
   useEffect(() => {
     if (!id) return
     let active = true
@@ -494,6 +502,7 @@ function OperationEditor({
         setError("")
         setTarget("")
         setReason("")
+        setExceptionReason("")
         setErrors({})
       })
       .catch((e) => {
@@ -561,6 +570,7 @@ function OperationEditor({
         detail.record.revisionToken,
         target,
         reason,
+        exceptionReason,
       )
       setReload((n) => n + 1)
     } catch (e) {
@@ -742,6 +752,28 @@ function OperationEditor({
               </select>
             </label>
           ))}
+          {(["implementerId", "ownerId"] as const).map((key) => (
+            <label key={key} className="text-xs text-ink-secondary">
+              {tr(
+                key === "implementerId" ? "Implementer" : "Responsible owner",
+              )}
+              <select
+                className={`${input} mt-1`}
+                value={form[key] ?? ""}
+                onChange={(e) => update({ [key]: e.target.value || undefined })}
+              >
+                <option value="">{tr("Requester (default)")}</option>
+                {form[key] && !members.some((m) => m.id === form[key]) && (
+                  <option value={form[key]}>{form[key]}</option>
+                )}
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
           <label className="text-xs text-ink-secondary">
             {tr("Related asset")}
             <select
@@ -832,6 +864,19 @@ function OperationEditor({
               onChange={(e) => setReason(e.target.value)}
             />
           </label>
+          {detail.canPolicyException && (
+            <label className="block text-xs text-ink-secondary">
+              {tr("Policy exception reason (optional)")}
+              <textarea
+                className={`${input} mt-1`}
+                rows={2}
+                maxLength={4000}
+                value={exceptionReason}
+                disabled={busy}
+                onChange={(e) => setExceptionReason(e.target.value)}
+              />
+            </label>
+          )}
           <button
             className={button}
             disabled={busy || dirty || !target}

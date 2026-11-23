@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8')
 const compile = (source, filename = 'source.ts') => 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(source, { fileName: filename, compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')))).toString('base64')
-const { validateOperationForm } = await import(compile(read('../src/lib/operationForm.ts')))
+const { validateOperationForm, operationVisible, operationDefaults } = await import(compile(read('../src/lib/operationForm.ts')))
 const labels = { en: 'Setting <script>', pl: 'Ustawienie' }
 const fields = [{ key: 'name', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'changes', label: labels, type: 'table', required: true, maxLength: 4000, fields: [{ key: 'previous', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'next', label: labels, type: 'text', required: true, maxLength: 20 }] }]
 const schema = { schemaVersion: 1, key: 'A02', fields }
@@ -21,6 +21,27 @@ test('drafts allow missing fields; submission validates each repeated row', () =
   values.changes[1].next = 'new'
   assert.deepEqual(validateOperationForm(schema, values, true), {})
   assert.ok(validateOperationForm(schema, { ...values, changes: Array(51).fill({}) }, false).changes)
+})
+
+test('conditional required fields, typed values, defaults and secret instructions match backend semantics', () => {
+  const conditional = { match: 'AND', rules: [{field: 'enabled', operator: 'equals', value: true}], groups: [{match: 'OR', rules: [{field: 'count', operator: 'greaterThan', value: 1}, {field: 'mode', operator: 'in', value: ['Emergency']}]}] }
+  const typed = { key: 'ORG_TEST', fields: [
+    {key: 'enabled', type: 'boolean', defaultValue: false, maxLength: 100},
+    {key: 'count', type: 'integer', minimum: 0, maximum: 3, maxLength: 100},
+    {key: 'mode', type: 'radio', options: ['Normal', 'Emergency'], maxLength: 100},
+    {key: 'tags', type: 'multiselect', options: ['A', 'B'], maxItems: 2, maxLength: 100},
+    {key: 'details', type: 'text', required: true, visibleWhen: conditional, maxLength: 50},
+    {key: 'secret', type: 'text', sensitivity: 'Secret', maxLength: 100},
+  ] }
+  assert.deepEqual(operationDefaults(typed.fields), {enabled: false})
+  assert.equal(operationVisible(conditional, {enabled: true, count: 2}), true)
+  assert.equal(operationVisible(conditional, {enabled: false, count: 2}), false)
+  assert.equal(operationVisible(conditional, {enabled: true, mode: 'Emergency'}), true)
+  assert.deepEqual(validateOperationForm(typed, {enabled: false, count: 0}, true), {})
+  assert.equal(validateOperationForm(typed, {enabled: true, count: 2}, true).details, 'Required')
+  const errors = validateOperationForm(typed, {enabled: 'true', count: 1.5, tags: ['A', 'A'], secret: 'do not store'}, false)
+  for (const key of ['enabled', 'count', 'tags', 'secret']) assert.ok(errors[key], key)
+  assert.ok(validateOperationForm(typed, {count: 5}, false).count)
 })
 
 test('closed types reject invalid options, script URLs, dates, excess values and unverified restore success', () => {
@@ -37,6 +58,7 @@ test('closed types reject invalid options, script URLs, dates, excess values and
 test('dynamic renderer labels controls, exposes row errors, escapes content and disables read-only records', async () => {
   let source = read('../src/components/OperationForm.tsx')
   source = source.replace(/import \{ tr, useLocale \} from ['"]\.\.\/i18n['"];?/, "const tr = s => s; const useLocale = () => ({ i18n: { language: 'en' } })")
+  source = source.replace(/(['"])\.\.\/lib\/operationForm\1/g, JSON.stringify(compile(read('../src/lib/operationForm.ts'))))
   const { default: Form } = await import(compile(source, 'OperationForm.tsx'))
   const html = renderToStaticMarkup(createElement(Form, { fields, values: { name: '<script>evil</script>', changes: [{ previous: 'old', next: 'new' }] }, onChange() {}, errors: { 'changes.0.next': 'Required' }, disabled: true }))
   assert.match(html, /for="operation-changes.0.next"/)

@@ -1,8 +1,10 @@
 import { tr, useLocale } from "../i18n"
+import { operationVisible, operationDefaults } from "../lib/operationForm"
 import type {
   OperationField,
   OperationLabel,
   OperationValues,
+  OperationScalar,
 } from "../lib/operationForm"
 
 export const operationInputClass =
@@ -17,6 +19,7 @@ export default function OperationForm({
   errors,
   disabled = false,
   prefix = "",
+  root,
 }: {
   fields: OperationField[]
   values: OperationValues
@@ -24,6 +27,7 @@ export default function OperationForm({
   errors: Record<string, string>
   disabled?: boolean
   prefix?: string
+  root?: OperationValues
 }) {
   const { i18n } = useLocale()
   const label = (text: OperationLabel) =>
@@ -31,10 +35,32 @@ export default function OperationForm({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {fields.map((field) => {
+        if (!operationVisible(field.visibleWhen, values, root ?? values))
+          return null
         const key = prefix + field.key
         const id = `operation-${key}`
         const error = errors[key]
         const value = values[field.key]
+        const change = (next: OperationScalar | undefined) => {
+          const updated = { ...values }
+          if (next === undefined) delete updated[field.key]
+          else updated[field.key] = next
+          onChange(updated)
+        }
+        if (field.sensitivity === "Secret")
+          return (
+            <div
+              key={key}
+              className="col-span-full rounded-lg border border-edge-subtle p-3 text-xs text-ink-muted"
+            >
+              <strong>{label(field.label)}</strong>
+              <p>
+                {tr(
+                  "Do not enter secrets. Store them in Passwords and reference the record.",
+                )}
+              </p>
+            </div>
+          )
         const common = {
           id,
           disabled,
@@ -44,7 +70,12 @@ export default function OperationForm({
           "aria-describedby": field.help || error ? `${id}-help` : undefined,
         }
         if (field.type === "table") {
-          const rows = Array.isArray(value) ? value : []
+          const rows = Array.isArray(value)
+            ? value.filter(
+                (row): row is Record<string, OperationScalar> =>
+                  typeof row === "object" && row !== null,
+              )
+            : []
           return (
             <fieldset
               key={key}
@@ -70,13 +101,16 @@ export default function OperationForm({
                         onChange({
                           ...values,
                           [field.key]: rows.map((r, i) =>
-                            i === index ? next as Record<string, string> : r,
+                            i === index
+                              ? next as Record<string, OperationScalar>
+                              : r,
                           ),
                         })
                       }
                       errors={errors}
                       disabled={disabled}
                       prefix={`${key}.${index}.`}
+                      root={root ?? values}
                     />
                     {!disabled && (
                       <button
@@ -99,9 +133,17 @@ export default function OperationForm({
                 <button
                   type="button"
                   className={`${operationButtonClass} mt-3`}
-                  disabled={rows.length >= 50}
+                  disabled={rows.length >= (field.maxItems ?? 50)}
                   onClick={() =>
-                    onChange({ ...values, [field.key]: [...rows, {}] })
+                    onChange({
+                      ...values,
+                      [field.key]: [
+                        ...rows,
+                        operationDefaults(
+                          field.fields ?? [],
+                        ) as Record<string, OperationScalar>,
+                      ],
+                    })
                   }
                 >
                   {tr("Add row")}
@@ -116,8 +158,57 @@ export default function OperationForm({
           )
         }
         const text = typeof value === "string" ? value : ""
-        const change = (next: string) =>
-          onChange({ ...values, [field.key]: next })
+        if (field.type === "radio")
+          return (
+            <fieldset
+              key={key}
+              className="rounded-lg border border-edge-subtle p-3"
+              aria-invalid={!!error}
+              aria-describedby={error ? `${id}-help` : undefined}
+            >
+              <legend className="text-xs text-ink-secondary">
+                {label(field.label)}
+                {field.required ? " *" : ""}
+              </legend>
+              <div className="flex flex-wrap gap-3">
+                {field.options?.map((option, index) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 text-xs text-ink-primary"
+                  >
+                    <input
+                      id={`${id}-${index}`}
+                      type="radio"
+                      name={id}
+                      value={option}
+                      checked={text === option}
+                      disabled={disabled}
+                      onChange={() => change(option)}
+                    />
+                    {tr(option)}
+                  </label>
+                ))}
+              </div>
+              {error && (
+                <p
+                  id={`${id}-help`}
+                  role="alert"
+                  className="mt-1 text-xs text-red-400"
+                >
+                  {tr(error)}
+                </p>
+              )}
+            </fieldset>
+          )
+        const dateTimeText =
+          field.type === "datetime" && text && Number.isFinite(Date.parse(text))
+            ? new Date(
+                new Date(text).getTime() -
+                  new Date(text).getTimezoneOffset() * 60000,
+              )
+                .toISOString()
+                .slice(0, 16)
+            : ""
         return (
           <div
             key={key}
@@ -130,7 +221,82 @@ export default function OperationForm({
               {label(field.label)}
               {field.required ? " *" : ""}
             </label>
-            {field.type === "select" ? (
+            {field.type === "boolean" ? (
+              <select
+                {...common}
+                value={value === true ? "true" : value === false ? "false" : ""}
+                onChange={(e) =>
+                  change(
+                    e.target.value === ""
+                      ? undefined
+                      : e.target.value === "true",
+                  )
+                }
+              >
+                <option value="">{tr("Select")}</option>
+                <option value="true">{tr("Yes")}</option>
+                <option value="false">{tr("No")}</option>
+              </select>
+            ) : field.type === "checkbox" ? (
+              <input
+                {...common}
+                type="checkbox"
+                checked={value === true}
+                onChange={(e) => change(e.target.checked)}
+              />
+            ) : field.type === "multiselect" ? (
+              <select
+                {...common}
+                multiple
+                size={Math.min(field.options?.length ?? 3, 6)}
+                value={
+                  Array.isArray(value)
+                    ? value.filter((v): v is string => typeof v === "string")
+                    : []
+                }
+                onChange={(e) =>
+                  change(
+                    Array.from(
+                      e.target.selectedOptions,
+                      (option) => option.value,
+                    ),
+                  )
+                }
+              >
+                {field.options?.map((option) => (
+                  <option key={option} value={option}>
+                    {tr(option)}
+                  </option>
+                ))}
+              </select>
+            ) : field.type === "integer" || field.type === "decimal" ? (
+              <input
+                {...common}
+                type="number"
+                step={field.type === "integer" ? 1 : "any"}
+                min={field.minimum ?? undefined}
+                max={field.maximum ?? undefined}
+                value={typeof value === "number" ? value : ""}
+                onChange={(e) =>
+                  change(
+                    e.target.value === "" ? undefined : Number(e.target.value),
+                  )
+                }
+              />
+            ) : field.type === "datetime" ? (
+              <input
+                {...common}
+                type="datetime-local"
+                value={dateTimeText}
+                onChange={(e) =>
+                  change(
+                    e.target.value
+                      ? new Date(e.target.value).toISOString()
+                      : "",
+                  )
+                }
+              />
+            ) : field.type === "select" ? (
               <select
                 {...common}
                 value={text}
