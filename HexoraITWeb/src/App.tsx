@@ -19,6 +19,7 @@ const AssetDetails = lazy(() => import('./components/AssetDetails'))
 const PasswordVault = lazy(() => import('./components/PasswordVault'))
 const Networks = lazy(() => import('./components/Networks'))
 const Licenses = lazy(() => import('./components/Licenses'))
+const Operations = lazy(() => import('./components/Operations'))
 const Contacts = lazy(() => import('./components/Contacts'))
 const Contracts = lazy(() => import('./components/Contracts'))
 const Plans = lazy(() => import('./components/Plans'))
@@ -37,7 +38,7 @@ const UserGuide = lazy(() => import('./components/UserGuide'))
 
 export type View =
   | 'home' | 'organization-documentation' | 'organization-customization' | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
-  | 'networks' | 'licenses' | 'contacts' | 'contracts'
+  | 'networks' | 'licenses' | 'contacts' | 'contracts' | 'operations'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
   | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes' | 'reports' | 'help'
 
@@ -68,6 +69,7 @@ function AuthenticatedApp() {
       case 'files': return <FileExplorer />
       case 'networks':     return <Networks />
       case 'licenses':     return <Licenses />
+      case 'operations':   return <Operations />
       case 'contacts':     return <Contacts />
       case 'contracts':    return <Contracts />
       case 'plans':        return <Plans />
@@ -84,7 +86,7 @@ function AuthenticatedApp() {
   })()
 
   return (
-    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram'].includes(view)}>
+    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram', 'operations'].includes(view)}>
       <OrganizationLifecycleRedirect view={view} navigate={navigate} />
       <Layout currentView={view} navigate={navigate} onLogout={logout}>
         <PermissionGate view={view}>

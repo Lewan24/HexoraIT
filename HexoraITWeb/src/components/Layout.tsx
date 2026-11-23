@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Operations',
     items: [
+      { id: 'operations', label: 'IT Operations & Changes', icon: <FileText size={18} /> },
       { id: 'tasks',     label: 'Tasks',      icon: <CheckSquare size={18} /> },
       { id: 'plans',     label: 'Plans',      icon: <Lightbulb size={18} /> },
       { id: 'incidents', label: 'Incidents',  icon: <AlertTriangle size={18} /> },
@@ -211,7 +212,7 @@ function Sidebar({
           aria-current={currentView === 'reports' ? 'page' : undefined} onClick={() => handleNav('reports')}>
           <AlertTriangle size={18} />{!compact && <span>{tr('Report a problem')}</span>}
         </button>}
-        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
+        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (item.id !== 'operations' || canRead('operations')) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
           <NavigationSection key={section.label} label={section.label} compact={compact}
             active={section.items.some(item => currentView === item.id || (currentView === 'asset-detail' && item.id === 'assets'))}>
             {section.items.map(item => <button key={item.id} onClick={() => handleNav(item.id)}

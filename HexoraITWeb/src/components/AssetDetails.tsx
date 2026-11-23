@@ -1,4 +1,5 @@
 import AssetForm from './AssetForm'
+import Operations from './Operations'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
 import { ArrowLeft, Edit2, Star, MoreHorizontal, Server, MapPin, User, Clock, HardDrive, Network, Tag, FileText, History, Link2, Trash2, X, Loader2 } from 'lucide-react'
@@ -6,7 +7,7 @@ import { useApp } from '../context/useApp'
 import type { View } from '../App'
 
 interface Props { assetId: string | null; navigate: (v: View) => void }
-type Tab = 'overview' | 'history' | 'docs' | 'related'
+type Tab = 'overview' | 'history' | 'docs' | 'related' | 'changes'
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   Server: <Server size={16} className="text-blue-400" />,
@@ -17,7 +18,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 export default function AssetDetails({ assetId, navigate }: Props) {
   useLocale()
-  const { assets, isLoading, updateAsset, deleteAsset, toggleStarAsset, canWrite } = useApp()
+  const { assets, isLoading, updateAsset, deleteAsset, toggleStarAsset, canWrite, canRead, hiddenModules } = useApp()
   const asset = assets.find(a => a.id === assetId)
 
   const [editing, setEditing] = useState(false)
@@ -76,6 +77,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
     { id: 'history', label: 'History', icon: <History size={13} /> },
     { id: 'docs', label: 'Documentation', icon: <FileText size={13} /> },
     { id: 'related', label: 'Related Items', icon: <Link2 size={13} /> },
+    ...(canRead('operations') && !hiddenModules.includes('operations') ? [{ id: 'changes' as const, label: 'Related Changes', icon: <FileText size={13} /> }] : []),
   ]
 
   return (
@@ -142,15 +144,16 @@ export default function AssetDetails({ assetId, navigate }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-edge-subtle mb-6">
+      <div className="flex overflow-x-auto border-b border-edge-subtle mb-6">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-all -mb-px ${tab === t.id ? 'border-blue-500 text-blue-400' : 'border-transparent text-ink-muted hover:text-ink-secondary'}`}>
+            className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-all -mb-px ${tab === t.id ? 'border-blue-500 text-blue-400' : 'border-transparent text-ink-muted hover:text-ink-secondary'}`}>
             {t.icon} {tr(t.label)}
           </button>
         ))}
       </div>
 
+      {tab === 'changes' && <Operations assetId={asset.id} />}
       {tab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">

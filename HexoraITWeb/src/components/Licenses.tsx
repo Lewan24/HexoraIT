@@ -316,7 +316,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
       )}
 
       {/* Expiry countdown */}
-      {Math.abs(days) < 365 && (
+      {license.type !== 'Perpetual' && Math.abs(days) < 365 && (
         <div className={`px-5 py-3 border-b border-edge-subtle ${days < 0 ? 'bg-red-500/5' : days <= 60 ? 'bg-orange-500/5' : ''}`}>
           <p className={`text-xs font-semibold font-mono ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-secondary'}`}>
             {days < 0 ? tr('Expired {{count}} days ago', { count: Math.abs(days) }) : tr('Expires in {{count}} days', { count: days })}
