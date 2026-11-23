@@ -30,13 +30,13 @@ public sealed class LicenseService(AppDbContext db, IMapper mapper, ICurrentUser
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query.OrderBy(item => item.SortIndex ?? int.MaxValue).ThenBy(item => item.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<LicenseDto>(mapper.ConfigurationProvider).ToListAsync(cancellationToken);
-        return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(totalCount, window));
+        return new(StatusCodes.Status200OK, items.Select(NormalizeLifetimeDto).ToList(), Pagination: new PaginationMetadata(totalCount, window));
     }
 
     public async Task<ApiOperationResult> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var item = await db.Licenses.FirstOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
-        return item is null ? new(StatusCodes.Status404NotFound) : new(StatusCodes.Status200OK, mapper.Map<LicenseDto>(item));
+        return item is null ? new(StatusCodes.Status404NotFound) : new(StatusCodes.Status200OK, NormalizeLifetimeDto(mapper.Map<LicenseDto>(item)));
     }
 
     public async Task<ApiOperationResult> CreateAsync(Guid organizationId, CreateLicenseDto dto, CancellationToken cancellationToken = default)
@@ -91,6 +91,9 @@ public sealed class LicenseService(AppDbContext db, IMapper mapper, ICurrentUser
         if (item.Type == LicenseType.Perpetual) item.ExpiryDate = DateOnly.MaxValue;
         item.Status = item.Type == LicenseType.Perpetual ? LicenseStatus.Active : CalculateStatus(item.ExpiryDate);
     }
+
+    private static LicenseDto NormalizeLifetimeDto(LicenseDto dto) => dto.Type == LicenseType.Perpetual
+        ? dto with { ExpiryDate = DateOnly.MaxValue, Status = LicenseStatus.Active } : dto;
 
     private static LicenseStatus CalculateStatus(DateOnly expiryDate)
     {

@@ -1,0 +1,98 @@
+using System.Text.Json;
+using HexoraITApi.Application;
+using HexoraITApi.Application.Operations;
+using HexoraITApi.Application.Documentation;
+using HexoraITApi.Domain.Dtos;
+using HexoraITApi.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+
+namespace HexoraITApi.Api.App;
+
+public static class OperationEndpoints
+{
+    public static IEndpointRouteBuilder MapOperationEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup("/api/operations/{organizationId:guid}").WithTags("IT Operations & Changes").RequireAuthorization();
+        group.MapGet("/templates", async (Guid organizationId, OperationService service, CancellationToken token) =>
+            (await service.Templates(organizationId, token)).ToHttpResult());
+        group.MapGet("/records", async (Guid organizationId, string? search, string? status, string? risk, string? type, Guid? assetId,
+            Guid? requester, Guid? implementer, string? category, DateTime? from, DateTime? to, string? sort, int? page, int? pageSize, OperationService service, CancellationToken token) =>
+            (await service.List(organizationId, search, status, risk, type, assetId, requester, implementer, category, from, to, sort, page ?? 1, pageSize ?? 25, token)).ToHttpResult());
+        group.MapGet("/records/{id:guid}", async (Guid organizationId, Guid id, OperationService service, CancellationToken token) =>
+            (await service.Detail(organizationId, id, token)).ToHttpResult());
+        group.MapPost("/records", async (Guid organizationId, OperationInput input, OperationService service, CancellationToken token) =>
+            (await service.Create(organizationId, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationInput>>();
+        group.MapPut("/records/{id:guid}", async (Guid organizationId, Guid id, OperationInput input, OperationService service, CancellationToken token) =>
+            (await service.Update(organizationId, id, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationInput>>();
+        group.MapPost("/records/{id:guid}/transitions", async (Guid organizationId, Guid id, OperationTransition input, OperationService service, CancellationToken token) =>
+            (await service.Transition(organizationId, id, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationTransition>>();
+        group.MapGet("/records/{id:guid}/revisions/{revisionId:guid}", async (Guid organizationId, Guid id, Guid revisionId, OperationService service, AppDbContext db, CancellationToken token) =>
+        {
+            if (await service.Find(organizationId, id, token) is null) return Results.NotFound();
+            var revision = await db.OperationRevisions.AsNoTracking().FirstOrDefaultAsync(r => r.OrganizationId == organizationId && r.RecordId == id && r.Id == revisionId, token);
+            return revision is null ? Results.NotFound() : Results.Ok(revision);
+        });
+        group.MapGet("/records/{id:guid}/pdf", Export);
+        return endpoints;
+    }
+
+    public static async Task<IResult> Export(Guid organizationId, Guid id, string? language, OperationService service,
+        AppDbContext db, IDocumentationPdfRenderer renderer, CancellationToken token)
+    {
+        if (language is not (null or "en" or "pl")) return Results.BadRequest("Unsupported language.");
+        var detail = await service.Detail(organizationId, id, token);
+        if (detail.Value is not OperationDetail d) return detail.ToHttpResult();
+        if (d.Record.Status == "Draft") return Results.Conflict("Submit the record before exporting.");
+        var pl = language != "en";
+        string Label(OperationLabel l) => pl ? l.Pl : l.En;
+        var r = d.Record;
+        var actorIds = new[] { r.RequesterId, r.ImplementerId, r.OwnerId }.Concat(d.Activity.Select(a => a.ActorId)).Distinct().ToArray();
+        var actors = await db.UserOrganizations.Where(m => m.OrganizationId == organizationId && actorIds.Contains(m.UserId))
+            .Select(m => new { m.UserId, m.User.DisplayName }).ToDictionaryAsync(m => m.UserId, m => m.DisplayName, token);
+        string Actor(Guid actor) => actors.GetValueOrDefault(actor, actor.ToString());
+        var fields = new List<DocumentationField> {
+            new("Number", r.Number), new("Status", r.Status), new("Template", $"{d.Schema.Key} · {Label(d.Schema.Name)} · v{d.Template.Version}"),
+            new("Created UTC", r.CreatedAt.ToString("O")), new("Modified UTC", r.ModifiedAt.ToString("O")), new("Requester", Actor(r.RequesterId)),
+            new("Implementer", Actor(r.ImplementerId)), new("Owner", Actor(r.OwnerId)), new("Risk", r.Risk), new("Type", r.ChangeType), new("Priority", r.Priority),
+            new("Revision", r.RevisionToken.ToString()), new("Planned start UTC", r.PlannedStart?.ToString("O") ?? ""), new("Planned end UTC", r.PlannedEnd?.ToString("O") ?? ""),
+            new("Actual start UTC", r.ActualStart?.ToString("O") ?? ""), new("Actual end UTC", r.ActualEnd?.ToString("O") ?? "") };
+        if (r.AssetId.HasValue)
+        {
+            var asset = await db.Assets.AsNoTracking().FirstOrDefaultAsync(a => a.Id == r.AssetId && a.OrganizationId == organizationId, token);
+            // Individual asset permissions remain effective in exports.
+            fields.Add(new("Asset reference", asset is null ? r.AssetId.Value.ToString() : $"{asset.Name} ({asset.Id})"));
+        }
+        var texts = new List<DocumentationText> { new("Description", r.Description) };
+        var rows = new List<DocumentationRecord>();
+        foreach (var field in d.Schema.Fields)
+        {
+            if (!d.Values.TryGetProperty(field.Key, out var value) || value.ValueKind == JsonValueKind.Null) continue;
+            if (field.Type == "table")
+            {
+                var index = 0;
+                foreach (var row in value.EnumerateArray())
+                    rows.Add(new(Guid.NewGuid(), $"{Label(field.Label)} · {++index}", field.Fields!.Where(f => row.TryGetProperty(f.Key, out _))
+                        .Select(f => new DocumentationField(Label(f.Label), row.GetProperty(f.Key).GetString() ?? "")).ToList(), []));
+            }
+            else if (!string.IsNullOrWhiteSpace(value.GetString())) texts.Add(new(Label(field.Label), value.GetString()!));
+        }
+        var records = new List<DocumentationRecord> { new(r.Id, r.Title, fields, texts) };
+        records.AddRange(rows);
+        foreach (var activity in d.Activity)
+        {
+            records.Add(new(activity.Id, activity.EventType, [new("Actor", Actor(activity.ActorId)), new("UTC", activity.OccurredAt.ToString("O")), new("From", activity.FromStatus), new("To", activity.ToStatus)], []));
+        }
+        var revisions = await db.OperationRevisions.AsNoTracking().Where(v => v.RecordId == id && v.OrganizationId == organizationId).OrderBy(v => v.CreatedAt).ToListAsync(token);
+        foreach (var revision in revisions)
+        {
+            using var snapshot = JsonDocument.Parse(revision.SnapshotJson);
+            if (snapshot.RootElement.TryGetProperty("Reason", out var reason) && !string.IsNullOrWhiteSpace(reason.GetString()))
+                records.Add(new(revision.Id, $"{revision.CreatedAt:O} · {Actor(revision.ActorId)}", [], [new("Decision / execution notes", reason.GetString()!)]));
+        }
+        var orgName = await db.Organizations.Where(o => o.Id == organizationId).Select(o => o.Name).SingleAsync(token);
+        var snapshotPdf = new DocumentationSnapshot(orgName, "", Actor(r.RequesterId), DateTime.UtcNow,
+            new DocumentationRequestDto([], Title: r.Title, Language: language ?? "pl"), [new("IT Operations & Changes", records)]);
+        var content = await renderer.RenderAsync(snapshotPdf, token);
+        return Results.File(content, "application/pdf", r.Number + ".pdf");
+    }
+}
