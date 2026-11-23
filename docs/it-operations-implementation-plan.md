@@ -42,3 +42,7 @@ High risk approvals separate requester/implementer/approver. Low risk self-appro
 Verify GPO create → save → reopen → submit → review/approval → schedule/execution → verify → complete → close → history → PDF, with multiple old/new values. Test invalid transitions, cross-organization IDs, stale revisions, self-approval, required fields and Polish PDF generation. Repeat baseline suites plus repository-required lint and diff checks. PostgreSQL deployment and browser checks must be reported separately from SQLite/rendering tests.
 
 Later work: drag/drop designer, external audit sink, hash chaining; no compliance certification claim or hardcoded legal deadlines. Existing SMTP alone does not authorize new notification behavior. Evidence retention and reporting thresholds belong in organization data.
+
+## Delivered state
+
+Phases 1–4 delivered as a scoped slice, with A02/A06/D02, server workflow/history, asset navigation, register and on-demand PDF. Phase 5 and the remainder of the requested MVP are not delivered. Detailed implementation/limitations: [technical documentation](it-operations.md); real test/visual results: [delivery report](it-operations-delivery-report.md).

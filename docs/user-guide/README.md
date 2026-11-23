@@ -1,5 +1,7 @@
 # Instrukcja użytkownika
 
+- Operacje i zmiany IT: [instrukcja PL](it-operations-pl.md), [English guide](it-operations-en.md). Aktualnie wdrożono wycinek z A02, A06 i D02; pełen MVP pozostaje w realizacji.
+
 Pełna instrukcja krok po kroku znajduje się w pliku [`instrukcja-obslugi.md`](../../instrukcja-obslugi.md) i jest również dostępna po zalogowaniu w widoku **Pomoc**. Kopia używana przez frontend znajduje się w `HexoraITWeb/src/content/` i musi być synchronizowana z dokumentem źródłowym.
 
 ## Najważniejsze zasady
