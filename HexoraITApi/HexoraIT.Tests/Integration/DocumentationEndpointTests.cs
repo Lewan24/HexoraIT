@@ -8,6 +8,7 @@ using HexoraITApi.Domain.Entities;
 using HexoraITApi.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using HexoraITApi.Application.Operations;
 
 namespace HexoraIT.Tests.Integration;
 
@@ -31,6 +32,10 @@ public sealed class DocumentationEndpointTests
             db.AddRange(user, organization, new Contact { OrganizationId = organization.Id, Name = "Test contact" });
             db.UserOrganizations.Add(new UserOrganization { UserId = user.Id, OrganizationId = organization.Id, Role = role });
             await db.SaveChangesAsync();
+            await OperationCatalog.SeedAsync(db);
+            var template = await db.OperationTemplates.SingleAsync(t => t.Key == "BASIC");
+            db.OperationRecords.Add(new OperationRecord { OrganizationId = organization.Id, TemplateVersionId = template.Id, Number = "OPS-2026-0001", Title = "Basic saved document", RequesterId = user.Id, ImplementerId = user.Id, OwnerId = user.Id, ValuesJson = "{\"content\":\"Synthetic saved content\"}" });
+            await db.SaveChangesAsync();
             jwt = scope.ServiceProvider.GetRequiredService<IJwtTokenService>().CreateToken(user.Id, user.Email, user.SystemRole, user.SecurityStamp);
         }
         using var client = factory.CreateClient();
@@ -48,6 +53,11 @@ public sealed class DocumentationEndpointTests
             (await response.Content.ReadAsByteArrayAsync()).Take(5).Should().Equal("%PDF-"u8.ToArray());
             var rejected = await client.PostAsJsonAsync(path + "/pdf", new DocumentationRequestDto([new("passwords")], IncludeSecrets: true));
             rejected.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var operationOptions = await client.GetFromJsonAsync<DocumentationOptionsDto>(path + "/options");
+            operationOptions!.Sections.Single(s => s.Key == "operations").Count.Should().Be(1);
+            var operationPdf = await client.PostAsJsonAsync(path + "/pdf", new DocumentationRequestDto([new("operations")]));
+            operationPdf.StatusCode.Should().Be(HttpStatusCode.OK);
+            operationPdf.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
         }
     }
 }

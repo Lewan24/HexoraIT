@@ -63,7 +63,14 @@ public static partial class OperationCatalog
                 F("evidence", "Evidence references", "Odnośniki do dowodów", type: "multiline"), F("closureNotes", "Closure notes", "Uwagi przy zamknięciu", false, "multiline")])
     ];
 
-    public static IReadOnlyList<OperationSchema> All { get; } = Examples.Select(s => s.Key == "D02" ? s with { Kind = "Record", ValidationProfile = "RestoreTest" } : s).Concat(Remaining).Select(s => s with { Category = s.Key[..1] }).OrderBy(s => s.Key, StringComparer.Ordinal).ToArray();
+    public static OperationSchema Basic { get; } = new(1, "BASIC", L("Basic document", "Dokument podstawowy"),
+        L("Write a simple operational note or procedure. Use an advanced template for detailed change or verification evidence.",
+            "Zapisz prostą notatkę operacyjną lub procedurę. Wybierz szablon zaawansowany, aby udokumentować szczegóły zmiany lub weryfikacji."),
+        ["ISO/IEC 27001:2022 7.5"],
+        [F("content", "Document content", "Treść dokumentu", type: "multiline") with { MaxLength = 10000 },
+            F("evidence", "Evidence references (no secrets)", "Odnośniki do dowodów (bez sekretów)", false, "multiline")], Kind: "Record", Category: "E");
+
+    public static IReadOnlyList<OperationSchema> All { get; } = Examples.Select(s => s.Key == "D02" ? s with { Kind = "Record", ValidationProfile = "RestoreTest" } : s).Concat(Remaining).Select(s => s with { Category = s.Key[..1] }).Append(Basic).OrderBy(s => s.Key, StringComparer.Ordinal).ToArray();
 
     public static bool IsRecord(OperationSchema schema) => schema.Kind == "Record" || schema.Key == "D02";
 

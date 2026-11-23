@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using System.Text.Json.Nodes;
 using Npgsql;
+using HexoraITApi.Application.Documentation;
+using HexoraITApi.Application;
+using HexoraITApi.Domain.Dtos;
 
 namespace HexoraIT.Tests.Integration;
 
@@ -55,7 +58,7 @@ public sealed class PostgreSqlOperationTests
             await setup.Database.MigrateAsync();
             Assert.False(setup.Database.HasPendingModelChanges());
             setup.AddRange(actor, org, new UserOrganization { OrganizationId = org.Id, UserId = actor.Id, Role = OrgRole.Owner }); await setup.SaveChangesAsync();
-            await OperationCatalog.SeedAsync(setup); await OperationCatalog.SeedAsync(setup); Assert.Equal(73, await setup.OperationTemplates.CountAsync());
+            await OperationCatalog.SeedAsync(setup); await OperationCatalog.SeedAsync(setup); Assert.Equal(74, await setup.OperationTemplates.CountAsync());
             var retained = await setup.OperationTemplates.AsNoTracking().SingleAsync(t => t.Id == legacyId);
             Assert.Equal(legacyHash, retained.ContentHash); Assert.Equal(1, retained.Version); OperationSchemas.Parse(retained.SchemaJson);
             var templateId = await setup.OperationTemplates.Where(t => t.Key == "A02").OrderByDescending(t => t.Version).Select(t => t.Id).FirstAsync();
@@ -74,6 +77,14 @@ public sealed class PostgreSqlOperationTests
             var search = await service.List(org.Id, "searchable", null, null, null, null, null, null, null, null, null, null, 1, 5, default);
             var list = Assert.IsType<OperationList>(search.Value); Assert.Equal(12, list.Total); Assert.Equal(5, list.Items.Count);
             var id = list.Items[0].Id;
+            var documentation = new DocumentationService(setup, new DbCurrentUserContext(setup, provider), new FakePasswordCipher(), new DocumentationPdfRenderer());
+            var reportOptions = Assert.IsType<DocumentationOptionsDto>((await documentation.GetOptionsAsync(org.Id)).Value);
+            Assert.Equal(12, reportOptions.Sections.Single(s => s.Key == "operations").Count);
+            var picker = await documentation.GetItemsAsync(org.Id, "operations", new PaginationParameters { Page = 1, PageSize = 5 }, search: "searchable");
+            Assert.Equal(200, picker.StatusCode);
+            Assert.Equal(12, picker.Pagination!.TotalCount); Assert.Equal(5, Assert.IsType<List<ResourceOptionDto>>(picker.Value).Count);
+            var report = Assert.IsType<DocumentationPdf>((await documentation.GenerateAsync(org.Id, new([new("operations", [id])]))).Value);
+            Assert.True(report.Content.AsSpan(0, 5).SequenceEqual("%PDF-"u8));
             await using var first = new AppDbContext(options, provider); await using var second = new AppDbContext(options, provider);
             var firstService = new OperationService(first, new DbCurrentUserContext(first, provider));
             var secondService = new OperationService(second, new DbCurrentUserContext(second, provider));

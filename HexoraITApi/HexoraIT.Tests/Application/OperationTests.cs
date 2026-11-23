@@ -19,7 +19,7 @@ public sealed class OperationTests
     {
         var expected = new[] { ('A', 18), ('B', 12), ('C', 14), ('D', 7), ('E', 11), ('F', 10) }
             .SelectMany(c => Enumerable.Range(1, c.Item2).Select(i => $"{c.Item1}{i:00}"));
-        Assert.Equal(expected, OperationCatalog.All.Select(s => s.Key));
+        Assert.Equal(expected.Append("BASIC").OrderBy(key => key, StringComparer.Ordinal), OperationCatalog.All.Select(s => s.Key));
         foreach (var schema in OperationCatalog.All)
         {
             var parsed = OperationSchemas.Parse(OperationSchemas.Serialize(schema));
@@ -75,7 +75,7 @@ public sealed class OperationTests
     {
         using var f = new TestFixture();
         await OperationCatalog.SeedAsync(f.Db); await OperationCatalog.SeedAsync(f.Db);
-        Assert.Equal(72, await f.Db.OperationTemplates.CountAsync());
+        Assert.Equal(73, await f.Db.OperationTemplates.CountAsync());
         var template = await f.Db.OperationTemplates.FirstAsync();
         template.SchemaJson = "{}";
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Db.SaveChangesAsync());

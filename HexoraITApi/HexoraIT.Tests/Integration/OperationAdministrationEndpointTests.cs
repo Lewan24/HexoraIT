@@ -32,7 +32,7 @@ public sealed class OperationAdministrationEndpointTests
         using var client = factory.CreateClient(); var path = $"/api/operations/{org.Id}";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path + "/settings")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
-        var templates = (await client.GetFromJsonAsync<List<OperationTemplateView>>(path + "/templates"))!; Assert.Equal(72, templates.Count);
+        var templates = (await client.GetFromJsonAsync<List<OperationTemplateView>>(path + "/templates"))!; Assert.Equal(73, templates.Count);
         var source = templates.Single(t => t.Key == "D02");
         var configuration = (await client.GetFromJsonAsync<OperationSettingsView>(path + "/settings"))!; Assert.Equal(manage, configuration.CanManage);
         Assert.Equal(manage ? HttpStatusCode.Created : HttpStatusCode.Forbidden, (await client.PostAsync(path + $"/templates/{source.Id}/clone", null)).StatusCode);
