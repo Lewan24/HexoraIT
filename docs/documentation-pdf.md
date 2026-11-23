@@ -1,5 +1,20 @@
 # Eksport dokumentacji do PDF
 
+## Dokumenty podstawowe i zaawansowane
+
+W module **Operacje i zmiany IT** wybierz **Dokument podstawowy**, aby zapisać tytuł,
+opis, treść oraz opcjonalnie zasób i odnośniki do dowodów. **Szablon zaawansowany**
+udostępnia dotychczasowe szczegółowe formularze A01–F10. Zapisz zmiany przed eksportem.
+
+Sekcja **Operacje i zmiany IT** w generatorze dokumentacji zawiera oba rodzaje wpisów,
+także zapisane szkice z wyraźnym statusem. Można wybrać wszystkie lub konkretne wpisy;
+wyszukiwanie obejmuje numer i tytuł. PDF pobiera aktualnie zapisane wartości z oryginalną
+wersją szablonu, etykietami PL/EN i powtarzalnymi wierszami. Niezapisane zmiany formularza
+nie są eksportowane. Sekcja jest domyślnie zaznaczona, gdy zawiera wpisy i moduł nie jest
+ukryty. Uprawnienia do eksportu pozostają ograniczone do administratorów i właścicieli.
+Pola Secret nigdy nie są eksportowane, a widoczność warunkowa i ograniczenia dostępu
+pozostają skuteczne. Samodzielny PDF wpisu nadal wymaga wysłania dokumentu.
+
 ## Układ dokumentu
 
 Krótkie wpisy (np. konta dostępowe, licencje, kontakty i urządzenia) są prezentowane

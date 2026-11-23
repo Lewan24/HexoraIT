@@ -1,6 +1,6 @@
 # Built-in operations template catalog
 
-All 72 definitions below contain practical PL/EN fields and use the shared dynamic form, storage, workflow and export engine. There are no empty/schema-only placeholders. Automated testing creates, submits and closes every definition; PDF generation is additionally checked for all 21 required MVP templates. Module-wide remaining features are listed in [the continuation report](it-operations-continuation-report.md).
+The 72 detailed catalog definitions and the additional BASIC document below use the shared dynamic form, storage, workflow and export engine. BASIC provides a quick note/procedure with content and optional evidence references; advanced templates retain their detailed validation. There are no empty/schema-only placeholders. Automated testing creates, submits and closes every definition; PDF generation is additionally checked for all 21 required MVP templates. Module-wide remaining features are listed in [the continuation report](it-operations-continuation-report.md).
 
 | Key | English name | Polska nazwa | Lifecycle | Status |
 |---|---|---|---|---|
@@ -34,6 +34,7 @@ All 72 definitions below contain practical PL/EN fields and use the shared dynam
 | B10 | Periodic Access Recertification | Okresowa recertyfikacja dostępów | Document with approval | Functional through shared engine |
 | B11 | Credential Rotation Record | Zapis rotacji poświadczeń | Change workflow / organization policy | Functional through shared engine |
 | B12 | Shared Access or Delegation Review | Przegląd dostępów współdzielonych i delegacji | Document with approval | Functional through shared engine |
+| BASIC | Basic document | Dokument podstawowy | Operational record | Functional through shared engine |
 | C01 | Security Risk Assessment | Ocena ryzyka bezpieczeństwa | Document with approval | Functional through shared engine |
 | C02 | Vulnerability Assessment Record | Zapis oceny podatności | Operational record | Functional through shared engine |
 | C03 | Vulnerability Remediation | Usunięcie podatności | Change workflow / organization policy | Functional through shared engine |

@@ -1,5 +1,12 @@
 # IT Operations & Changes
 
+Basic creation and organization report integration: the additional `BASIC` template stores title,
+summary, content and optional evidence/asset references with the existing document lifecycle.
+The 72 detailed templates remain available under Advanced template. Both kinds, including saved
+drafts with explicit status, are available in the organization PDF generator's operations section.
+The report reads current saved values with original schema versions, conditional visibility and
+sensitivity protection. Existing standalone record PDF export still requires submission.
+
 Status: **catalog, template administration and organization policies implemented; complete module still partial**, 2026-11-23. All 72 templates have practical PL/EN schemas and use the common form, persistence and workflow engine. See [catalog](it-operations-catalog.md), [continuation report](it-operations-continuation-report.md), [continuation plan](it-operations-continuation-plan.md), and the [historical first-slice report](it-operations-delivery-report.md).
 
 ## Storage and deployment

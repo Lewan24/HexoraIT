@@ -2,13 +2,13 @@
 
 Wybierz organizację, a następnie **Operacje i zmiany IT** w sekcji Operacje. Administrator może ukryć moduł w ustawieniach organizacji. Uprawnienia dotyczą organizacji i konkretnych wpisów.
 
-1. W **Nowy wpis** wybierz jeden z 72 szablonów A01–F10. A02 opisuje GPO, A06 zaporę, a D02 test odtworzenia. Biblioteka szablonów ma wyszukiwanie, filtry kategorii/zakresu i stronicowanie.
+1. Wybierz **Dokument podstawowy**, aby zapisać tytuł, opis, treść i opcjonalnie zasób/odnośniki do dowodów. **Szablon zaawansowany** zawiera dotychczasowe 72 szczegółowe szablony A01–F10, np. A02 dla GPO, A06 dla zapory i D02 dla testu odtworzenia. Formularz podstawowy pomija pola administracyjne zmiany. Biblioteka ma wyszukiwanie, filtry kategorii/zakresu i stronicowanie.
 2. Podaj tytuł, ryzyko, typ, opis i ewentualnie zasób oraz planowany termin. Wykonawca i właściciel domyślnie są wnioskodawcą; można wskazać inne osoby z organizacji. Przy wysokim ryzyku domyślnie trzeba rozdzielić wnioskodawcę i wykonawcę.
 3. Uzupełnij formularz. Dla GPO użyj **Dodaj wiersz**, aby zapisać wiele ustawień wraz z poprzednimi i nowymi wartościami. Nie wpisuj haseł ani kluczy prywatnych; użyj modułu Hasła i podaj odnośnik.
 4. **Zapisz szkic** pozwala zachować niepełne dane. Otwórz wpis ponownie z rejestru. Przyciskiem Wstecz można anulować opuszczenie niezapisanego formularza; zamknięcie karty przeglądarki również wyświetla ostrzeżenie. Nawigacja boczna/przełączenie organizacji nie ma jeszcze pełnej ochrony niezapisanych zmian — najpierw zapisz szkic.
 5. Po uzupełnieniu wymaganych widocznych pól zapisz szkic i wybierz akcję **Wysłany**. Administrator kieruje zmianę do zatwierdzenia. Domyślnie zatwierdza inny administrator; szczegóły zależą od polityki organizacji. Dla zmiany wstępnie zatwierdzonej dostępna jest bezpośrednia akcja zatwierdzenia po wysłaniu.
 6. Wykonuj dostępne akcje procesu: rozpoczęcie, weryfikacja, ukończenie, zamknięcie. Wyniki testów i uwagi zapisuj w polu uwag akcji. Formularz po wysłaniu jest zamrożony. Zamknięcie wymaga uwag i uprawnień administratora.
-7. Historia aktywności i wersji jest na dole wpisu. **Eksportuj PDF** jest dostępny po wysłaniu. Zmiana awaryjna wymaga uzasadnienia pominięcia zgody i niezależnego przeglądu przed zamknięciem.
+7. Historia aktywności i wersji jest na dole wpisu. **Eksportuj PDF** jest dostępny po wysłaniu. Administrator/właściciel może także uwzględnić zapisane wpisy podstawowe i zaawansowane w **Dokumentacja PDF → Operacje i zmiany IT**, w tym szkice z oznaczeniem statusu. Wybierz wszystkie lub konkretne wpisy; eksport pobiera aktualnie zapisane dane. Najpierw zapisz formularz. Zmiana awaryjna wymaga uzasadnienia pominięcia zgody i niezależnego przeglądu przed zamknięciem.
 
 D02 i drobne wpisy operacyjne korzystają z procesu: szkic → wysłany → zamknięty → zarchiwizowany. Dokumenty wymagające zgody mają dodatkowo zatwierdzenie/odrzucenie po wysłaniu. Udany test odtworzenia wymaga opisania weryfikacji integralności i działania aplikacji. Termin ważności reguły zapory jest wymagany po oznaczeniu jej jako tymczasowej. Pola zależne pojawiają się zgodnie z wybranymi wartościami.
 

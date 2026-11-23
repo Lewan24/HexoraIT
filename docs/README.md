@@ -1,6 +1,6 @@
 # Dokumentacja HexoraIT
 
-- [Operacje i zmiany IT](it-operations.md), [katalog 72 szablonów](it-operations-catalog.md), [plan kontynuacji](it-operations-continuation-plan.md), [aktualny raport](it-operations-continuation-report.md), [instrukcja PL](user-guide/it-operations-pl.md), [guide EN](user-guide/it-operations-en.md).
+- [Operacje i zmiany IT](it-operations.md), [katalog 72 szablonów + BASIC](it-operations-catalog.md), [plan kontynuacji](it-operations-continuation-plan.md), [raport kontynuacji](it-operations-continuation-report.md), [dokumenty podstawowe i PDF — raport](basic-documentation-report.md), [instrukcja PL](user-guide/it-operations-pl.md), [guide EN](user-guide/it-operations-en.md).
 
 HexoraIT jest samoobsługową aplikacją do dokumentowania infrastruktury IT, sieci, zasobów, incydentów, plików, haseł i uprawnień organizacyjnych. Dokumentacja opisuje stan aplikacji po migracji backendu do Minimal API i zakończeniu głównej refaktoryzacji.
 
