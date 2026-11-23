@@ -45,6 +45,7 @@ public static class OperationEndpoints
         if (d.Record.Status == "Draft") return Results.Conflict("Submit the record before exporting.");
         var pl = language != "en";
         string Label(OperationLabel l) => pl ? l.Pl : l.En;
+        string T(string text) => pl && Polish.TryGetValue(text, out var translated) ? translated : text;
         var r = d.Record;
         var actorIds = new[] { r.RequesterId, r.ImplementerId, r.OwnerId }.Concat(d.Activity.Select(a => a.ActorId)).Distinct().ToArray();
         var actors = await db.UserOrganizations.Where(m => m.OrganizationId == organizationId && actorIds.Contains(m.UserId))
@@ -62,7 +63,8 @@ public static class OperationEndpoints
             // Individual asset permissions remain effective in exports.
             fields.Add(new("Asset reference", asset is null ? r.AssetId.Value.ToString() : $"{asset.Name} ({asset.Id})"));
         }
-        var texts = new List<DocumentationText> { new("Description", r.Description) };
+        fields = fields.Where(f => !string.IsNullOrWhiteSpace(f.Value)).Select(f => new DocumentationField(T(f.Label), f.Label is "Status" or "Risk" or "Type" or "Priority" ? T(f.Value) : f.Value)).ToList();
+        var texts = new List<DocumentationText> { new(T("Description"), r.Description) };
         var rows = new List<DocumentationRecord>();
         foreach (var field in d.Schema.Fields)
         {
@@ -80,19 +82,34 @@ public static class OperationEndpoints
         records.AddRange(rows);
         foreach (var activity in d.Activity)
         {
-            records.Add(new(activity.Id, activity.EventType, [new("Actor", Actor(activity.ActorId)), new("UTC", activity.OccurredAt.ToString("O")), new("From", activity.FromStatus), new("To", activity.ToStatus)], []));
+            records.Add(new(activity.Id, T(activity.EventType), [new(T("Actor"), Actor(activity.ActorId)), new("UTC", activity.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss")), new(T("From"), T(activity.FromStatus)), new(T("To"), T(activity.ToStatus))], []));
         }
         var revisions = await db.OperationRevisions.AsNoTracking().Where(v => v.RecordId == id && v.OrganizationId == organizationId).OrderBy(v => v.CreatedAt).ToListAsync(token);
         foreach (var revision in revisions)
         {
             using var snapshot = JsonDocument.Parse(revision.SnapshotJson);
             if (snapshot.RootElement.TryGetProperty("Reason", out var reason) && !string.IsNullOrWhiteSpace(reason.GetString()))
-                records.Add(new(revision.Id, $"{revision.CreatedAt:O} · {Actor(revision.ActorId)}", [], [new("Decision / execution notes", reason.GetString()!)]));
+                records.Add(new(revision.Id, $"{revision.CreatedAt:yyyy-MM-dd HH:mm} UTC · {Actor(revision.ActorId)}", [], [new(T("Decision / execution notes"), reason.GetString()!)]));
         }
         var orgName = await db.Organizations.Where(o => o.Id == organizationId).Select(o => o.Name).SingleAsync(token);
         var snapshotPdf = new DocumentationSnapshot(orgName, "", Actor(r.RequesterId), DateTime.UtcNow,
-            new DocumentationRequestDto([], Title: r.Title, Language: language ?? "pl"), [new("IT Operations & Changes", records)]);
+            new DocumentationRequestDto([], Title: r.Title, Language: language ?? "pl"), [new(T("IT Operations & Changes"), records)]);
         var content = await renderer.RenderAsync(snapshotPdf, token);
         return Results.File(content, "application/pdf", r.Number + ".pdf");
     }
+
+    private static readonly Dictionary<string, string> Polish = new()
+    {
+        ["IT Operations & Changes"] = "Operacje i zmiany IT", ["Number"] = "Numer", ["Status"] = "Status", ["Template"] = "Szablon",
+        ["Created UTC"] = "Utworzono UTC", ["Modified UTC"] = "Zmodyfikowano UTC", ["Requester"] = "Wnioskodawca", ["Implementer"] = "Wykonawca",
+        ["Owner"] = "Właściciel", ["Risk"] = "Ryzyko", ["Type"] = "Typ", ["Priority"] = "Priorytet", ["Revision"] = "Wersja",
+        ["Planned start UTC"] = "Planowany początek UTC", ["Planned end UTC"] = "Planowany koniec UTC", ["Actual start UTC"] = "Rzeczywisty początek UTC", ["Actual end UTC"] = "Rzeczywisty koniec UTC",
+        ["Asset reference"] = "Powiązany zasób", ["Description"] = "Opis", ["Actor"] = "Użytkownik", ["From"] = "Ze stanu", ["To"] = "Do stanu",
+        ["Decision / execution notes"] = "Uwagi do decyzji / wykonania", ["Draft"] = "Szkic", ["Submitted"] = "Wysłany", ["Under Review"] = "W trakcie przeglądu",
+        ["Awaiting Approval"] = "Oczekuje na zatwierdzenie", ["Approved"] = "Zatwierdzony", ["Scheduled"] = "Zaplanowany", ["In Progress"] = "W realizacji",
+        ["Verification"] = "Weryfikacja", ["Completed"] = "Ukończony", ["Closed"] = "Zamknięty", ["Rejected"] = "Odrzucony", ["Cancelled"] = "Anulowany",
+        ["Failed"] = "Niepowodzenie", ["Rolled Back"] = "Wycofany", ["Archived"] = "Zarchiwizowany", ["Created"] = "Utworzono", ["DraftSaved"] = "Zapisano szkic",
+        ["RetrospectiveReview"] = "Przegląd po zmianie awaryjnej", ["Low"] = "Niskie", ["Medium"] = "Średnie", ["High"] = "Wysokie",
+        ["Standard"] = "Standardowa", ["Normal"] = "Zwykła", ["Emergency"] = "Awaryjna"
+    };
 }
