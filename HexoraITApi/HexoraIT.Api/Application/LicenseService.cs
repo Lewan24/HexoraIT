@@ -45,7 +45,7 @@ public sealed class LicenseService(AppDbContext db, IMapper mapper, ICurrentUser
             return new(StatusCodes.Status403Forbidden);
         var item = mapper.Map<License>(dto);
         item.OrganizationId = organizationId;
-        item.Status = CalculateStatus(item.ExpiryDate);
+        NormalizeLifetime(item);
         db.Licenses.Add(item);
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status201Created, mapper.Map<LicenseDto>(item), $"/api/licenses/{item.Id}");
@@ -58,7 +58,7 @@ public sealed class LicenseService(AppDbContext db, IMapper mapper, ICurrentUser
         if (!await userContext.HasPermissionAsync(item.OrganizationId, "licenses", write: true, item.Id))
             return new(StatusCodes.Status403Forbidden);
         mapper.Map(dto, item);
-        item.Status = CalculateStatus(item.ExpiryDate);
+        NormalizeLifetime(item);
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
     }
@@ -83,6 +83,13 @@ public sealed class LicenseService(AppDbContext db, IMapper mapper, ICurrentUser
         item.Starred = !item.Starred;
         await db.SaveChangesAsync(cancellationToken);
         return new(StatusCodes.Status200OK, new LicenseStarredDto(item.Starred));
+    }
+
+    private static void NormalizeLifetime(License item)
+    {
+        // Preserve the existing non-null date contract for archives and API clients.
+        if (item.Type == LicenseType.Perpetual) item.ExpiryDate = DateOnly.MaxValue;
+        item.Status = item.Type == LicenseType.Perpetual ? LicenseStatus.Active : CalculateStatus(item.ExpiryDate);
     }
 
     private static LicenseStatus CalculateStatus(DateOnly expiryDate)

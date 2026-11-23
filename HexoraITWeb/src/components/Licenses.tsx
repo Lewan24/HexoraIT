@@ -125,7 +125,7 @@ function LicenseModal({ initial, onClose, onSave }: {
     const e: Record<string, string> = {}
     if (!form.name.trim()) e.name = tr("Required")
     if (!form.vendor.trim()) e.vendor = tr("Required")
-    if (!form.expiryDate) e.expiryDate = tr("Required")
+    if (form.type !== 'Perpetual' && !form.expiryDate) e.expiryDate = tr("Required")
     setErrors(e)
     if (Object.keys(e).length || submitting) return
     setSubmitting(true)
@@ -138,7 +138,7 @@ function LicenseModal({ initial, onClose, onSave }: {
         seats: Number(form.seats) || 1,
         seatsUsed: Number(form.seatsUsed) || 0,
         purchaseDate: form.purchaseDate,
-        expiryDate: form.expiryDate,
+        expiryDate: form.type === 'Perpetual' ? '9999-12-31' : form.expiryDate,
         cost: Number(form.cost) || 0,
         currency: form.currency,
         licenseKey: form.licenseKey.trim(),
@@ -202,9 +202,9 @@ function LicenseModal({ initial, onClose, onSave }: {
               <input type="date" value={form.purchaseDate} onChange={e => set('purchaseDate', e.target.value)} className={inp()} disabled={submitting} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Expiry Date *")}</label>
-              <input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} className={inp(errors.expiryDate)} disabled={submitting} />
-              {errors.expiryDate && <p className="text-[10px] text-red-400 mt-1">{errors.expiryDate}</p>}
+              <label htmlFor="license-expiry" className="block text-[11px] font-medium text-ink-secondary mb-1.5">{form.type === 'Perpetual' ? tr("Expires") : tr("Expiry Date *")}</label>
+              <input id="license-expiry" type="date" value={form.type === 'Perpetual' ? '' : form.expiryDate === '9999-12-31' ? '' : form.expiryDate} onChange={e => set('expiryDate', e.target.value)} className={inp(form.type === 'Perpetual' ? undefined : errors.expiryDate)} disabled={submitting || form.type === 'Perpetual'} required={form.type !== 'Perpetual'} />
+              {form.type === 'Perpetual' ? <p className="text-[10px] text-ink-muted mt-1">{tr('Perpetual')}</p> : errors.expiryDate && <p className="text-[10px] text-red-400 mt-1">{errors.expiryDate}</p>}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -329,7 +329,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
         {[
           { label: 'Vendor', value: license.vendor, icon: <Building2 size={11} /> },
           { label: 'Purchased', value: license.purchaseDate || '—', icon: <Calendar size={11} />, mono: true },
-          { label: 'Expires', value: license.expiryDate, icon: <Calendar size={11} />, mono: true },
+          { label: 'Expires', value: license.type === 'Perpetual' ? tr('Perpetual') : license.expiryDate, icon: <Calendar size={11} />, mono: true },
           { label: 'Cost', value: license.cost > 0 ? `${license.cost.toLocaleString(locale())} ${license.currency}` : '—', icon: <DollarSign size={11} />, mono: true },
         ].map((r, i) => (
           <div key={i} className="flex items-center gap-2 py-1.5 border-b border-edge-subtle last:border-0">
@@ -551,8 +551,8 @@ export default function Licenses() {
                       </td>
                       <td className="px-4 py-3 text-ink-secondary hidden sm:table-cell">{lic.vendor}</td>
                       <td className="px-4 py-3">
-                        <p className="font-mono text-ink-secondary">{lic.expiryDate}</p>
-                        {Math.abs(days) < 365 && (
+                        <p className="font-mono text-ink-secondary">{lic.type === 'Perpetual' ? tr('Perpetual') : lic.expiryDate}</p>
+                        {lic.type !== 'Perpetual' && Math.abs(days) < 365 && (
                           <p className={`text-[10px] font-mono mt-0.5 ${days < 0 ? 'text-red-400' : days <= 60 ? 'text-orange-400' : 'text-ink-muted'}`}>
                             {days < 0 ? tr('{{count}}d ago', { count: Math.abs(days) }) : tr('{{count}}d left', { count: days })}
                           </p>
