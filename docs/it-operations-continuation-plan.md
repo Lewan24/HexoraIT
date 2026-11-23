@@ -11,3 +11,5 @@ Baseline before changes in this continuation: backend build passed (0 warnings/e
 5. Check real PostgreSQL upgrades, idempotent seeding, isolation, versions, workflow, PDF and frontend. Review actual UI against existing light/dark themes, record exact results and remaining requirements, commit logical phases.
 
 Attachments/general entity links, correction workflows, archive transfer and remaining optional calendar/evidence-pack capabilities remain a separate following workstream if not completed in this continuation. Keep their status explicit.
+
+Delivered: all 72 definitions, declarative lifecycles, conditions/typed fields, organization template management, policy settings and field sensitivity controls. Verified with PostgreSQL upgrade/concurrency tests, the full regression suites, catalog/PDF checks and light/dark/mobile component previews. See [continuation report](it-operations-continuation-report.md) for exact results and remaining scope.

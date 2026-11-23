@@ -2,7 +2,7 @@
 
 ## Operacje i zmiany IT (2026-11-23)
 
-Nowe tabele `OperationTemplates`, `OperationRecords`, `OperationRevisions` i `OperationActivities` są opisane w [architekturze modułu](../it-operations.md). Wersje szablonów i historia są dopisywane, a PostgreSQL chroni je triggerami przed UPDATE/DELETE. Wartości formularzy są w JSONB, a rejestr korzysta z kolumn relacyjnych i indeksu pełnotekstowego. Są to dwa nowe migracje; wcześniejsze migracje pozostają bez zmian. Kopia całej bazy obejmuje moduł; obecny eksport organizacji do ZIP go nie obejmuje.
+Tabele `OperationTemplates`, `OperationRecords`, `OperationRevisions`, `OperationActivities`, `OperationTemplateSettings`, `OperationPolicies` i `OperationPolicyRevisions` są opisane w [architekturze modułu](../it-operations.md). Wersje szablonów oraz historia wpisów i administracji są dopisywane, a PostgreSQL chroni je triggerami przed UPDATE/DELETE. Wartości formularzy są w JSONB, a rejestr korzysta z kolumn relacyjnych i indeksu pełnotekstowego. Trzy nowe migracje zachowują wcześniejsze definicje i dane; poprzednie migracje nie zostały zmienione. Kopia całej bazy obejmuje moduł; obecny eksport organizacji do ZIP go nie obejmuje.
 
 Główną bazą jest PostgreSQL zarządzany przez EF Core. Model obejmuje użytkowników, organizacje, członkostwa, role, reguły zasobowe, zasoby infrastruktury, projekty, zadania, sieci, dokumenty, pliki, notatki i wpisy sejfu.
 

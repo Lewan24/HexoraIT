@@ -1,5 +1,7 @@
 # IT Operations & Changes — delivery report (2026-11-23)
 
+Historical first-slice report. Current capabilities and verification are in the [continuation report](it-operations-continuation-report.md); the original results below are preserved as historical evidence.
+
 Branch: `feature/it-operations-changes`. **Delivered: working three-template vertical slice. The complete requested MVP is not finished.** No deployment or remote push performed.
 
 ## 1. Implemented features (requirements mapping)
