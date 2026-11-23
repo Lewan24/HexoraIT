@@ -15,9 +15,29 @@ public static class OperationEndpoints
         var group = endpoints.MapGroup("/api/operations/{organizationId:guid}").WithTags("IT Operations & Changes").RequireAuthorization();
         group.MapGet("/templates", async (Guid organizationId, OperationService service, CancellationToken token) =>
             (await service.Templates(organizationId, token)).ToHttpResult());
+        group.MapPost("/templates/{id:guid}/clone", async (Guid organizationId, Guid id, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Clone(organizationId, id, token)).ToHttpResult());
+        group.MapPost("/templates/import", async (Guid organizationId, OperationTemplatePublish input, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Import(organizationId, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationTemplatePublish>>();
+        group.MapPost("/templates/validate", async (Guid organizationId, OperationTemplatePublish input, OperationAdministrationService service) =>
+        {
+            if (!await service.CanManage(organizationId)) return Results.Forbid();
+            try { return Results.Ok(OperationSchemas.Parse(input.SchemaJson)); }
+            catch (Exception ex) when (ex is ArgumentException or JsonException) { return Results.BadRequest(ex.Message); }
+        }).AddEndpointFilter<DataAnnotationsValidationFilter<OperationTemplatePublish>>();
+        group.MapPost("/templates/{key}/versions", async (Guid organizationId, string key, OperationTemplatePublish input, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Publish(organizationId, key, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationTemplatePublish>>();
+        group.MapPut("/templates/{key}/activation", async (Guid organizationId, string key, OperationTemplateActivation input, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Activate(organizationId, key, input, token)).ToHttpResult());
+        group.MapGet("/settings", async (Guid organizationId, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Settings(organizationId, token)).ToHttpResult());
+        group.MapPut("/settings", async (Guid organizationId, OperationPolicyInput input, OperationAdministrationService service, CancellationToken token) =>
+            (await service.SavePolicy(organizationId, input, token)).ToHttpResult());
+        group.MapGet("/members", async (Guid organizationId, OperationAdministrationService service, CancellationToken token) =>
+            (await service.Members(organizationId, token)).ToHttpResult());
         group.MapGet("/records", async (Guid organizationId, string? search, string? status, string? risk, string? type, Guid? assetId,
-            Guid? requester, Guid? implementer, string? category, DateTime? from, DateTime? to, string? sort, int? page, int? pageSize, OperationService service, CancellationToken token) =>
-            (await service.List(organizationId, search, status, risk, type, assetId, requester, implementer, category, from, to, sort, page ?? 1, pageSize ?? 25, token)).ToHttpResult());
+            Guid? requester, Guid? implementer, string? category, DateTime? from, DateTime? to, string? sort, int? page, int? pageSize, bool? pendingApprovals, OperationService service, CancellationToken token) =>
+            (await service.List(organizationId, search, status, risk, type, assetId, requester, implementer, category, from, to, sort, page ?? 1, pageSize ?? 25, token, pendingApprovals ?? false)).ToHttpResult());
         group.MapGet("/records/{id:guid}", async (Guid organizationId, Guid id, OperationService service, CancellationToken token) =>
             (await service.Detail(organizationId, id, token)).ToHttpResult());
         group.MapPost("/records", async (Guid organizationId, OperationInput input, OperationService service, CancellationToken token) =>
@@ -26,12 +46,8 @@ public static class OperationEndpoints
             (await service.Update(organizationId, id, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationInput>>();
         group.MapPost("/records/{id:guid}/transitions", async (Guid organizationId, Guid id, OperationTransition input, OperationService service, CancellationToken token) =>
             (await service.Transition(organizationId, id, input, token)).ToHttpResult()).AddEndpointFilter<DataAnnotationsValidationFilter<OperationTransition>>();
-        group.MapGet("/records/{id:guid}/revisions/{revisionId:guid}", async (Guid organizationId, Guid id, Guid revisionId, OperationService service, AppDbContext db, CancellationToken token) =>
-        {
-            if (await service.Find(organizationId, id, token) is null) return Results.NotFound();
-            var revision = await db.OperationRevisions.AsNoTracking().FirstOrDefaultAsync(r => r.OrganizationId == organizationId && r.RecordId == id && r.Id == revisionId, token);
-            return revision is null ? Results.NotFound() : Results.Ok(revision);
-        });
+        group.MapGet("/records/{id:guid}/revisions/{revisionId:guid}", async (Guid organizationId, Guid id, Guid revisionId, OperationService service, CancellationToken token) =>
+            (await service.Revision(organizationId, id, revisionId, token)).ToHttpResult());
         group.MapGet("/records/{id:guid}/pdf", Export);
         return endpoints;
     }
@@ -68,15 +84,16 @@ public static class OperationEndpoints
         var rows = new List<DocumentationRecord>();
         foreach (var field in d.Schema.Fields)
         {
+            if (field.Sensitivity == "Secret" || !OperationSchemas.Visible(field.VisibleWhen, d.Values, d.Values)) continue;
             if (!d.Values.TryGetProperty(field.Key, out var value) || value.ValueKind == JsonValueKind.Null) continue;
             if (field.Type == "table")
             {
                 var index = 0;
                 foreach (var row in value.EnumerateArray())
                     rows.Add(new(Guid.NewGuid(), $"{Label(field.Label)} · {++index}", field.Fields!.Where(f => row.TryGetProperty(f.Key, out _))
-                        .Select(f => new DocumentationField(Label(f.Label), row.GetProperty(f.Key).GetString() ?? "")).ToList(), []));
+                        .Where(f => f.Sensitivity != "Secret" && OperationSchemas.Visible(f.VisibleWhen, row, d.Values)).Select(f => new DocumentationField(Label(f.Label), row.GetProperty(f.Key).ToString())).ToList(), []));
             }
-            else if (!string.IsNullOrWhiteSpace(value.GetString())) texts.Add(new(Label(field.Label), value.GetString()!));
+            else if (!string.IsNullOrWhiteSpace(value.ToString())) texts.Add(new(Label(field.Label), value.ToString()));
         }
         var records = new List<DocumentationRecord> { new(r.Id, r.Title, fields, texts) };
         records.AddRange(rows);

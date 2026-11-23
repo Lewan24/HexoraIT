@@ -2,6 +2,9 @@ using System.Text.Json;
 using HexoraITApi.Application.Operations;
 using HexoraITApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using HexoraITApi.Api.App;
+using HexoraITApi.Application.Documentation;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace HexoraIT.Tests.Application;
 
@@ -9,7 +12,7 @@ public sealed class OperationTests
 {
     public static JsonElement Values(OperationSchema schema) => JsonSerializer.SerializeToElement(schema.Fields.ToDictionary(f => f.Key, f =>
         f.Type == "table" ? (object)new[] { f.Fields!.ToDictionary(c => c.Key, c => Sample(c)), f.Fields!.ToDictionary(c => c.Key, c => Sample(c)) } : Sample(f)));
-    private static string Sample(OperationField f) => f.Type switch { "select" => f.Options![0], "date" => "2026-11-23", "datetime" => "2026-11-23T10:00:00Z", "url" => "https://example.invalid/evidence", _ => "SYNTHETIC — zażółć gęślą jaźń" };
+    private static object Sample(OperationField f) => f.Pattern == "guid" ? "11111111-2222-3333-4444-555555555555" : f.Type switch { "select" or "radio" => f.Options![0], "multiselect" => new[] { f.Options![0] }, "integer" or "decimal" => 1, "boolean" or "checkbox" => false, "date" => "2026-11-23", "datetime" => "2026-11-23T10:00:00Z", "url" => "https://example.invalid/evidence", _ => "SYNTHETIC — zażółć gęślą jaźń" };
 
     [Fact]
     public void AllImplementedTemplatesValidateAndSupportRepeatingRows()
@@ -53,6 +56,18 @@ public sealed class OperationTests
         values["functionality"] = JsonSerializer.SerializeToElement("");
         var errors = OperationSchemas.Validate(schema, JsonSerializer.SerializeToElement(values), true);
         Assert.Contains("integrity", errors.Keys); Assert.Contains("functionality", errors.Keys);
+    }
+
+    [Fact]
+    public void TemporaryFirewallRulesRequireAnExpiryWhilePermanentRulesDoNot()
+    {
+        var schema = OperationCatalog.All.Single(s => s.Key == "A06");
+        var values = System.Text.Json.Nodes.JsonNode.Parse(Values(schema).GetRawText())!.AsObject();
+        var rows = values["rules"]!.AsArray();
+        rows[0]!.AsObject().Remove("expires");
+        Assert.Empty(OperationSchemas.Validate(schema, JsonSerializer.SerializeToElement(values), true));
+        rows[0]!["temporary"] = true;
+        Assert.Contains("rules.0.expires", OperationSchemas.Validate(schema, JsonSerializer.SerializeToElement(values), true).Keys);
     }
 
     [Fact]
@@ -158,9 +173,19 @@ public sealed class OperationTests
                 Assert.True(action.StatusCode == 200, $"{schema.Key} {record.Status} → {target}: {action.StatusCode} {action.Value}");
             }
             await Act("Submitted");
+            if (schema.RequiresApproval && OperationCatalog.IsRecord(schema))
+            {
+                var pending = Assert.IsType<OperationList>((await service.List(org.Id, null, null, null, null, null, null, null, null, null, null, null, 1, 100, default, true)).Value);
+                Assert.Contains(pending.Items, r => r.Id == record.Id);
+            }
             if (!OperationCatalog.IsRecord(schema)) { await Act("Awaiting Approval"); f.ActAs(approver.Id); await Act("Approved"); f.ActAs(requester.Id); await Act("In Progress"); await Act("Verification"); await Act("Completed"); }
             else if (schema.RequiresApproval) { f.ActAs(approver.Id); await Act("Approved"); }
             await Act("Closed"); Assert.Equal("Closed", record.Status);
+            if (new[] { "A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A13", "B03", "B04", "B05", "C01", "C02", "C03", "C04", "D01", "D02", "D03", "E01", "F07" }.Contains(schema.Key))
+            {
+                var pdf = Assert.IsType<FileContentHttpResult>(await OperationEndpoints.Export(org.Id, record.Id, "pl", service, f.Db, new DocumentationPdfRenderer(), default));
+                Assert.True(pdf.FileContents.Span[..5].SequenceEqual("%PDF-"u8));
+            }
         }
     }
 }

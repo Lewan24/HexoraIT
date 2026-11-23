@@ -941,6 +941,77 @@ namespace HexoraITApi.Migrations
                     b.ToTable("OperationActivities");
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationPolicy", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowDocumentedExceptions")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowLowRiskSelfApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReportingRulesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("RequireLowRiskApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequireNormalApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RetentionDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RevisionToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("SeparateHighRiskDuties")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("StandardPreApproved")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("OrganizationId");
+
+                    b.ToTable("OperationPolicies");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationPolicyRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "CreatedAt");
+
+                    b.ToTable("OperationPolicyRevisions");
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1118,6 +1189,33 @@ namespace HexoraITApi.Migrations
                     b.ToTable("OperationRevisions");
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationTemplateSetting", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TemplateKey")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RevisionToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OrganizationId", "TemplateKey");
+
+                    b.ToTable("OperationTemplateSettings");
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationTemplateVersion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1131,11 +1229,17 @@ namespace HexoraITApi.Migrations
 
                     b.Property<string>("Key")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PublishedBy")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SchemaJson")
                         .IsRequired()
@@ -1145,6 +1249,8 @@ namespace HexoraITApi.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("Key", "ContentHash")
                         .IsUnique();
@@ -1979,6 +2085,24 @@ namespace HexoraITApi.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationPolicy", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationPolicyRevision", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationRecord", b =>
                 {
                     b.HasOne("HexoraITApi.Domain.Entities.Organization", "Organization")
@@ -2022,6 +2146,23 @@ namespace HexoraITApi.Migrations
                         .HasPrincipalKey("Id", "OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationTemplateSetting", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationTemplateVersion", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationNotificationSettings", b =>

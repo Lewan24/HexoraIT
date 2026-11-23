@@ -12,7 +12,25 @@ public static partial class OperationCatalog
             F("evidence", "Evidence references (no secrets)", "Odnośniki do dowodów (bez sekretów)", type: "multiline"),
             F("closureNotes", "Closure notes", "Uwagi przy zamknięciu", false, "multiline")], "Record", approval);
 
-    private static string[] Controls(string key) => key[0] switch
+    private static string[] Controls(string key) => key switch
+    {
+        "A13" or "C02" or "C03" => ["ISO/IEC 27001:2022 A.8.8", "ISO/IEC 27001:2022 A.8.32"],
+        "A15" => ["ISO/IEC 27001:2022 A.8.24", "ISO/IEC 27001:2022 A.8.32"],
+        "A18" => ["ISO/IEC 27001:2022 A.8.13", "ISO/IEC 27001:2022 A.8.32"],
+        "C01" => ["ISO/IEC 27001:2022 6.1.2", "ISO/IEC 27001:2022 6.1.3"],
+        "C04" or "F06" or "F10" => ["ISO/IEC 27001:2022 6.1.3", "ISO/IEC 27001:2022 A.5.36"],
+        "C06" or "F03" => ["ISO/IEC 27001:2022 A.5.1", "ISO/IEC 27001:2022 7.5"],
+        "C07" => ["ISO/IEC 27001:2022 A.8.20", "ISO/IEC 27001:2022 A.8.22"],
+        "C08" => ["ISO/IEC 27001:2022 A.5.25", "ISO/IEC 27001:2022 A.5.26", "ISO/IEC 27001:2022 A.5.28"],
+        "C11" => ["ISO/IEC 27001:2022 A.5.19", "ISO/IEC 27001:2022 A.5.20"],
+        "C12" => ["ISO/IEC 27001:2022 A.6.3"],
+        "C13" => ["ISO/IEC 27001:2022 A.5.27", "ISO/IEC 27001:2022 A.5.28"],
+        "F04" or "F05" => ["ISO/IEC 27001:2022 10.2", "ISO/IEC 27001:2022 9.2"],
+        "F07" => ["ISO/IEC 27001:2022 A.5.28", "ISO/IEC 27001:2022 7.5"],
+        "F09" => ["ISO/IEC 27001:2022 9.3"],
+        _ => CategoryControls(key[0])
+    };
+    private static string[] CategoryControls(char category) => category switch
     {
         'A' => ["ISO/IEC 27001:2022 A.8.9", "ISO/IEC 27001:2022 A.8.32", "NIST SP 800-128"],
         'B' => ["ISO/IEC 27001:2022 A.5.15", "ISO/IEC 27001:2022 A.5.18", "ISO/IEC 27001:2022 A.8.2"],
@@ -36,10 +54,11 @@ public static partial class OperationCatalog
             Options: ["Undetermined", "Potentially reportable", "Not reportable"], Help: L("Use the organization's current reporting criteria; this is not a legal determination.", "Stosuj aktualne kryteria organizacji; to pole nie stanowi oceny prawnej.")),
         F("detectedAt", "Detection time", "Czas wykrycia", false, "datetime"), F("awarenessAt", "Awareness time", "Czas uzyskania świadomości", false, "datetime"),
         F("reportingPolicy", "Reporting policy / criteria reference", "Odnośnik do polityki / kryteriów zgłoszenia", false),
-        F("reportingDeadline", "Applicable reporting deadline (configured by organization)", "Właściwy termin zgłoszenia (ustalony przez organizację)", false, "datetime"),
+        F("reportingDeadline", "Applicable reporting deadline (configured by organization)", "Właściwy termin zgłoszenia (ustalony przez organizację)", false, "datetime") with { VisibleWhen = new("AND", [new("classification", "equals", System.Text.Json.JsonSerializer.SerializeToElement("Potentially reportable"))]) },
         new("notifications", L("Authority / CSIRT notifications submitted", "Przekazane zgłoszenia do organu / CSIRT"), "table", false,
             Fields: [F("authority", "Authority / CSIRT", "Organ / CSIRT"), F("submittedAt", "Submission date/time", "Data i czas przekazania", type: "datetime"),
-                F("type", "Notification type", "Rodzaj zgłoszenia"), F("reference", "Submission reference", "Numer referencyjny"), F("receipt", "Receipt evidence", "Dowód odbioru", false)])
+                F("type", "Notification type", "Rodzaj zgłoszenia"), F("reference", "Submission reference", "Numer referencyjny"), F("receipt", "Receipt evidence", "Dowód odbioru", false)],
+            VisibleWhen: new("AND", [new("classification", "equals", System.Text.Json.JsonSerializer.SerializeToElement("Potentially reportable"))]))
     ];
 
     private static IReadOnlyList<OperationSchema> Remaining =>

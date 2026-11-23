@@ -34,6 +34,7 @@ builder.Services.AddAutoMapper(cfg => cfg.AddProfile<AppMappingProfile>());
 
 builder.Services.AddScoped<IAppInitializer, AppInitializer>();
 builder.Services.AddScoped<HexoraITApi.Application.Operations.OperationService>();
+builder.Services.AddScoped<HexoraITApi.Application.Operations.OperationAdministrationService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSingleton<IPasswordCipher, DataProtectionPasswordCipher>();

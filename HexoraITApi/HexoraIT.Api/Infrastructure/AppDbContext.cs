@@ -55,10 +55,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     public DbSet<OperationRecord> OperationRecords => Set<OperationRecord>();
     public DbSet<OperationRevision> OperationRevisions => Set<OperationRevision>();
     public DbSet<OperationActivity> OperationActivities => Set<OperationActivity>();
+    public DbSet<OperationTemplateSetting> OperationTemplateSettings => Set<OperationTemplateSetting>();
+    public DbSet<OperationPolicy> OperationPolicies => Set<OperationPolicy>();
+    public DbSet<OperationPolicyRevision> OperationPolicyRevisions => Set<OperationPolicyRevision>();
 
     private void ProtectOperationHistory()
     {
-        if (ChangeTracker.Entries().Any(e => e.Entity is OperationTemplateVersion or OperationRevision or OperationActivity &&
+        if (ChangeTracker.Entries().Any(e => e.Entity is OperationTemplateVersion or OperationRevision or OperationActivity or OperationPolicyRevision &&
             e.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Published templates, revisions and operation history are append-only.");
         if (ChangeTracker.Entries<OperationRecord>().Any(e => e.State == EntityState.Deleted))
@@ -115,11 +118,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
         base.OnModelCreating(b);
         b.Entity<OperationTemplateVersion>(e =>
         {
-            e.Property(t => t.Key).HasMaxLength(10);
+            e.Property(t => t.Key).HasMaxLength(40);
+            e.HasOne<Organization>().WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Restrict);
             e.Property(t => t.ContentHash).HasMaxLength(64);
             e.Property(t => t.SchemaJson).HasColumnType("jsonb");
             e.HasIndex(t => new { t.Key, t.Version }).IsUnique();
             e.HasIndex(t => new { t.Key, t.ContentHash }).IsUnique();
+        });
+        b.Entity<OperationTemplateSetting>(e =>
+        {
+            e.HasKey(t => new { t.OrganizationId, t.TemplateKey });
+            e.Property(t => t.TemplateKey).HasMaxLength(40);
+            e.Property(t => t.RevisionToken).IsConcurrencyToken();
+            e.HasOne<Organization>().WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationPolicy>(e =>
+        {
+            e.HasKey(p => p.OrganizationId);
+            e.Property(p => p.RevisionToken).IsConcurrencyToken();
+            e.Property(p => p.ReportingRulesJson).HasColumnType("jsonb");
+            e.HasOne<Organization>().WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationPolicyRevision>(e =>
+        {
+            e.Property(p => p.SnapshotJson).HasColumnType("jsonb");
+            e.HasIndex(p => new { p.OrganizationId, p.CreatedAt });
+            e.HasOne<Organization>().WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<OperationRecord>(e =>
         {

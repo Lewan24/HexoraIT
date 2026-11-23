@@ -27,7 +27,7 @@ public static partial class OperationCatalog
             L("Record every changed policy setting, its previous value, verification evidence and rollback.", "Zapisz każde zmienione ustawienie, poprzednią wartość, dowody weryfikacji i plan wycofania."),
             ["ISO/IEC 27001:2022 A.8.9", "ISO/IEC 27001:2022 A.8.32", "NIST SP 800-128"],
             [F("domain", "Domain name", "Nazwa domeny"), F("controller", "Domain controller / asset reference", "Kontroler domeny / odnośnik do zasobu"),
-                F("gpoName", "GPO name", "Nazwa GPO"), F("gpoGuid", "GPO GUID", "GUID GPO", false),
+                F("gpoName", "GPO name", "Nazwa GPO"), F("gpoGuid", "GPO GUID", "GUID GPO", false) with { Pattern = "guid" },
                 F("scope", "GPO scope", "Zakres GPO"), F("target", "Linked OU / target", "Powiązana OU / cel"),
                 F("securityFiltering", "Security filtering", "Filtrowanie zabezpieczeń"), F("wmiFilter", "WMI filter", "Filtr WMI", false),
                 F("justification", "Business and technical justification", "Uzasadnienie biznesowe i techniczne", type: "multiline"),
@@ -45,7 +45,8 @@ public static partial class OperationCatalog
                     F("protocol", "Protocol", "Protokół"), F("sourcePorts", "Source ports", "Porty źródłowe"), F("destinationPorts", "Destination ports", "Porty docelowe"),
                     Select("action", "Action", "Akcja", "Allow", "Deny", "Reject"), F("direction", "Direction", "Kierunek"), F("logging", "Logging", "Logowanie"),
                     F("previous", "Previous configuration", "Poprzednia konfiguracja"), F("next", "New configuration", "Nowa konfiguracja"),
-                    F("expires", "Temporary rule expiry", "Wygaśnięcie reguły tymczasowej", false, "date")), ..Execution, ..Recovery]),
+                    new("temporary", L("Temporary rule", "Reguła tymczasowa"), "boolean", DefaultValue: System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                    F("expires", "Temporary rule expiry", "Wygaśnięcie reguły tymczasowej", true, "date") with { VisibleWhen = new("AND", [new("temporary", "equals", System.Text.Json.JsonSerializer.SerializeToElement(true))]) }), ..Execution, ..Recovery]),
         new(1, "D02", L("Backup Restore Test", "Test odtworzenia kopii zapasowej"),
             L("Record recovery measurements and integrity and application verification.", "Zapisz pomiary odtwarzania oraz weryfikację integralności i aplikacji."),
             ["ISO/IEC 27001:2022 A.8.13", "ISO/IEC 27001:2022 A.5.30"],
@@ -62,7 +63,7 @@ public static partial class OperationCatalog
                 F("evidence", "Evidence references", "Odnośniki do dowodów", type: "multiline"), F("closureNotes", "Closure notes", "Uwagi przy zamknięciu", false, "multiline")])
     ];
 
-    public static IReadOnlyList<OperationSchema> All { get; } = Examples.Concat(Remaining).OrderBy(s => s.Key, StringComparer.Ordinal).ToArray();
+    public static IReadOnlyList<OperationSchema> All { get; } = Examples.Select(s => s.Key == "D02" ? s with { Kind = "Record", ValidationProfile = "RestoreTest" } : s).Concat(Remaining).Select(s => s with { Category = s.Key[..1] }).OrderBy(s => s.Key, StringComparer.Ordinal).ToArray();
 
     public static bool IsRecord(OperationSchema schema) => schema.Kind == "Record" || schema.Key == "D02";
 

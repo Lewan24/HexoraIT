@@ -8,6 +8,43 @@ public sealed class OperationTemplateVersion
     public string ContentHash { get; set; } = "";
     public string SchemaJson { get; set; } = "{}";
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
+    public Guid? OrganizationId { get; set; }
+    public Guid? PublishedBy { get; set; }
+}
+
+public sealed class OperationTemplateSetting
+{
+    public Guid OrganizationId { get; set; }
+    public string TemplateKey { get; set; } = "";
+    public bool Active { get; set; } = true;
+    public Guid RevisionToken { get; set; } = Guid.NewGuid();
+    public DateTime ModifiedAt { get; set; } = DateTime.UtcNow;
+    public Guid ModifiedBy { get; set; }
+}
+
+public sealed class OperationPolicy
+{
+    public Guid OrganizationId { get; set; }
+    public bool StandardPreApproved { get; set; }
+    public bool RequireLowRiskApproval { get; set; } = true;
+    public bool RequireNormalApproval { get; set; } = true;
+    public bool SeparateHighRiskDuties { get; set; } = true;
+    public bool AllowLowRiskSelfApproval { get; set; }
+    public bool AllowDocumentedExceptions { get; set; }
+    public int RetentionDays { get; set; } = 2555;
+    public string ReportingRulesJson { get; set; } = "{}";
+    public Guid RevisionToken { get; set; } = Guid.NewGuid();
+    public DateTime ModifiedAt { get; set; } = DateTime.UtcNow;
+    public Guid ModifiedBy { get; set; }
+}
+
+public sealed class OperationPolicyRevision
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OrganizationId { get; set; }
+    public Guid ActorId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string SnapshotJson { get; set; } = "{}";
 }
 
 public sealed class OperationRecord : BaseEntity
