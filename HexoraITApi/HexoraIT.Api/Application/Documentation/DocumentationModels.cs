@@ -13,8 +13,8 @@ public sealed record DocumentationPdf(byte[] Content, string FileName);
 public static class DocumentationCatalog
 {
     public static readonly string[] Sections = ["assets", "networks", "passwords", "licenses", "contacts", "contracts",
-        "knowledge", "warranty", "files", "diagram", "groups", "projects", "plans", "incidents", "tasks", "private-notes"];
-    public static readonly string[] Defaults = ["assets", "networks", "licenses", "contacts", "contracts", "knowledge", "warranty", "files", "diagram"];
+        "knowledge", "warranty", "files", "diagram", "groups", "projects", "plans", "incidents", "tasks", "private-notes", "operations"];
+    public static readonly string[] Defaults = ["assets", "networks", "licenses", "contacts", "contracts", "knowledge", "warranty", "files", "diagram", "operations"];
     public const int MaxRecords = 5000;
     public const int MaxCharacters = 2_000_000;
 }

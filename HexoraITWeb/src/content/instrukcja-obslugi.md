@@ -281,7 +281,21 @@ Domyślnie klient nie ma dostępu do dokumentacji. Jego uprawnienia ustawia się
 6. Utwórz konto klienta dla przedstawiciela firmy.
 7. Udostępnij mu potrzebne dane i przekaż instrukcję korzystania z **Zgłoś problem**.
 
-## 4. Najczęstsze pytania
+## 4. Operacje i zmiany IT
+
+W aktywnej organizacji wybierz **Operacje i zmiany IT**. **Dokument podstawowy** pozwala szybko zapisać tytuł, opis, treść i opcjonalnie zasób/odnośniki do dowodów. **Szablon zaawansowany** udostępnia 72 szczegółowe formularze od A01 do F10. Użyj wyszukiwania i filtrów, aby znaleźć właściwy szablon, np. A02 dla GPO, A06 dla zapory lub D02 dla testu odtworzenia.
+
+1. Utwórz wpis, wskaż wykonawcę, właściciela i powiązany zasób, a następnie uzupełnij formularz. Powtarzalne ustawienia dodawaj przyciskiem **Dodaj wiersz**.
+2. **Zapisz szkic** pozwala wrócić do niepełnego formularza. Zapisuj przed zmianą organizacji lub przejściem do innego modułu.
+3. Po uzupełnieniu wymaganych widocznych pól zapisz szkic i wyślij wpis. Zmiany przechodzą proces zatwierdzania, wykonania, weryfikacji i zamknięcia; drobne wpisy operacyjne mają prostszy proces.
+4. Decyzje, wyniki wykonania i ewentualne wyjątki zapisuj osobnymi akcjami procesu. Domyślnie zgody udziela niezależny administrator, a zmiana wysokiego ryzyka wymaga rozdzielenia wnioskodawcy i wykonawcy.
+5. Po wysłaniu dostępny jest **Eksport PDF**. Właściciel/administrator może też wybrać zapisane dokumenty podstawowe i zaawansowane w **Dokumentacja PDF → Operacje i zmiany IT**, także szkice oznaczone statusem. Zapisz zmiany przed generowaniem raportu. Historia aktywności i wersji znajduje się pod formularzem, a w szczegółach zasobu dostępne są **Powiązane zmiany**.
+
+Administrator może klonować szablony do organizacji, importować/eksportować JSON, publikować nowe wersje i ustalać ich dostępność. Istniejące dokumenty zachowują pierwotną wersję. **Polityka operacji organizacji** określa zasady zgód, wyjątki, retencję i dane kryteriów zgłoszeń. Aplikacja nie wyznacza prawnego obowiązku zgłoszenia i nie usuwa dowodów automatycznie.
+
+Pola ograniczone są pomijane w odpowiedziach, PDF i historii dla osób bez uprawnień administratora. Sekrety przechowuj w module **Hasła** i podawaj wyłącznie odnośnik. Obecny eksport organizacji do ZIP nie obejmuje operacji — kopia bezpieczeństwa musi obejmować całą bazę danych.
+
+## 5. Najczęstsze pytania
 
 | Sytuacja | Co sprawdzić lub zrobić |
 | --- | --- |

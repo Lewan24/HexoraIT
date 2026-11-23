@@ -27,12 +27,13 @@ public static class OrganizationResources
     [
         "dashboard", "assets", "passwords", "networks", "licenses", "contacts",
         "contracts", "plans", "incidents", "knowledge", "tasks", "projects",
-        "groups", "warranty", "diagram", "files", "settings", "data-transfer"
+        "groups", "warranty", "diagram", "files", "settings", "data-transfer", "operations"
     ];
 
     public static string ForEntity(Type type) => type.Name switch
     {
         nameof(Asset) => "assets",
+        nameof(OperationRecord) => "operations",
         nameof(PasswordEntry) => "passwords",
         nameof(Subnet) => "networks",
         nameof(License) => "licenses",

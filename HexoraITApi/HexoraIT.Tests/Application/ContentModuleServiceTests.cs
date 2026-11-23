@@ -217,6 +217,17 @@ public sealed class ContentModuleServiceTests : IDisposable
         write.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
+    [Fact]
+    public async Task PerpetualLicenseCannotExpireEvenWhenClientSuppliesAnOldDate()
+    {
+        var (_, org) = _fixture.SeedUserWithOrg();
+        var service = new LicenseService(_fixture.Db, _fixture.Mapper, _fixture.UserContext);
+        var result = await service.CreateAsync(org.Id, License("Lifetime", new DateOnly(2000, 1, 1)) with { Type = LicenseType.Perpetual });
+        var dto = Assert.IsType<LicenseDto>(result.Value);
+        Assert.Equal(DateOnly.MaxValue, dto.ExpiryDate);
+        Assert.Equal(LicenseStatus.Active, dto.Status);
+    }
+
     public void Dispose() => _fixture.Dispose();
 
     private static CreateIncidentDto Incident(string title) =>

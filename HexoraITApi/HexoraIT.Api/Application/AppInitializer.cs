@@ -20,6 +20,13 @@ public sealed class AppInitializer(
     public async Task InitializeAsync()
     {
         await db.Database.MigrateAsync();
+        // Serialize catalog publication across replicas. No demo documents are seeded.
+        await using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72410261123)");
+            await Operations.OperationCatalog.SeedAsync(db);
+            await transaction.CommitAsync();
+        }
 
         var adminEmail = appSettings.Value.HexoraITAdmin;
 

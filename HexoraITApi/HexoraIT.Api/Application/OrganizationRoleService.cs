@@ -221,6 +221,7 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
 
     private IQueryable<ResourceOptionRow>? ResourceOptionsQuery(Guid organizationId, string resource) => resource switch
     {
+        "operations" => db.OperationRecords.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Number + " " + x.Title }),
         "assets" => db.Assets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
         "passwords" => db.Passwords.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
         "networks" => db.Subnets.Where(x => x.OrganizationId == organizationId).Select(x => new ResourceOptionRow { Id = x.Id, Name = x.Name }),
@@ -263,6 +264,7 @@ public sealed class OrganizationRoleService(AppDbContext db, ICurrentUserContext
 
     private Task<int> ExistingResourceCountAsync(Guid organizationId, string resource, List<Guid> ids, CancellationToken token) => resource switch
     {
+        "operations" => db.OperationRecords.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id), token),
         "assets" => db.Assets.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id), token),
         "passwords" => db.Passwords.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id), token),
         "networks" => db.Subnets.CountAsync(x => x.OrganizationId == organizationId && ids.Contains(x.Id), token),

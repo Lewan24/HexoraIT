@@ -26,6 +26,14 @@ public static class DocumentationLabels
 
     private static readonly Dictionary<string, string> Polish = new()
     {
+        ["operations"] = "Operacje i zmiany IT", ["Number"] = "Numer", ["Template"] = "Szablon", ["Revision"] = "Wersja",
+        ["Requester"] = "Wnioskodawca", ["Implementer"] = "Wykonawca", ["Risk"] = "Ryzyko", ["Related asset"] = "Powiązany zasób",
+        ["Planned start"] = "Planowany początek", ["Planned end"] = "Planowany koniec", ["Actual start"] = "Rzeczywisty początek", ["Actual end"] = "Rzeczywisty koniec",
+        ["Closed"] = "Zamknięty", ["Draft"] = "Szkic", ["Submitted"] = "Wysłany", ["Under Review"] = "W trakcie przeglądu",
+        ["Awaiting Approval"] = "Oczekuje na zatwierdzenie", ["Approved"] = "Zatwierdzony", ["Scheduled"] = "Zaplanowany", ["In Progress"] = "W realizacji",
+        ["Verification"] = "Weryfikacja", ["Completed"] = "Ukończony", ["Rejected"] = "Odrzucony", ["Cancelled"] = "Anulowany",
+        ["Failed"] = "Niepowodzenie", ["Rolled Back"] = "Wycofany", ["Archived"] = "Zarchiwizowany",
+        ["Low"] = "Niskie", ["Medium"] = "Średnie", ["High"] = "Wysokie",
         ["Organization documentation"] = "Dokumentacja organizacji", ["Contents"] = "Spis treści", ["Generated"] = "Wygenerowano",
         ["Prepared by"] = "Przygotował(a)", ["Recipient"] = "Odbiorca", ["Sections"] = "Sekcje", ["Records"] = "Liczba wpisów",
         ["assets"] = "Zasoby", ["networks"] = "Sieci i adresacja IP", ["passwords"] = "Konta i hasła", ["licenses"] = "Licencje",
@@ -53,6 +61,7 @@ public static class DocumentationLabels
     };
     public static string Get(string key, bool polish) => polish ? Polish.GetValueOrDefault(key, key) : key switch
     {
+        "operations" => "IT Operations & Changes",
         "assets" => "Assets", "networks" => "Networks and IP addressing", "passwords" => "Accounts and passwords", "licenses" => "Licenses",
         "contacts" => "Contacts", "contracts" => "Contracts", "knowledge" => "Knowledge base", "warranty" => "Warranties", "files" => "File inventory",
         "diagram" => "Diagram — devices and connections", "groups" => "Groups", "projects" => "Projects", "plans" => "Plans", "incidents" => "Incidents",

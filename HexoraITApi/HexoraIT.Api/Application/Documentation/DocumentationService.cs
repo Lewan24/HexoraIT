@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HexoraITApi.Application.Documentation;
 
-public sealed class DocumentationService(AppDbContext db, ICurrentUserContext user, IPasswordCipher cipher, IDocumentationPdfRenderer renderer)
+public sealed partial class DocumentationService(AppDbContext db, ICurrentUserContext user, IPasswordCipher cipher, IDocumentationPdfRenderer renderer)
 {
     public async Task<ApiOperationResult> GetOptionsAsync(Guid organizationId, CancellationToken token = default)
     {
@@ -17,6 +17,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
         var sections = new List<DocumentationSectionOptionDto>();
         foreach (var key in DocumentationCatalog.Sections)
         {
+            if (key == "operations" && !await user.HasPermissionAsync(organizationId, "operations")) continue;
             var count = await ItemQuery(organizationId, key).CountAsync(token);
             sections.Add(new(key, count, count > 0 && DocumentationCatalog.Defaults.Contains(key) && !hidden.Contains(key)));
         }
@@ -27,6 +28,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
     {
         if (!await CanExportAsync(organizationId)) return Forbidden();
         if (!DocumentationCatalog.Sections.Contains(key) || !Pagination.TryResolve(pagination, out var window)) return new(400);
+        if (key == "operations" && !await user.HasPermissionAsync(organizationId, "operations")) return Forbidden();
         if (search?.Length > 200) return new(400);
         var query = ItemQuery(organizationId, key);
         if (!string.IsNullOrWhiteSpace(search)) { var term = search.Trim().ToLowerInvariant(); query = query.Where(item => item.Name.ToLower().Contains(term)); }
@@ -40,6 +42,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
         if (!await CanExportAsync(organizationId)) return Forbidden();
         var error = Validate(options);
         if (error is not null) return new(400, error);
+        if (options.Sections.Any(s => s.Key == "operations") && !await user.HasPermissionAsync(organizationId, "operations")) return Forbidden();
         var org = await db.Organizations.AsNoTracking().SingleAsync(o => o.Id == organizationId, token);
         var sections = new List<DocumentationSection>();
         var count = 0;
@@ -63,6 +66,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
         var snapshot = new DocumentationSnapshot(org.Name, options.IncludeOrganizationDescription ? org.Description : "", preparedBy, DateTime.UtcNow, options, sections);
         var pdf = await renderer.RenderAsync(snapshot, token);
         if (!await CanExportAsync(organizationId)) return Forbidden();
+        if (options.Sections.Any(s => s.Key == "operations") && !await user.HasPermissionAsync(organizationId, "operations")) return Forbidden();
         return new(200, new DocumentationPdf(pdf, $"documentation-{organizationId:N}-{snapshot.GeneratedAt:yyyyMMdd}.pdf"));
     }
 
@@ -70,7 +74,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
     private static ApiOperationResult Forbidden() => new(403);
     private static string? Validate(DocumentationRequestDto options)
     {
-        if (options.Sections is null || options.Sections.Count is < 1 or > 16 || options.Language is not ("pl" or "en") ||
+        if (options.Sections is null || options.Sections.Count < 1 || options.Sections.Count > DocumentationCatalog.Sections.Length || options.Language is not ("pl" or "en") ||
             options.Title is null || options.Title.Length > 200 || options.Recipient is null || options.Recipient.Length > 200)
             return "Invalid report options.";
         if (options.IncludeSecrets && !options.ConfirmSensitiveData) return "Explicit confirmation is required to export passwords or license keys.";
@@ -84,6 +88,7 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
 
     private IQueryable<DocumentationItemRow> ItemQuery(Guid org, string key) => key switch
     {
+        "operations" => db.OperationRecords.Where(x => x.OrganizationId == org).Select(x => new DocumentationItemRow { Id = x.Id, Name = x.Number + " — " + x.Title, SortIndex = x.SortIndex }),
         "assets" => db.Assets.Where(x => x.OrganizationId == org).Select(x => new DocumentationItemRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
         "networks" => db.Subnets.Where(x => x.OrganizationId == org).Select(x => new DocumentationItemRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
         "passwords" => db.Passwords.Where(x => x.OrganizationId == org).Select(x => new DocumentationItemRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
@@ -130,6 +135,8 @@ public sealed class DocumentationService(AppDbContext db, ICurrentUserContext us
         var records = new List<DocumentationRecord>();
         switch (selection.Key)
         {
+            case "operations":
+                return await ReadOperationsAsync(org, selection, options, token);
             case "assets":
                 foreach (var x in await ReadAsync(db.Assets.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
                     records.Add(Text(R(x, x.Id, x.Name, F("Type", x.Type), F("Status", x.Status), F("Location", x.Location), F("Owner", x.Owner), F("IP address", x.Ip), F("Serial number", x.Serial), F("Tags", string.Join(", ", x.Tags)), F("Updated", x.UpdatedAt)), "Notes", x.Notes, options.IncludeNotes));
