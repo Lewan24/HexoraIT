@@ -20,6 +20,17 @@ const librarySource = fs.readFileSync(new URL('../src/components/OperationAdmini
   .replace(/(['"])\.\.\/lib\/operationForm\1/g, JSON.stringify(compile(fs.readFileSync(new URL('../src/lib/operationForm.ts', import.meta.url), 'utf8'), 'operationForm.ts')))
   .replace(/(['"])\.\.\/api\/operations\1/g, JSON.stringify(compile('export const operationsApi = {}', 'operations-api-stub.ts')))
 const { default: Policy, OperationTemplateLibrary: Library } = await import(compile(librarySource, 'OperationAdministration.tsx'))
+const editorSource = fs.readFileSync(new URL('../src/components/Operations.tsx', import.meta.url), 'utf8')
+  .replace(/import \{ tr, useLocale, locale \} from ['"]\.\.\/i18n['"];?/, i18n + ' const locale = () => "pl";')
+  .replace(/import \{ useApp \} from ['"]\.\.\/context\/useApp['"];?/, 'const useApp = () => ({ assets: [], canWrite: () => true });')
+  .replace(/import \{ useAuth \} from ['"]\.\.\/context\/useAuth['"];?/, 'const useAuth = () => ({ user: null });')
+  .replace(/(['"])\.\/OperationForm\1/g, JSON.stringify(formModule))
+  .replace(/(['"])\.\/OperationAdministration\1/g, JSON.stringify(compile(librarySource, 'OperationAdministration.tsx')))
+  .replace(/(['"])\.\.\/lib\/operationForm\1/g, JSON.stringify(compile(fs.readFileSync(new URL('../src/lib/operationForm.ts', import.meta.url), 'utf8'), 'operationForm.ts')))
+  .replace(/(['"])\.\.\/api\/operations\1/g, JSON.stringify(compile('export const operationsApi = {}', 'operations-api-stub.ts')))
+  .replace(/from "lucide-react"/g, 'from ' + JSON.stringify(import.meta.resolve('lucide-react')))
+  .replace('function OperationEditor(', 'export function OperationEditor(')
+const { OperationEditor: Editor } = await import(compile(editorSource, 'Operations.tsx'))
 let licenseSource = fs.readFileSync(new URL('../src/components/Licenses.tsx', import.meta.url), 'utf8')
 licenseSource = licenseSource.slice(licenseSource.indexOf('function LicenseModal'), licenseSource.indexOf('function LicenseDetail'))
 licenseSource = `import { useState } from "react"; import { X, Star, Loader2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))}; ${i18n}
@@ -35,6 +46,8 @@ function write(name, markup, theme) {
   fs.writeFileSync(new URL(name + '.html', output), html)
 }
 for (const theme of ['light', 'dark']) {
+  const basic = fixtures.find(f => f.schema.key === 'BASIC').schema
+  write(`operations-basic-${theme}`, renderToStaticMarkup(createElement(Editor, { org: 'synthetic', template: { id: 'synthetic-basic', version: 1, schemaJson: JSON.stringify(basic) }, onBack() {}, onCreated() {} })), theme)
   const { schema, values } = fixtures.find(fixture => fixture.schema.key === 'A02')
   const form = createElement('main', { className: 'mx-auto max-w-5xl p-6 space-y-5' }, createElement('h1', { className: 'text-xl font-semibold' }, 'Operacje i zmiany IT — A02'), createElement('p', { className: 'text-sm text-ink-secondary' }, schema.description.pl), createElement('section', { className: 'rounded-xl border border-edge-subtle bg-navy-800 p-6' }, createElement(Form, { fields: schema.fields, values, onChange() {}, errors: {} })))
   write(`operations-gpo-${theme}`, renderToStaticMarkup(form), theme)
@@ -45,4 +58,4 @@ for (const theme of ['light', 'dark']) {
   write(`operations-policy-${theme}`, renderToStaticMarkup(policy), theme)
   for (const type of ['Perpetual', 'Subscription']) write(`license-${type.toLowerCase()}-${theme}`, renderToStaticMarkup(createElement(License, { initial: { id: 'synthetic', name: 'SYNTHETIC License', vendor: 'Synthetic vendor', type, expiryDate: '2027-01-01', category: 'Software' }, onClose() {}, onSave() {} })), theme)
 }
-console.log('Generated ten offline component previews in', fileURLToPath(output))
+console.log('Generated twelve offline component previews in', fileURLToPath(output))

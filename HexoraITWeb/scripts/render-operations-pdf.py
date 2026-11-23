@@ -9,7 +9,9 @@ output = Path(__file__).resolve().parents[2] / "output"
 sys.path.insert(0, str(output / "pdf-qa"))
 import pypdfium2 as pdfium
 
-document = pdfium.PdfDocument(str(output / "operations-gpo-synthetic.pdf"))
+base = sys.argv[1] if len(sys.argv) > 1 else "operations-gpo-synthetic"
+document = pdfium.PdfDocument(str(output / f"{base}.pdf"))
+page_prefix = "operations-gpo" if base == "operations-gpo-synthetic" else base
 all_text = []
 for index, page in enumerate(document):
     all_text.append(page.get_textpage().get_text_range())
@@ -25,10 +27,15 @@ for index, page in enumerate(document):
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
     png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", bitmap.width, bitmap.height, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(scanlines)) + chunk(b"IEND", b"")
-    (output / f"operations-gpo-page-{index + 1}.png").write_bytes(png)
+    (output / f"{page_prefix}-page-{index + 1}.png").write_bytes(png)
 text = "\n".join(all_text)
-assert "ąćęłńóśźż" in text, "Polish glyph extraction failed"
-assert "Independent approval" in text
-assert "Synthetic closure" in text
-(output / "operations-gpo-text.txt").write_text(text, encoding="utf-8")
-print(json.dumps({"pages": len(document), "polish_text": True, "approval_and_closure": True}))
+if base == "basic-documentation":
+    for expected in ["Current saved content", "zażółć gęślą jaźń", "Synthetic GPO", "Zmiany konfiguracji", "Szkic"]:
+        assert expected in text, f"Missing PDF content: {expected}"
+    assert "Initial content" not in text
+else:
+    assert "ąćęłńóśźż" in text, "Polish glyph extraction failed"
+    assert "Independent approval" in text
+    assert "Synthetic closure" in text
+(output / f"{page_prefix}-text.txt").write_text(text, encoding="utf-8")
+print(json.dumps({"pages": len(document), "polish_text": True, "content_checks": True}))

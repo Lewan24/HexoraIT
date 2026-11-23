@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import ts from 'typescript'
 const translations = {
+  'Basic document': 'Dokument podstawowy', 'Advanced template': 'Szablon zaawansowany',
+  'Includes saved basic and advanced records, including drafts with their status. Save edits before generating.': 'Obejmuje zapisane wpisy podstawowe i zaawansowane, w tym szkice z ich statusem. Zapisz zmiany przed generowaniem.',
   'Template updated.': 'Zaktualizowano szablon.',
   'Import organization template': 'Importuj szablon organizacji', 'Publish a new template version': 'Opublikuj nową wersję szablonu',
   'Published versions stay immutable. Existing documents keep their original schema.': 'Opublikowane wersje są niezmienne. Istniejące dokumenty zachowują swój pierwotny schemat.',

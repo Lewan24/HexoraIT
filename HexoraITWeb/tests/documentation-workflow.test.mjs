@@ -4,14 +4,14 @@ import fs from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
 
-function editor({ sensitive = false } = {}) {
+function editor({ sensitive = false, operations = false } = {}) {
   let source = fs.readFileSync(new URL('../src/components/OrganizationDocumentation.tsx', import.meta.url), 'utf8')
   const ast = ts.createSourceFile('OrganizationDocumentation.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   for (const node of [...ast.statements].reverse()) if (ts.isImportDeclaration(node)) source = source.slice(0, node.pos) + source.slice(node.end)
   source = source.replace('export default function', 'function')
   const states = [
-    [{ key: 'contacts', count: 2 }, { key: 'tasks', count: 1 }, { key: 'passwords', count: 1 }, { key: 'private-notes', count: 1 }],
-    { contacts: ['selected-contact'], ...(sensitive ? { passwords: null } : {}) }, false,
+    [{ key: 'contacts', count: 2 }, { key: 'tasks', count: 1 }, { key: 'passwords', count: 1 }, { key: 'private-notes', count: 1 }, { key: 'operations', count: 2 }],
+    { ...(operations ? { operations: ['saved-basic', 'saved-advanced'] } : { contacts: ['selected-contact'] }), ...(sensitive ? { passwords: null } : {}) }, false,
   ]
   const requests = [], downloads = []
   let slot = 0
@@ -31,6 +31,17 @@ function editor({ sensitive = false } = {}) {
 }
 function nodes(node) { if (!node || typeof node !== 'object') return []; return Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)] }
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props.children.includes(label))
+
+test('organization PDF review includes selected basic and advanced operations records', async () => {
+  const e = editor({ operations: true })
+  assert.ok(nodes(e.render()).some(n => n.props?.children.includes('IT Operations & Changes')))
+  button(e.render(), 'Review scope').props.onClick()
+  let tree = e.render()
+  nodes(tree).find(n => n.type === 'input' && n.props.type === 'checkbox').props.onChange({ target: { checked: true } })
+  tree = e.render(); button(tree, 'Generate PDF').props.onClick()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(JSON.parse(JSON.stringify(e.requests[0][1].sections)), [{ key: 'operations', itemIds: ['saved-basic', 'saved-advanced'] }])
+})
 
 test('PDF export requires scope approval and sends only the chosen records and fields', async () => {
   const e = editor()

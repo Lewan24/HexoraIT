@@ -5,7 +5,7 @@ import { useApp } from '../context/useApp'
 import { documentationApi, type DocumentationOptions, type DocumentationSection } from '../api/documentation'
 
 const inputClass = 'w-full rounded-lg border border-edge-default bg-navy-700 px-3 py-2 text-sm text-ink-primary outline-none focus:border-blue-500'
-const sectionTitle = (key: string) => tr(key === 'private-notes' ? 'My private notes' : key === 'files' ? 'File inventory' : key)
+const sectionTitle = (key: string) => tr(key === 'operations' ? 'IT Operations & Changes' : key === 'private-notes' ? 'My private notes' : key === 'files' ? 'File inventory' : key)
 
 export default function OrganizationDocumentation() {
   const { currentOrg, access } = useApp()
@@ -75,6 +75,7 @@ function DocumentationEditor({ orgId, orgName }: { orgId: string; orgName: strin
             <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex cursor-pointer items-center gap-3 text-sm text-ink-primary"><input type="checkbox" checked={enabled} onChange={() => toggle(section.key)} className="accent-blue-500" /><span className="capitalize">{sectionTitle(section.key)}</span><span className="text-xs text-ink-muted">{section.count}</span></label>
               {enabled && <button onClick={() => setPicker(section.key)} className="rounded-lg border border-edge-default px-2 py-1.5 text-xs text-blue-400">{tr('Choose records')}</button>}</div>
             {enabled && <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-ink-muted"><span>{selection[section.key] === null ? tr('All records in this section') : tr('Selected records: {{count}}', { count: selection[section.key]?.length ?? 0 })}</span>{selection[section.key] !== null && <button onClick={() => setSelection(previous => ({ ...previous, [section.key]: null }))} className="text-blue-400">{tr('Include all')}</button>}</div>}
+            {section.key === 'operations' && <p className="mt-2 text-xs text-ink-muted">{tr('Includes saved basic and advanced records, including drafts with their status. Save edits before generating.')}</p>}
             {section.key === 'private-notes' && <p className="mt-2 text-xs text-ink-muted">{tr('Only your own private notes are available. Other members’ notes are never exported.')}</p>}
           </div>
         })}

@@ -1527,5 +1527,8 @@
   "Avoid": "Avoid",
   "Transfer": "Transfer",
   "Accept": "Accept",
-  "Template updated.": "Template updated."
+  "Template updated.": "Template updated.",
+  "Basic document": "Basic document",
+  "Advanced template": "Advanced template",
+  "Includes saved basic and advanced records, including drafts with their status. Save edits before generating.": "Includes saved basic and advanced records, including drafts with their status. Save edits before generating."
 }

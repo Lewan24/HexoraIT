@@ -172,9 +172,17 @@ function OperationWorkspace({
           </p>
         </div>
         {canWrite("operations") && (
-          <label className="flex max-w-full min-w-0 flex-wrap items-center gap-2 text-xs text-ink-secondary">
+          <div className="flex max-w-full min-w-0 flex-wrap items-center gap-3">
+            <button
+              className={button}
+              disabled={!latestTemplates.some((t) => t.key === "BASIC")}
+              onClick={() => setCreating(latestTemplates.find((t) => t.key === "BASIC"))}
+            >
+              {tr("Basic document")}
+            </button>
+          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-ink-secondary">
             <Plus size={16} aria-hidden="true" />
-            {tr("New record")}
+            {tr("Advanced template")}
             <select
               className={input}
               value=""
@@ -183,7 +191,7 @@ function OperationWorkspace({
               }
             >
               <option value="">{tr("Select template")}</option>
-              {latestTemplates.map((t) => {
+              {latestTemplates.filter((t) => t.key !== "BASIC").map((t) => {
                 const s = JSON.parse(t.schemaJson) as OperationSchema
                 return (
                   <option key={t.id} value={t.id}>
@@ -193,6 +201,7 @@ function OperationWorkspace({
               })}
             </select>
           </label>
+          </div>
         )}
       </div>
       <nav
@@ -522,6 +531,7 @@ function OperationEditor({
     return () => window.removeEventListener("beforeunload", warn)
   }, [dirty])
   const editable = !id ? canWrite("operations") : detail?.canEdit
+  const basic = schema?.key === "BASIC"
   const update = (patch: Partial<OperationInput>) => {
     setForm((f) => ({ ...f, ...patch }))
     setDirty(true)
@@ -727,7 +737,7 @@ function OperationEditor({
               onChange={(e) => update({ description: e.target.value })}
             />
           </label>
-          {(["changeType", "risk", "priority"] as const).map((key) => (
+          {!basic && (["changeType", "risk", "priority"] as const).map((key) => (
             <label key={key} className="text-xs text-ink-secondary">
               {tr(
                 key === "changeType"
@@ -752,7 +762,7 @@ function OperationEditor({
               </select>
             </label>
           ))}
-          {(["implementerId", "ownerId"] as const).map((key) => (
+          {!basic && (["implementerId", "ownerId"] as const).map((key) => (
             <label key={key} className="text-xs text-ink-secondary">
               {tr(
                 key === "implementerId" ? "Implementer" : "Responsible owner",
@@ -792,7 +802,7 @@ function OperationEditor({
               ))}
             </select>
           </label>
-          {(["plannedStart", "plannedEnd"] as const).map((key) => (
+          {!basic && (["plannedStart", "plannedEnd"] as const).map((key) => (
             <label key={key} className="text-xs text-ink-secondary">
               {tr(key === "plannedStart" ? "Planned start" : "Planned end")}
               <input

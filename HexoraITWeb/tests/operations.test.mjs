@@ -13,6 +13,44 @@ const labels = { en: 'Setting <script>', pl: 'Ustawienie' }
 const fields = [{ key: 'name', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'changes', label: labels, type: 'table', required: true, maxLength: 4000, fields: [{ key: 'previous', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'next', label: labels, type: 'text', required: true, maxLength: 20 }] }]
 const schema = { schemaVersion: 1, key: 'A02', fields }
 
+test('basic editor saves only basic content while advanced records retain detailed controls', async () => {
+  let source = read('../src/components/Operations.tsx')
+  const ast = ts.createSourceFile('Operations.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  for (const node of [...ast.statements].reverse()) if (ts.isImportDeclaration(node)) source = source.slice(0, node.pos) + source.slice(node.end)
+  source = source.replace('export default function', 'function')
+  const states = [], requests = []; let slot = 0
+  const context = { React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
+    useEffect() {}, useLocale: () => ({ i18n: { language: 'en' } }), tr: s => s,
+    useApp: () => ({ assets: [], canWrite: () => true }), input: '', button: '',
+    operationDefaults, validateOperationForm,
+    useState(initial) { const i = slot++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value }] },
+    operationsApi: { create: async (...args) => { requests.push(args); return { id: 'saved-basic' } } },
+  }
+  for (const [, name] of source.matchAll(/<([A-Z]\w*)(?=[\s/>])/g)) context[name] ??= () => null
+  vm.createContext(context)
+  vm.runInContext(ts.transpileModule(source, { fileName: 'Operations.tsx', compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText, context)
+  const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
+  const basic = { schemaVersion: 1, key: 'BASIC', name: { en: 'Basic document' }, description: { en: 'Simple content' }, controls: [], fields: [{ key: 'content', label: { en: 'Content' }, type: 'multiline', required: true, maxLength: 10000 }] }
+  let created
+  const render = s => { slot = 0; return nodes(context.OperationEditor({ org: 'organization', template: { id: 'template', schemaJson: JSON.stringify(s) }, onBack() {}, onCreated: id => { created = id } })) }
+  let tree = render(basic)
+  assert.equal(tree.filter(n => n.type === 'select').length, 1, 'only the optional asset selector is needed for basic records')
+  assert.equal(tree.some(n => n.props?.type === 'datetime-local'), false)
+  tree.find(n => n.type === 'input' && n.props.maxLength === 200).props.onChange({ target: { value: 'Basic procedure' } })
+  tree.find(n => n.type === context.OperationForm).props.onChange({ content: 'Saved procedure content' })
+  tree = render(basic)
+  tree.find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(requests[0][0], 'organization')
+  assert.equal(requests[0][1].title, 'Basic procedure')
+  assert.equal(requests[0][1].values.content, 'Saved procedure content')
+  assert.equal(created, 'saved-basic')
+  states.length = 0
+  tree = render({ ...basic, key: 'A02' })
+  assert.equal(tree.filter(n => n.type === 'select').length, 6)
+  assert.equal(tree.filter(n => n.props?.type === 'datetime-local').length, 2)
+})
+
 test('drafts allow missing fields; submission validates each repeated row', () => {
   assert.deepEqual(validateOperationForm(schema, {}, false), {})
   assert.deepEqual(Object.keys(validateOperationForm(schema, {}, true)).sort(), ['changes', 'name'])
