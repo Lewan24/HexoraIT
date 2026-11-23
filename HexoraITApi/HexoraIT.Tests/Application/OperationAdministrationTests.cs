@@ -49,6 +49,10 @@ public sealed class OperationAdministrationTests
         foreach (var key in new[] { "__proto__", "constructor", "prototype" }) Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(schema with { Fields = [new(key, new("Unsafe", "Niebezpieczne"))] })));
         Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(schema with { Fields = [new("code", new("Code", "Kod"), Pattern: "(a+)+$")] })));
         Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(schema with { Fields = [new("secret", new("Secret", "Sekret"), Required: true, Sensitivity: "Secret")] })));
+        var shadowed = schema with { Fields = [new("flag", new("Flag", "Flaga"), "boolean", Sensitivity: "Restricted"),
+            new("rows", new("Rows", "Wiersze"), "table", Fields: [new("flag", new("Local flag", "Flaga lokalna"), "boolean"),
+                new("note", new("Note", "Uwaga"), VisibleWhen: new("AND", [new("flag", "equals", J(true))]))])] };
+        Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(shadowed)));
     }
 
     [Fact]

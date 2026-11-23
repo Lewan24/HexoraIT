@@ -34,7 +34,8 @@ public static partial class OperationSchemas
         if (c is null || depth > 3 || c.Match is not ("AND" or "OR") || c.Rules is null || c.Rules.Length > 20 || (c.Groups?.Length ?? 0) > 10 || c.Rules.Length + (c.Groups?.Length ?? 0) == 0 || (count += c.Rules.Length + 1) > 40) throw new ArgumentException("Invalid condition depth/count.");
         foreach (var rule in c.Rules)
         {
-            if (rule is null || string.IsNullOrEmpty(rule.Field) || rule.Field == owner || !scope.Any(f => f is not null && f.Key == rule.Field && !Protected(f) && f.Sensitivity != "Secret") || !Operators.Contains(rule.Operator)) throw new ArgumentException("Invalid condition field/operator.");
+            if (rule is null || string.IsNullOrEmpty(rule.Field) || rule.Field == owner || !scope.Any(f => f is not null && f.Key == rule.Field) ||
+                scope.Any(f => f is not null && f.Key == rule.Field && (Protected(f) || f.Sensitivity == "Secret")) || !Operators.Contains(rule.Operator)) throw new ArgumentException("Invalid condition field/operator.");
             if (rule.Operator is "empty" or "notEmpty") { if (rule.Value.HasValue) throw new ArgumentException("Empty conditions do not accept a value."); continue; }
             if (rule.Value is not { } value) throw new ArgumentException("Condition value is required.");
             if (rule.Operator is "greaterThan" or "lessThan") { if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out _)) throw new ArgumentException("Numeric condition value required."); }
