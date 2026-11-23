@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HexoraITApi.Application.Operations;
 
-public static class OperationCatalog
+public static partial class OperationCatalog
 {
     private static OperationLabel L(string en, string pl) => new(en, pl);
     private static OperationField F(string key, string en, string pl, bool required = true, string type = "text") => new(key, L(en, pl), type, required);
@@ -21,7 +21,7 @@ public static class OperationCatalog
         F("emergencyReason", "Emergency approval bypass reason", "Powód pominięcia zgody w trybie awaryjnym", false, "multiline"),
         F("reviewNotes", "Retrospective review / approval comments", "Przegląd po zmianie / uwagi zatwierdzającego", false, "multiline")];
 
-    public static IReadOnlyList<OperationSchema> All { get; } =
+    private static IReadOnlyList<OperationSchema> Examples { get; } =
     [
         new(1, "A02", L("Active Directory Group Policy Change", "Zmiana zasad grupy Active Directory"),
             L("Record every changed policy setting, its previous value, verification evidence and rollback.", "Zapisz każde zmienione ustawienie, poprzednią wartość, dowody weryfikacji i plan wycofania."),
@@ -61,6 +61,10 @@ public static class OperationCatalog
                 F("problems", "Discovered problems", "Wykryte problemy", false, "multiline"), F("correctiveActions", "Corrective actions", "Działania korygujące", false, "multiline"),
                 F("evidence", "Evidence references", "Odnośniki do dowodów", type: "multiline"), F("closureNotes", "Closure notes", "Uwagi przy zamknięciu", false, "multiline")])
     ];
+
+    public static IReadOnlyList<OperationSchema> All { get; } = Examples.Concat(Remaining).OrderBy(s => s.Key, StringComparer.Ordinal).ToArray();
+
+    public static bool IsRecord(OperationSchema schema) => schema.Kind == "Record" || schema.Key == "D02";
 
     public static async Task SeedAsync(AppDbContext db, CancellationToken token = default)
     {

@@ -9,12 +9,14 @@ public sealed class OperationTests
 {
     public static JsonElement Values(OperationSchema schema) => JsonSerializer.SerializeToElement(schema.Fields.ToDictionary(f => f.Key, f =>
         f.Type == "table" ? (object)new[] { f.Fields!.ToDictionary(c => c.Key, c => Sample(c)), f.Fields!.ToDictionary(c => c.Key, c => Sample(c)) } : Sample(f)));
-    private static string Sample(OperationField f) => f.Type switch { "select" => f.Options![0], "date" => "2026-11-23", "url" => "https://example.invalid/evidence", _ => "SYNTHETIC — zażółć gęślą jaźń" };
+    private static string Sample(OperationField f) => f.Type switch { "select" => f.Options![0], "date" => "2026-11-23", "datetime" => "2026-11-23T10:00:00Z", "url" => "https://example.invalid/evidence", _ => "SYNTHETIC — zażółć gęślą jaźń" };
 
     [Fact]
     public void AllImplementedTemplatesValidateAndSupportRepeatingRows()
     {
-        Assert.Equal(new[] { "A02", "A06", "D02" }, OperationCatalog.All.Select(s => s.Key));
+        var expected = new[] { ('A', 18), ('B', 12), ('C', 14), ('D', 7), ('E', 11), ('F', 10) }
+            .SelectMany(c => Enumerable.Range(1, c.Item2).Select(i => $"{c.Item1}{i:00}"));
+        Assert.Equal(expected, OperationCatalog.All.Select(s => s.Key));
         foreach (var schema in OperationCatalog.All)
         {
             var parsed = OperationSchemas.Parse(OperationSchemas.Serialize(schema));
@@ -33,7 +35,7 @@ public sealed class OperationTests
     public void OversizeDepthUnknownFieldsAndInvalidTypesAreRejected()
     {
         Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(new string('x', 128001)));
-        var schema = OperationCatalog.All[0];
+        var schema = OperationCatalog.All.Single(s => s.Key == "A02");
         Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(schema with { Fields = [new("code", new("Code", "Kod"), "javascript")] })));
         Assert.Throws<ArgumentException>(() => OperationSchemas.Parse(OperationSchemas.Serialize(schema with { Fields = [new("rows", new("Rows", "Wiersze"), "table", Fields: [new("rows", new("Rows", "Wiersze"), "table", Fields: schema.Fields)])] })));
         Assert.NotEmpty(OperationSchemas.Validate(schema, JsonSerializer.SerializeToElement(new { domain = 5 }), false));
@@ -58,7 +60,7 @@ public sealed class OperationTests
     {
         using var f = new TestFixture();
         await OperationCatalog.SeedAsync(f.Db); await OperationCatalog.SeedAsync(f.Db);
-        Assert.Equal(3, await f.Db.OperationTemplates.CountAsync());
+        Assert.Equal(72, await f.Db.OperationTemplates.CountAsync());
         var template = await f.Db.OperationTemplates.FirstAsync();
         template.SchemaJson = "{}";
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Db.SaveChangesAsync());
@@ -71,7 +73,7 @@ public sealed class OperationTests
         var (actor, org) = f.SeedUserWithOrg(OrgRole.ReadOnly); await OperationCatalog.SeedAsync(f.Db);
         var service = new OperationService(f.Db, f.UserContext);
         var template = await f.Db.OperationTemplates.FirstAsync(t => t.Key == "A02");
-        var input = new OperationInput(template.Id, "GPO", "", Values(OperationCatalog.All[0]));
+        var input = new OperationInput(template.Id, "GPO", "", Values(OperationCatalog.All.Single(s => s.Key == "A02")));
         Assert.Equal(403, (await service.Create(org.Id, input, default)).StatusCode);
         var member = await f.Db.UserOrganizations.SingleAsync(m => m.UserId == actor.Id); member.Role = OrgRole.Member;
         var other = new Organization { Name = "Foreign" }; var asset = new Asset { OrganizationId = other.Id, Name = "Foreign asset" }; f.Db.AddRange(other, asset); await f.Db.SaveChangesAsync();
@@ -95,7 +97,7 @@ public sealed class OperationTests
         var (requester, org) = f.SeedUserWithOrg(); await OperationCatalog.SeedAsync(f.Db);
         var template = await f.Db.OperationTemplates.SingleAsync(t => t.Key == "A02");
         var service = new OperationService(f.Db, f.UserContext);
-        Assert.Equal(201, (await service.Create(org.Id, new(template.Id, "Emergency", "", Values(OperationCatalog.All[0]), ChangeType: "Emergency"), default)).StatusCode);
+        Assert.Equal(201, (await service.Create(org.Id, new(template.Id, "Emergency", "", Values(OperationCatalog.All.Single(s => s.Key == "A02")), ChangeType: "Emergency"), default)).StatusCode);
         var record = await f.Db.OperationRecords.SingleAsync();
         async Task<int> Act(string to, string reason = "") => (await service.Transition(org.Id, record.Id, new(record.RevisionToken, to, reason), default)).StatusCode;
         Assert.Equal(400, await Act("In Progress"));
@@ -132,5 +134,33 @@ public sealed class OperationTests
         Assert.Equal(200, (await service.Transition(org.Id, record.Id, new(record.RevisionToken, "Submitted"), default)).StatusCode);
         if (key == "D02") Assert.Equal(200, (await service.Transition(org.Id, record.Id, new(record.RevisionToken, "Closed", "Verified synthetic restore"), default)).StatusCode);
         else Assert.Equal(200, (await service.Transition(org.Id, record.Id, new(record.RevisionToken, "Awaiting Approval"), default)).StatusCode);
+    }
+
+    [Fact]
+    public async Task EveryCatalogTemplateCanBeCreatedSubmittedAndClosedUsingItsDeclaredLifecycle()
+    {
+        using var f = new TestFixture();
+        var (requester, org) = f.SeedUserWithOrg();
+        var approver = new User { Email = "catalog-approver@synthetic.invalid", PasswordHash = [1], PasswordSalt = [1] };
+        f.Db.AddRange(approver, new UserOrganization { OrganizationId = org.Id, UserId = approver.Id, Role = OrgRole.Admin });
+        await f.Db.SaveChangesAsync(); await OperationCatalog.SeedAsync(f.Db);
+        var templates = await f.Db.OperationTemplates.ToDictionaryAsync(t => t.Key);
+        var service = new OperationService(f.Db, f.UserContext);
+        foreach (var schema in OperationCatalog.All)
+        {
+            f.ActAs(requester.Id);
+            var result = await service.Create(org.Id, new(templates[schema.Key].Id, "SYNTHETIC " + schema.Key, "", Values(schema)), default);
+            Assert.True(result.StatusCode == 201, $"{schema.Key}: {result.Value}");
+            var record = await f.Db.OperationRecords.SingleAsync(r => r.TemplateVersionId == templates[schema.Key].Id);
+            async Task Act(string target)
+            {
+                var action = await service.Transition(org.Id, record.Id, new(record.RevisionToken, target, "Synthetic verification / decision"), default);
+                Assert.True(action.StatusCode == 200, $"{schema.Key} {record.Status} → {target}: {action.StatusCode} {action.Value}");
+            }
+            await Act("Submitted");
+            if (!OperationCatalog.IsRecord(schema)) { await Act("Awaiting Approval"); f.ActAs(approver.Id); await Act("Approved"); f.ActAs(requester.Id); await Act("In Progress"); await Act("Verification"); await Act("Completed"); }
+            else if (schema.RequiresApproval) { f.ActAs(approver.Id); await Act("Approved"); }
+            await Act("Closed"); Assert.Equal("Closed", record.Status);
+        }
     }
 }

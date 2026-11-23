@@ -42,7 +42,7 @@ public sealed class OperationEndpointTests
         var path = $"/api/operations/{org.Id}";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path + "/templates")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", requesterJwt);
-        var input = new OperationInput(templateId, "SYNTHETIC GPO — ąćęłńóśźż", "Synthetic change evidence", OperationTests.Values(OperationCatalog.All[0]), AssetId: asset.Id);
+        var input = new OperationInput(templateId, "SYNTHETIC GPO — ąćęłńóśźż", "Synthetic change evidence", OperationTests.Values(OperationCatalog.All.Single(s => s.Key == "A02")), AssetId: asset.Id);
         var created = await client.PostAsJsonAsync(path + "/records", input);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();

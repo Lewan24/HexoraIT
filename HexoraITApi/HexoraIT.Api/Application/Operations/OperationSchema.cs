@@ -8,7 +8,7 @@ public sealed record OperationLabel(string En, string Pl);
 public sealed record OperationField(string Key, OperationLabel Label, string Type = "text", bool Required = false,
     int MaxLength = 4000, string[]? Options = null, OperationField[]? Fields = null, OperationLabel? Help = null);
 public sealed record OperationSchema(int SchemaVersion, string Key, OperationLabel Name, OperationLabel Description,
-    string[] Controls, OperationField[] Fields);
+    string[] Controls, OperationField[] Fields, string Kind = "Change", bool RequiresApproval = false);
 
 /// <summary>Closed declarative subset. Unsupported capabilities fail closed, never execute code.</summary>
 public static class OperationSchemas
@@ -22,7 +22,7 @@ public static class OperationSchemas
     {
         if (Encoding.UTF8.GetByteCount(json) > MaxBytes) throw new ArgumentException("Template is too large.");
         var schema = JsonSerializer.Deserialize<OperationSchema>(json, Json) ?? throw new ArgumentException("Invalid template.");
-        if (schema.SchemaVersion != 1 || schema.Key is not ("A02" or "A06" or "D02") ||
+        if (schema.SchemaVersion != 1 || string.IsNullOrEmpty(schema.Key) || schema.Key.Length > 40 || !schema.Key.All(c => char.IsAsciiLetterUpper(c) || char.IsAsciiDigit(c) || c == '_') || schema.Kind is not ("Change" or "Record") ||
             !LabelValid(schema.Name) || !LabelValid(schema.Description) || schema.Controls is not { Length: > 0 and <= 20 } ||
             schema.Controls.Any(c => string.IsNullOrWhiteSpace(c) || c.Length > 200)) throw new ArgumentException("Invalid template metadata.");
         CheckFields(schema.Fields, 0);

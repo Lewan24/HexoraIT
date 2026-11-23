@@ -28,7 +28,7 @@ function write(name, markup, theme) {
   fs.writeFileSync(new URL(name + '.html', output), html)
 }
 for (const theme of ['light', 'dark']) {
-  const { schema, values } = fixtures[0]
+  const { schema, values } = fixtures.find(fixture => fixture.schema.key === 'A02')
   const form = createElement('main', { className: 'mx-auto max-w-5xl p-6 space-y-5' }, createElement('h1', { className: 'text-xl font-semibold' }, 'Operacje i zmiany IT — A02'), createElement('p', { className: 'text-sm text-ink-secondary' }, schema.description.pl), createElement('section', { className: 'rounded-xl border border-edge-subtle bg-navy-800 p-6' }, createElement(Form, { fields: schema.fields, values, onChange() {}, errors: {} })))
   write(`operations-gpo-${theme}`, renderToStaticMarkup(form), theme)
   for (const type of ['Perpetual', 'Subscription']) write(`license-${type.toLowerCase()}-${theme}`, renderToStaticMarkup(createElement(License, { initial: { id: 'synthetic', name: 'SYNTHETIC License', vendor: 'Synthetic vendor', type, expiryDate: '2027-01-01', category: 'Software' }, onClose() {}, onSave() {} })), theme)

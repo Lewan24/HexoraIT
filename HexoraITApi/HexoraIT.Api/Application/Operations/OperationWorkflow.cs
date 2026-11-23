@@ -18,9 +18,10 @@ public static class OperationWorkflow
         ["Closed"] = ["Archived"]
     };
 
-    public static bool CanTransition(string from, string to, string type, bool operationalRecord)
+    public static bool CanTransition(string from, string to, string type, bool operationalRecord, bool requiresApproval = false)
     {
-        if (operationalRecord) return (from, to) is ("Draft", "Submitted") or ("Submitted", "Closed") or ("Closed", "Archived");
+        if (operationalRecord) return (from, to) is ("Draft", "Submitted") or ("Closed", "Archived") ||
+            (requiresApproval ? (from, to) is ("Submitted", "Approved") or ("Submitted", "Rejected") or ("Approved", "Closed") : (from, to) is ("Submitted", "Closed"));
         if (type == "Emergency" && to == "In Progress" && from is "Draft" or "Submitted" or "Under Review" or "Awaiting Approval") return true;
         return Transitions.TryGetValue(from, out var targets) && targets.Contains(to);
     }

@@ -72,9 +72,10 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         var template = await db.OperationTemplates.AsNoTracking().SingleAsync(t => t.Id == r.TemplateVersionId, token);
         var admin = await Admin(org);
         var write = await Write(r);
-        var operational = template.Key == "D02";
+        var schema = OperationSchemas.Parse(template.SchemaJson);
+        var operational = OperationCatalog.IsRecord(schema);
         string[] targets = ["Submitted", "Under Review", "Awaiting Approval", "Approved", "Rejected", "Scheduled", "In Progress", "Verification", "Completed", "Failed", "Rolled Back", "Closed", "Cancelled", "Archived"];
-        var allowed = targets.Where(t => OperationWorkflow.CanTransition(r.Status, t, r.ChangeType, operational) &&
+        var allowed = targets.Where(t => OperationWorkflow.CanTransition(r.Status, t, r.ChangeType, operational, schema.RequiresApproval) &&
             (OperationWorkflow.Administrative(t) ? admin : write) &&
             (t != "Approved" || (r.RequesterId != user.UserId && r.ImplementerId != user.UserId))).ToList();
         if (admin && r.EmergencyBypassed && !r.RetrospectiveReviewed && r.Status is not ("Closed" or "Archived")) allowed.Add("RetrospectiveReview");
@@ -110,7 +111,7 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         if (db.Database.IsNpgsql()) await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({org.ToString()}, 0))", token);
         var year = DateTime.UtcNow.Year;
         var next = (await db.OperationRecords.IgnoreQueryFilters().Where(r => r.OrganizationId == org && r.Year == year).MaxAsync(r => (int?)r.Sequence, token) ?? 0) + 1;
-        var r = new OperationRecord { OrganizationId = org, Year = year, Sequence = next, Number = $"{(schema.Key == "D02" ? "OPS" : "CHG")}-{year}-{next:0000}", TemplateVersionId = template.Id,
+        var r = new OperationRecord { OrganizationId = org, Year = year, Sequence = next, Number = $"{(OperationCatalog.IsRecord(schema) ? "OPS" : "CHG")}-{year}-{next:0000}", TemplateVersionId = template.Id,
             RequesterId = user.UserId, ModifiedBy = user.UserId, Category = schema.Key[..1] };
         Apply(r, input);
         db.OperationRecords.Add(r);
@@ -151,7 +152,8 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         else
         {
             var template = await db.OperationTemplates.SingleAsync(t => t.Id == r.TemplateVersionId, token);
-            if (!OperationWorkflow.CanTransition(r.Status, input.Target, r.ChangeType, template.Key == "D02")) return new(409, "Invalid workflow transition.");
+            var schema = OperationSchemas.Parse(template.SchemaJson);
+            if (!OperationWorkflow.CanTransition(r.Status, input.Target, r.ChangeType, OperationCatalog.IsRecord(schema), schema.RequiresApproval)) return new(409, "Invalid workflow transition.");
             if (input.Target == "Submitted")
             {
                 var errors = OperationSchemas.Validate(OperationSchemas.Parse(template.SchemaJson), JsonSerializer.Deserialize<JsonElement>(r.ValuesJson), true);

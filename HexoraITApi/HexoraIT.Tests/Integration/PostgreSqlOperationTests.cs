@@ -37,9 +37,9 @@ public sealed class PostgreSqlOperationTests
             await setup.Database.MigrateAsync();
             Assert.False(setup.Database.HasPendingModelChanges());
             setup.AddRange(actor, org, new UserOrganization { OrganizationId = org.Id, UserId = actor.Id, Role = OrgRole.Owner }); await setup.SaveChangesAsync();
-            await OperationCatalog.SeedAsync(setup); await OperationCatalog.SeedAsync(setup); Assert.Equal(3, await setup.OperationTemplates.CountAsync());
+            await OperationCatalog.SeedAsync(setup); await OperationCatalog.SeedAsync(setup); Assert.Equal(72, await setup.OperationTemplates.CountAsync());
             var templateId = await setup.OperationTemplates.Where(t => t.Key == "A02").Select(t => t.Id).SingleAsync();
-            var input = new OperationInput(templateId, "SYNTHETIC searchable GPO", "Configuration control evidence", OperationTests.Values(OperationCatalog.All[0]));
+            var input = new OperationInput(templateId, "SYNTHETIC searchable GPO", "Configuration control evidence", OperationTests.Values(OperationCatalog.All.Single(s => s.Key == "A02")));
             var results = await Task.WhenAll(Enumerable.Range(0, 12).Select(async _ =>
             {
                 await using var db = new AppDbContext(options, provider);
