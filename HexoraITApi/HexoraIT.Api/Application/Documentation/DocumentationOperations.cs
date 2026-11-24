@@ -12,7 +12,7 @@ public sealed partial class DocumentationService
     {
         var query = db.OperationRecords.AsNoTracking().Where(r => r.OrganizationId == org);
         if (selection.ItemIds is not null) query = query.Where(r => selection.ItemIds.Contains(r.Id));
-        var items = await query.OrderBy(r => r.Number).ThenBy(r => r.Id).Take(DocumentationCatalog.MaxRecords + 1).ToListAsync(token);
+        var items = await query.OrderBy(r => r.SortIndex ?? int.MaxValue).ThenBy(r => r.Number).ThenBy(r => r.Id).Take(DocumentationCatalog.MaxRecords + 1).ToListAsync(token);
         if (items.Count > DocumentationCatalog.MaxRecords) throw new DocumentationTooLargeException();
         var templateIds = items.Select(r => r.TemplateVersionId).Distinct().ToArray();
         var templates = await db.OperationTemplates.AsNoTracking().Where(t => templateIds.Contains(t.Id) &&
@@ -26,7 +26,7 @@ public sealed partial class DocumentationService
         var sensitive = await new OperationAdministrationService(db, user).Sensitive(org);
         var pl = options.Language == "pl";
         string Label(OperationLabel label) => pl ? label.Pl : label.En;
-        string Actor(Guid id) => actors.GetValueOrDefault(id, id.ToString());
+        string? Actor(Guid id) => actors.GetValueOrDefault(id);
         var records = new List<DocumentationRecord>();
         foreach (var item in items)
         {
@@ -37,16 +37,16 @@ public sealed partial class DocumentationService
             var values = OperationSchemas.PublicValues(original, JsonSerializer.Deserialize<JsonElement>(item.ValuesJson), sensitive);
             var fields = new List<DocumentationField>
             {
-                F("Number", item.Number), new("Status", item.Status, true),
-                F("Template", $"{schema.Key} · {Label(schema.Name)} · v{template.Version}"),
-                F("Created", item.CreatedAt), F("Updated", item.ModifiedAt), F("Requester", Actor(item.RequesterId)),
-                F("Revision", item.RevisionToken), F("Planned start", item.PlannedStart), F("Planned end", item.PlannedEnd),
+                new("Status", item.Status, true),
+                F("Template", $"{Label(schema.Name)} · v{template.Version}"),
+                F("Requester", Actor(item.RequesterId)),
+                F("Planned start", item.PlannedStart), F("Planned end", item.PlannedEnd),
                 F("Actual start", item.ActualStart), F("Actual end", item.ActualEnd), F("Closed", item.ClosedAt)
             };
             if (schema.Key != "BASIC") fields.AddRange([F("Implementer", Actor(item.ImplementerId)), F("Owner", Actor(item.OwnerId)),
                 new("Risk", item.Risk, true), new("Priority", item.Priority, true)]);
             if (item.AssetId is { } assetId && assets.TryGetValue(assetId, out var asset)) fields.Add(F("Related asset", asset));
-            var record = new DocumentationRecord(item.Id, $"{item.Number} — {item.Title}", fields.Where(f => f.Value.Length > 0).ToList(), []);
+            var record = R(item, item.Id, $"{item.Number} — {item.Title}", fields.ToArray());
             Text(record, "Description", item.Description);
             foreach (var field in schema.Fields)
             {

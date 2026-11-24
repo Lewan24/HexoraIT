@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
@@ -266,7 +268,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-2xl">
+    <div {...contextItem("passwords", selected.id, selected.name)} className="p-4 sm:p-6 max-w-2xl">
       {onBack && (
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink-primary transition-colors mb-4">
           <ArrowLeft size={13} />  {tr("Back to list")} </button>
@@ -287,14 +289,14 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button disabled={!canWrite('passwords', selected.id)} onClick={() => toggleStarPassword(selected.id)}
+          <button data-context-action={tr(selected.starred ? "Unstar" : "Star")} disabled={!canWrite('passwords', selected.id)} onClick={() => toggleStarPassword(selected.id)}
             className={`p-2 rounded-lg border transition-all ${selected.starred ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-navy-800 border-edge-default text-ink-muted hover:text-yellow-400'}`}>
             <Star size={13} fill={selected.starred ? 'currentColor' : 'none'} />
           </button>
-          <button disabled={!canWrite('passwords', selected.id)} onClick={onEdit} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors disabled:opacity-40">
+          <button data-context-action={tr("Edit")} disabled={!canWrite('passwords', selected.id)} onClick={onEdit} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors disabled:opacity-40">
             <Edit2 size={12} /><span className="hidden sm:inline">{tr("Edit")}</span>
           </button>
-          <button disabled={!canWrite('passwords', selected.id)} onClick={onDelete} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40">
+          <button data-context-action={tr("Delete")} data-context-danger="true" disabled={!canWrite('passwords', selected.id)} onClick={onDelete} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40">
             <Trash2 size={13} />
           </button>
         </div>
@@ -308,7 +310,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
           <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{tr("Username / Email")}</label>
           <div className="flex items-center gap-2 mt-1.5">
             <div className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-navy-700 border border-edge-default font-mono text-xs sm:text-sm text-ink-primary truncate">{selected.username}</div>
-            <button onClick={() => copy(selected.username, 'user')} title={tr("Copy username")}
+            <button data-context-action={tr("Copy username")} onClick={() => copy(selected.username, 'user')} title={tr("Copy username")}
               className={`p-2.5 rounded-lg border flex-shrink-0 transition-all ${copied === 'user' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-navy-700 border-edge-default text-ink-muted hover:text-blue-400 hover:border-blue-500/30'}`}>
               <Copy size={13} />
             </button>
@@ -321,11 +323,11 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
             <div className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-navy-700 border border-edge-default font-mono text-xs sm:text-sm text-ink-primary tracking-widest truncate">
               {revealing ? <Loader2 size={13} className="animate-spin text-ink-muted" /> : revealed?.id === selected.id ? revealed.value : '•'.repeat(16)}
             </div>
-            <button onClick={toggleReveal} disabled={revealing} title={revealed?.id === selected.id ? tr("Hide") : tr("Reveal")}
+            <button data-context-action={tr(revealed?.id === selected.id ? "Hide" : "Reveal")} onClick={toggleReveal} disabled={revealing} title={revealed?.id === selected.id ? tr("Hide") : tr("Reveal")}
               className={`p-2.5 rounded-lg border flex-shrink-0 transition-all disabled:opacity-50 ${revealed?.id === selected.id ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-navy-700 border-edge-default text-ink-muted hover:text-ink-primary'}`}>
               {revealed?.id === selected.id ? <EyeOff size={13} /> : <Eye size={13} />}
             </button>
-            <button onClick={copyPassword} disabled={revealing} title={tr("Copy password")}
+            <button data-context-action={tr("Copy password")} onClick={copyPassword} disabled={revealing} title={tr("Copy password")}
               className={`p-2.5 rounded-lg border flex-shrink-0 transition-all disabled:opacity-50 ${copied === 'pass' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-navy-700 border-edge-default text-ink-muted hover:text-blue-400 hover:border-blue-500/30'}`}>
               <Copy size={13} />
             </button>
@@ -376,7 +378,7 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
 
 export default function PasswordVault() {
   useLocale()
-  const { passwords, isLoading, addPassword, updatePassword, deletePassword, canWrite } = useApp()
+  const { passwords, isLoading, addPassword, updatePassword, deletePassword, canWrite, toggleStarPassword } = useApp()
 
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
@@ -468,9 +470,14 @@ export default function PasswordVault() {
             </div>
           )}
           {filtered.map(p => (
-            <button key={p.id} onClick={() => selectEntry(p.id)}
+            <button key={p.id} {...contextItem('passwords', p.id, p.name, { open: tr('Open details') })} onClick={() => selectEntry(p.id)}
               className={`w-full px-4 py-3 text-left transition-all hover:bg-navy-800/80 ${selectedId === p.id ? 'bg-navy-800 md:border-r-2 md:border-blue-500' : ''}`}>
               <div className="flex items-center justify-between gap-2 mb-1">
+                {canWrite('passwords', p.id) && <>
+                  <ContextCommand label={tr("Edit")} run={() => setEditEntry(p)} />
+                  <ContextCommand label={tr("Delete")} run={() => setDeleteTarget(p)} danger />
+                  <ContextCommand label={tr(p.starred ? "Unstar" : "Star")} run={() => { void toggleStarPassword(p.id).catch(() => {}) }} />
+                </>}
                 <span className="text-xs font-medium text-ink-primary truncate"><RecordIndex index={p.sortIndex} />{p.name}</span>
                 {p.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
               </div>

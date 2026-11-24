@@ -1,6 +1,6 @@
 import { http, qs } from './http'
 import type {
-  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Organization, OrganizationSummary,
   OrgMember, OrgMembership,
@@ -48,6 +48,31 @@ export const organizationsApi = {
   restore: (id: string) => http.post<void>(`/organizations/${id}/restore`),
 }
 
+export interface OrganizationActivityItem {
+  id: string
+  occurredAt: string
+  actorId: string
+  actorName: string | null
+  action: string
+  resource: string
+  resourceId: string
+  resourceName: string | null
+  previousName: string | null
+}
+
+export interface OrganizationActivityPage {
+  page: number
+  retentionDays: number
+  hasMore: boolean
+  items: OrganizationActivityItem[]
+}
+
+export const organizationActivityApi = {
+  getPage: (id: string, page: number) => http.get<OrganizationActivityPage>(`/organizations/${id}/activity?page=${page}`),
+  saveSettings: (id: string, retentionDays: number) => http.put<{ retentionDays: number }>(`/organizations/${id}/activity/settings`, { retentionDays }),
+  export: (id: string) => http.getBlob(`/organizations/${id}/activity/export`),
+}
+
 export const assetsApi = {
   getAll: (organizationId: string) => http.getAllPages<Asset>(`/assets${qs({ organizationId })}`),
   create: (organizationId: string, data: Omit<Asset, 'id' | 'updatedAt'>) =>
@@ -81,6 +106,8 @@ export const subnetsApi = {
   update: (id: string, data: Omit<Subnet, 'id' | 'ips'>) => http.put<void>(`/subnets/${id}`, data),
   delete: (id: string) => http.delete<void>(`/subnets/${id}`),
   addIp: (subnetId: string, data: Omit<IPEntry, 'id'>) => http.post<IPEntry>(`/subnets/${subnetId}/ips`, data),
+  reserveIps: (subnetId: string, targets: IpReservationTarget[], description: string) =>
+    http.post<IPEntry[]>(`/subnets/${subnetId}/ips/reserve`, { targets, description }),
   updateIp: (subnetId: string, entry: IPEntry) => http.put<void>(`/subnets/${subnetId}/ips/${entry.id}`, entry),
   deleteIp: (subnetId: string, entryId: string) => http.delete<void>(`/subnets/${subnetId}/ips/${entryId}`),
 }
@@ -192,9 +219,9 @@ export const filesApi = {
     http.getAllPages<StoredFile>(`/files${qs({ organizationId, folderId })}`),
   upload: (organizationId: string, file: File, folderId?: string) =>
     http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId })}`, file),
-  replace: (id: string, file: File) => http.upload<StoredFile>(`/files/${id}/replace`, file),
+  replace: (id: string, file: File, revision?: string) => http.upload<StoredFile>(`/files/${id}/replace${qs({ revision })}`, file),
   deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
-  getContentBlob: (id: string) => http.getBlob(`/files/${id}/content`),
+  getContent: (id: string) => http.getVersionedBlob(`/files/${id}/content`),
   downloadFile: (id: string) => http.getBlob(`/files/${id}/download`),
   renameFolder: (id: string, name: string) => http.patch<void>(`/files/folders/${id}`, { name }),
   moveFolder: (id: string, newParentFolderId?: string) => http.patch<void>(`/files/folders/${id}/move`, { newParentFolderId }),

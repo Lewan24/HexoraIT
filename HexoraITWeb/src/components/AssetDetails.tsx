@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand from './ui/ContextCommand'
 import AssetForm from './AssetForm'
 import Operations from './Operations'
 import { tr, useLocale } from '../i18n'
@@ -91,7 +93,7 @@ export default function AssetDetails({ assetId, navigate }: Props) {
       </div>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div {...contextItem("assets", asset.id, asset.name)} className="flex items-start justify-between mb-6">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-navy-700 border border-edge-default flex items-center justify-center flex-shrink-0">
             {TYPE_ICONS[asset.type] ?? <Server size={22} className="text-blue-400" />}
@@ -109,13 +111,14 @@ export default function AssetDetails({ assetId, navigate }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => toggleStarAsset(asset.id)}
+          <button data-context-action={tr(asset.starred ? "Unstar" : "Star")} disabled={!canWrite("assets", asset.id)} onClick={() => toggleStarAsset(asset.id)}
             className={`p-2 rounded-lg border transition-all ${asset.starred ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : 'bg-navy-800 border-edge-default text-ink-muted hover:text-yellow-400 hover:border-yellow-500/30'}`}>
             <Star size={15} fill={asset.starred ? 'currentColor' : 'none'} />
           </button>
-          <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditing(true)}
+          <button data-context-action={tr("Edit")} disabled={!canWrite('assets', asset.id)} onClick={() => setEditing(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:border-edge-strong transition-colors">
             <Edit2 size={13} />  {tr("Edit")} </button>
+          {canWrite("assets", asset.id) && <ContextCommand label={tr("Delete asset")} danger run={() => setConfirmDelete(true)} />}
           <div className="relative">
             <button onClick={() => setMoreOpen(!moreOpen)} className="p-2 rounded-lg bg-navy-800 border border-edge-default text-ink-muted hover:text-ink-primary transition-colors">
               <MoreHorizontal size={15} />

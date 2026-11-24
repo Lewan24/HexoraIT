@@ -17,15 +17,16 @@ public static class FileUploadSecurity
     public static async Task<ValidatedUpload> ValidateAsync(
         IFormFile file,
         long maxBytes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowEmptyText = false)
     {
-        if (file.Length <= 0)
-            throw new InvalidDataException("File is empty.");
         if (file.Length > maxBytes)
             throw new InvalidDataException($"File exceeds the {maxBytes} byte limit.");
 
         var fileName = NormalizeFileName(file.FileName);
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (file.Length == 0 && !(allowEmptyText && CanRenderInline(fileName, "text/plain")))
+            throw new InvalidDataException("File is empty.");
 
         await using var stream = file.OpenReadStream();
         var signature = new byte[SignatureLength];

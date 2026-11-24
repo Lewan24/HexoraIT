@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -263,17 +265,22 @@ function FileExplorerContent() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {folders.map(folder => (
-            <div key={folder.id} className="relative group">
-              <button onClick={() => openFolder(folder)}
+            <div key={folder.id} {...contextItem("folders", folder.id, folder.name)} className="relative group">
+              <button data-context-action={tr("Open folder")} onClick={() => openFolder(folder)}
                 className="w-full flex flex-col items-center gap-2 p-4 rounded-xl bg-navy-800 border border-edge-subtle hover:border-edge-strong hover:bg-navy-750 transition-colors">
                 <Folder size={32} className="text-blue-400 fill-blue-400/20" />
                 <p className="text-xs text-ink-primary truncate w-full text-center"><RecordIndex index={folder.sortIndex} />{folder.name}</p>
               </button>
-              {canCreate && <button onClick={() => setMenuOpenId(menuOpenId === folder.id ? null : folder.id)}
+              {canWrite('files', folder.id) && <>
+                <ContextCommand label={tr("Rename")} run={() => { setRenameTarget({ type: 'folder', id: folder.id, name: folder.name }); setRenameValue(folder.name) }} />
+                <ContextCommand label={tr("Move")} run={() => setMoveTarget({ type: 'folder', id: folder.id, name: folder.name, currentFolderId: folder.parentFolderId })} />
+                <ContextCommand label={tr("Delete")} danger run={() => setDeleteTarget({ type: 'folder', id: folder.id, name: folder.name })} />
+              </>}
+              {canWrite('files', folder.id) && <button onClick={() => setMenuOpenId(menuOpenId === folder.id ? null : folder.id)}
                 className="absolute top-2 right-2 p-1 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 opacity-0 group-hover:opacity-100 transition-opacity">
                 <MoreVertical size={13} />
               </button>}
-              {canCreate && menuOpenId === folder.id && (
+              {canWrite('files', folder.id) && menuOpenId === folder.id && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setMenuOpenId(null)} />
                   <div className="absolute top-8 right-2 z-40 w-36 bg-navy-750 border border-edge-default rounded-lg shadow-2xl overflow-hidden">
@@ -295,32 +302,32 @@ function FileExplorerContent() {
           {files.map(file => {
             const previewable = getPreviewKind(file.name, file.mimeType) !== 'none'
             return (
-              <div key={file.id} className="relative group transition transition-all hover:scale-[1.05] border-blue-500 rounded-xl hover:border-1">
+              <div key={file.id} {...contextItem("files", file.id, file.name)} className="relative group transition transition-all hover:scale-[1.05] border-blue-500 rounded-xl hover:border-1">
                 <div title={file.name}
                   className={`w-full flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-navy-800 border border-edge-subtle transition-colors ${previewable ? 'hover:border-edge-strong hover:bg-navy-750' : 'cursor-default'}`}>
                   <div className="flex justify-center order-1">
                     {previewable && (
-                      <button onClick={() => setPreviewFile(file)} title={tr("Preview")}
+                      <button data-context-action={tr("Preview")} onClick={() => setPreviewFile(file)} title={tr("Preview")}
                       className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                         <Eye size={13} className='text-green-500' />
                       </button>
                     )}
-                    <button onClick={() => void download(file)} title={tr("Download")}
+                    <button data-context-action={tr("Download")} onClick={() => void download(file)} title={tr("Download")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Download size={13} className='text-indigo-500' />
                     </button>
-                    {canWrite('files', file.id) && <button disabled={uploading} title={tr('Update file')} onClick={() => { replacementTarget.current = file; replacementInputRef.current?.click() }}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Update file")} disabled={uploading} title={tr('Update file')} onClick={() => { replacementTarget.current = file; replacementInputRef.current?.click() }}
                       className="p-2 rounded-lg text-blue-400 hover:bg-navy-700 disabled:opacity-50">
                       <Upload size={13} /></button>}
-                    {canWrite('files', file.id) && <button onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Delete")} data-context-danger="true" onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Trash2 size={13} className='text-red-500' />
                     </button>}
-                    {canWrite('files', file.id) && <button onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Rename")} onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Edit2 size={13} className='text-orange-500' />
                     </button>}
-                    {canWrite('files', file.id) && <button onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Move")} onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <FolderInput size={13} className='text-gray-400' />
                     </button>}
@@ -409,7 +416,13 @@ function FileExplorerContent() {
         />
       )}
 
-      {previewFile && <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
+      {previewFile && <FilePreviewModal key={previewFile.id} file={previewFile} canEdit={canWrite('files', previewFile.id)}
+        onClose={() => setPreviewFile(null)}
+        onSaved={updated => {
+          setFiles(items => items.map(item => item.id === updated.id ? updated : item))
+          setPreviewFile(updated)
+          toast(tr('File updated'))
+        }} />}
     </div>
   )
 }

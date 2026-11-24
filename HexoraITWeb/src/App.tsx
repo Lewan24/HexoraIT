@@ -1,6 +1,6 @@
 import { auditApi } from './api/audit'
 import { tr, useLocale } from './i18n'
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect, useRef } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { AppProvider } from './context/AppProvider'
 import Login from './components/Login'
@@ -9,6 +9,8 @@ import ToastContainer from './components/ui/Toast'
 import { useAuth } from './context/useAuth'
 import { useApp } from './context/useApp'
 import PermissionGate from './components/PermissionGate'
+import ItemContextMenu from './components/ui/ItemContextMenu'
+import type { ContextResource } from './components/ui/contextItems'
 
 const OrganizationDocumentation = lazy(() => import('./components/OrganizationDocumentation'))
 const OrganizationHub = lazy(() => import('./components/OrganizationHub'))
@@ -46,10 +48,13 @@ function AuthenticatedApp() {
   useLocale()
   const { logout, user } = useAuth()
   const [view, setView] = useState<View>(user?.systemRole === 'Client' ? 'reports' : 'home')
+  const draftRequest = useRef(0)
+  const [operationDraft, setOperationDraft] = useState<{ organizationId: string; resources: ContextResource[]; request: number }>()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
   const navigate = (v: View, id?: string) => {
     auditApi.report('navigation', '/' + v)
+    setOperationDraft(undefined)
     setView(v)
     if (id !== undefined) setSelectedAssetId(id)
   }
@@ -69,7 +74,7 @@ function AuthenticatedApp() {
       case 'files': return <FileExplorer />
       case 'networks':     return <Networks />
       case 'licenses':     return <Licenses />
-      case 'operations':   return <Operations />
+      case 'operations':   return <Operations draft={operationDraft} />
       case 'contacts':     return <Contacts />
       case 'contracts':    return <Contracts />
       case 'plans':        return <Plans />
@@ -88,6 +93,10 @@ function AuthenticatedApp() {
   return (
     <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram', 'operations'].includes(view)}>
       <OrganizationLifecycleRedirect view={view} navigate={navigate} />
+      <ItemContextMenu onCreate={(organizationId, resources) => {
+        navigate('operations')
+        setOperationDraft({ organizationId, resources, request: ++draftRequest.current })
+      }}>
       <Layout currentView={view} navigate={navigate} onLogout={logout}>
         <PermissionGate view={view}>
           <Suspense fallback={(
@@ -99,6 +108,7 @@ function AuthenticatedApp() {
           </Suspense>
         </PermissionGate>
       </Layout>
+      </ItemContextMenu>
       <ToastContainer/>
     </AppProvider>
   )

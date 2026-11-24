@@ -92,6 +92,14 @@ public sealed class PostgreSqlOperationTests
             await secondService.Find(org.Id, id, default); // deliberately retain the old xmin and token
             Assert.Equal(200, (await firstService.Update(org.Id, id, input with { Title = "First", RevisionToken = original }, default)).StatusCode);
             Assert.Equal(409, (await secondService.Update(org.Id, id, input with { Title = "Lost update", RevisionToken = original }, default)).StatusCode);
+            var activityTime = DateTime.UtcNow;
+            var expired = new OrganizationActivity { OrganizationId = org.Id, ActorId = actor.Id, OccurredAt = activityTime.AddDays(-8) };
+            setup.OrganizationActivities.Add(expired);
+            await setup.SaveChangesAsync();
+            Assert.Equal(7, org.ActivityRetentionDays);
+            Assert.True(await setup.OrganizationActivities.AnyAsync(item => item.OrganizationId == org.Id && item.ResourceId == id && item.Action == "renamed"));
+            await OrganizationActivityCleanup.PurgeExpiredAsync(setup, activityTime);
+            Assert.False(await setup.OrganizationActivities.AnyAsync(item => item.Id == expired.Id));
             foreach (var command in new[] { "DELETE FROM \"OperationTemplates\"", "DELETE FROM \"OperationActivities\"", "DELETE FROM \"OperationRevisions\"", "UPDATE \"OperationActivities\" SET \"EventType\" = 'tampered'", "DELETE FROM \"OperationPolicyRevisions\"" })
             {
                 var exception = await Assert.ThrowsAsync<PostgresException>(() => setup.Database.ExecuteSqlRawAsync(command));

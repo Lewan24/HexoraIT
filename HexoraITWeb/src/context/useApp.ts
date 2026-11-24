@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import type {
-  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Toast,
   OrgMember,
@@ -49,6 +49,7 @@ export interface AppContextValue {
   updateSubnet: (s: Subnet) => Promise<void>
   deleteSubnet: (id: string) => Promise<void>
   addIPEntry: (subnetId: string, e: Omit<IPEntry, 'id'>) => Promise<void>
+  reserveIPEntries: (subnetId: string, targets: IpReservationTarget[], description: string) => Promise<void>
   updateIPEntry: (subnetId: string, e: IPEntry) => Promise<void>
   deleteIPEntry: (subnetId: string, entryId: string) => Promise<void>
 

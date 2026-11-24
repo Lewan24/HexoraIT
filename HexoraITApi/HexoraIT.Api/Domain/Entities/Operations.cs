@@ -76,6 +76,7 @@ public sealed class OperationRecord : BaseEntity
     public DateTime? ClosedAt { get; set; }
     public bool EmergencyBypassed { get; set; }
     public bool RetrospectiveReviewed { get; set; }
+    public List<OperationResourceLink> ResourceLinks { get; set; } = [];
 }
 
 public sealed class OperationRevision
@@ -100,4 +101,12 @@ public sealed class OperationActivity
     public string FromStatus { get; set; } = "";
     public string ToStatus { get; set; } = "";
     // User-entered comments are kept in revision content, never in audit metadata.
+}
+
+public sealed class OperationResourceLink
+{
+    public Guid OrganizationId { get; set; }
+    public Guid RecordId { get; set; }
+    public string Resource { get; set; } = "";
+    public Guid ResourceId { get; set; }
 }

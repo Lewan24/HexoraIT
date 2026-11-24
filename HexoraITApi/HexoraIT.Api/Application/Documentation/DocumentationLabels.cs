@@ -4,24 +4,11 @@ public static class DocumentationLabels
 {
     public static string SectionDescription(string key, bool polish) => (key, polish) switch
     {
-        ("passwords", true) => "Konta, identyfikatory użytkowników i dane dostępowe w wybranym zakresie eksportu.",
-        ("passwords", false) => "Accounts, usernames and credentials within the selected export scope.",
-        ("assets", true) => "Ewidencja urządzeń, ich lokalizacji, opiekunów i parametrów technicznych.",
-        ("assets", false) => "Device inventory, locations, owners and technical specifications.",
-        ("networks", true) => "Sieci, podsieci i adresacja IP wraz z wybranymi szczegółami konfiguracji.",
-        ("networks", false) => "Networks, subnets and IP addressing with selected configuration details.",
-        ("licenses", true) => "Oprogramowanie, wykorzystanie stanowisk i terminy ważności licencji.",
-        ("licenses", false) => "Software, seat allocation and license expiry dates.",
-        ("contacts", true) => "Osoby kontaktowe, ich role oraz dostępne kanały kontaktu.",
-        ("contacts", false) => "Contact people, their roles and available contact details.",
-        ("knowledge", true) => "Wybrane artykuły, procedury i instrukcje dla organizacji.",
-        ("knowledge", false) => "Selected articles, procedures and instructions for the organization.",
-        ("files", true) => "Wykaz plików i ich metadanych. Zawartość załączników nie jest osadzona w dokumencie.",
-        ("files", false) => "File inventory and metadata. Attachment contents are not embedded in this document.",
-        ("private-notes", true) => "Osobiste notatki autora raportu uwzględnione w wybranym zakresie.",
-        ("private-notes", false) => "The report author's personal notes included in the selected scope.",
-        (_, true) => "Zestawienie wybranych wpisów i informacji udostępnionych w tym raporcie.",
-        _ => "Selected records and information included in this report."
+        ("networks", true) => "Konfiguracja podsieci oraz zapisane przypisania i rezerwacje adresów.",
+        ("networks", false) => "Subnet configuration and saved address assignments and reservations.",
+        ("files", true) => "Wykaz nazw plików i folderów. Zawartość plików jest dostępna w aplikacji.",
+        ("files", false) => "Reference list of file and folder names. File contents are available in the application.",
+        _ => ""
     };
 
     private static readonly Dictionary<string, string> Polish = new()
@@ -52,10 +39,25 @@ public static class DocumentationLabels
         ["Severity"] = "Ważność", ["Occurred"] = "Wystąpienie", ["Resolved"] = "Rozwiązanie", ["Affected systems"] = "Dotknięte systemy",
         ["Resolution"] = "Sposób rozwiązania", ["Created"] = "Utworzono", ["Members"] = "Członkowie", ["Purpose"] = "Przeznaczenie",
         ["Folder"] = "Folder", ["File type"] = "Typ pliku", ["Size (bytes)"] = "Rozmiar (bajty)", ["Uploaded"] = "Przesłano",
-        ["Linked network"] = "Powiązana sieć", ["Gateway"] = "Brama", ["IP entry"] = "Wpis IP", ["IP notes"] = "Notatki IP", ["IP details"] = "Szczegóły IP",
+        ["Linked network"] = "Powiązana sieć", ["Gateway"] = "Brama", ["DHCP range"] = "Zakres DHCP", ["IP entry"] = "Wpis IP", ["IP notes"] = "Notatki IP", ["IP details"] = "Szczegóły IP",
         ["Device type"] = "Typ urządzenia", ["Connection"] = "Połączenie", ["Yes"] = "Tak", ["No"] = "Nie",
+        ["Name"] = "Nazwa", ["License model"] = "Model licencji", ["Seats used / total"] = "Stanowiska (użyte / razem)",
+        ["Address assignments"] = "Przypisania adresów", ["Assignment"] = "Przypisanie",
+        ["Used"] = "Używany", ["Reserved"] = "Zarezerwowany", ["Free"] = "Wolny",
+        ["Server"] = "Serwer", ["Workstation"] = "Stacja robocza", ["Network"] = "Urządzenie sieciowe",
+        ["Storage"] = "Pamięć masowa", ["AP"] = "Punkt dostępowy", ["Ap"] = "Punkt dostępowy",
+        ["Printer"] = "Drukarka", ["Camera"] = "Kamera", ["Recorder"] = "Rejestrator",
+        ["Firewall"] = "Zapora", ["Switch"] = "Przełącznik", ["Cloud"] = "Chmura", ["Custom"] = "Inne",
+        ["Fiber"] = "Światłowód", ["Wireless"] = "Bezprzewodowe", ["Vpn"] = "VPN", ["Wan"] = "WAN",
+        ["Subscription"] = "Subskrypcja", ["Perpetual"] = "Bezterminowa", ["Volume"] = "Grupowa", ["Trial"] = "Próbna", ["Inactive"] = "Nieaktywna",
+        ["Service"] = "Usługi", ["Support"] = "Wsparcie", ["Maintenance"] = "Utrzymanie", ["Lease"] = "Dzierżawa",
+        ["Software"] = "Oprogramowanie", ["Other"] = "Inne", ["Standard"] = "Standardowa", ["Extended"] = "Rozszerzona",
+        ["OnSiteNbd"] = "Na miejscu (NBD)", ["CarryIn"] = "Dostarczenie do serwisu", ["MailIn"] = "Wysyłka do serwisu",
+        ["Planned"] = "Zaplanowany", ["Critical"] = "Krytyczna", ["Open"] = "Otwarty",
+        ["Investigating"] = "W analizie", ["Todo"] = "Do zrobienia", ["Done"] = "Gotowe",
+        ["InProgress"] = "W realizacji", ["AdSecurity"] = "Grupa zabezpieczeń AD", ["AdDistribution"] = "Grupa dystrybucyjna AD",
+        ["AdOu"] = "Jednostka organizacyjna AD", ["LocalGroup"] = "Grupa lokalna", ["VlanGroup"] = "Grupa VLAN", ["ProjectTeam"] = "Zespół projektowy",
         ["No records in the selected scope."] = "Brak wpisów w wybranym zakresie.",
-        ["This document contains only the selected sections and fields. File attachments are listed, not embedded."] = "Dokument zawiera wyłącznie wybrane sekcje i pola. Załączniki są wymienione w wykazie, bez osadzania ich zawartości.",
         ["Sensitive data: this report includes passwords or license keys."] = "Dane poufne: raport zawiera hasła lub klucze licencji.",
         ["Personal notes: only notes belonging to the report author are included."] = "Notatki osobiste: uwzględniono wyłącznie notatki autora raportu."
     };

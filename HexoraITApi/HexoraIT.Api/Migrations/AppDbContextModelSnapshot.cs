@@ -1154,6 +1154,30 @@ namespace HexoraITApi.Migrations
                     b.ToTable("OperationRecords");
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationResourceLink", b =>
+                {
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Resource")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("RecordId", "Resource", "ResourceId");
+
+                    b.HasIndex("RecordId", "OrganizationId");
+
+                    b.HasIndex("OrganizationId", "Resource", "ResourceId");
+
+                    b.ToTable("OperationResourceLinks");
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationRevision", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1267,6 +1291,11 @@ namespace HexoraITApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("ActivityRetentionDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
+
                     b.Property<DateTime?>("ArchivedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1308,6 +1337,49 @@ namespace HexoraITApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Organizations");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PreviousName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResourceName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "OccurredAt", "Id");
+
+                    b.ToTable("OrganizationActivities");
                 });
 
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationNotificationSettings", b =>
@@ -1657,6 +1729,14 @@ namespace HexoraITApi.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("DhcpEnd")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<string>("DhcpStart")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
 
                     b.Property<string>("Dns")
                         .IsRequired()
@@ -2138,6 +2218,16 @@ namespace HexoraITApi.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationResourceLink", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.OperationRecord", null)
+                        .WithMany("ResourceLinks")
+                        .HasForeignKey("RecordId", "OrganizationId")
+                        .HasPrincipalKey("Id", "OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationRevision", b =>
                 {
                     b.HasOne("HexoraITApi.Domain.Entities.OperationRecord", null)
@@ -2163,6 +2253,15 @@ namespace HexoraITApi.Migrations
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationActivity", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationNotificationSettings", b =>
@@ -2327,6 +2426,11 @@ namespace HexoraITApi.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OperationRecord", b =>
+                {
+                    b.Navigation("ResourceLinks");
                 });
 
             modelBuilder.Entity("HexoraITApi.Domain.Entities.Organization", b =>

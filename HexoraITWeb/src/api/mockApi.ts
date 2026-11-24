@@ -1,5 +1,7 @@
 import { ApiError } from "./errors"
+import { formatIpAddress, parseIpRange, rangeOffset, subnetAddressKind } from "../lib/ipRange"
 import { MODULE_ID, RESOURCES } from "../lib/permissions"
+import type { OrganizationActivityItem } from "./resources"
 import { DEMO_ACCOUNTS, DEMO_STORAGE_KEY } from "../demo"
 
 const TOKEN_KEY = "auth_token"
@@ -37,6 +39,7 @@ type DemoState = {
   privateNotes?: Entity[]
   dashboards: Record<string, unknown>
   fileContents: Record<string, string>
+  organizationActivity?: { organizationId: string; event: OrganizationActivityItem }[]
 }
 
 const now = () => new Date().toISOString()
@@ -371,8 +374,95 @@ function readState(): DemoState {
   return state
 }
 
+const activityResources: Record<ResourceName, string> = {
+  assets: 'Asset', passwords: 'PasswordEntry', subnets: 'Subnet', licenses: 'License', contacts: 'Contact',
+  contracts: 'Contract', plans: 'Plan', incidents: 'Incident', knowledge: 'KnowledgeArticle',
+  projects: 'Project', tasks: 'WorkTask', groups: 'Group', warranties: 'WarrantyItem', folders: 'FileFolder', files: 'StoredFile',
+}
+
+function activityRows(state: DemoState) {
+  type Row = { resource: string; organizationId: string; item: Entity }
+  const rows = new Map<string, Row>()
+  const add = (resource: string, organizationId: string, item: Entity) =>
+    rows.set(`${organizationId}/${resource}/${item.id}`, { resource, organizationId, item })
+  for (const org of state.organizations) {
+    add('Organization', org.id, { ...org, isDeleted: state.deletedOrganizationIds.includes(org.id) })
+    const diagram = state.diagrams[org.id]
+    for (const node of (diagram?.nodes ?? []) as Entity[]) add('DiagramNode', org.id, node)
+    for (const edge of (diagram?.edges ?? []) as Entity[]) add('DiagramEdge', org.id, edge)
+  }
+  for (const member of state.memberships) add('UserOrganization', member.organizationId, { ...member, id: member.userId })
+  for (const role of state.roles) if (role.organizationId) add('OrganizationRole', role.organizationId, role)
+  for (const key of Object.keys(activityResources) as ResourceName[]) {
+    for (const item of state.resources[key]) {
+      if (!item.organizationId) continue
+      if (key === 'subnets') {
+        const { ips, ...subnet } = item
+        add('Subnet', item.organizationId, subnet)
+        for (const ip of (ips ?? []) as Entity[]) add('IPEntry', item.organizationId, { ...ip, subnetId: item.id })
+      } else add(activityResources[key], item.organizationId, item)
+    }
+  }
+  return rows
+}
+
+function retainedActivity(state: DemoState, organizationId: string, retentionDays = 7) {
+  const cutoff = Date.now() - retentionDays * 86_400_000
+  return (state.organizationActivity ?? []).filter(row => row.organizationId === organizationId && Date.parse(row.event.occurredAt) >= cutoff)
+}
+
+function trackActivity(state: DemoState, previous: DemoState) {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const user = token?.startsWith('demo:') ? state.users.find(item => item.id === token.slice(5)) : undefined
+  if (!user || user.isBlocked) return
+  const before = activityRows(previous)
+  const after = activityRows(state)
+  const occurredAt = now()
+  const activity = state.organizations.flatMap(org => retainedActivity(previous, org.id, Number(org.activityRetentionDays ?? 7)))
+  const emitted: typeof activity = []
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    const oldRow = before.get(key), newRow = after.get(key)
+    const { resource, organizationId, item } = (newRow ?? oldRow)!
+    const oldItem = oldRow?.item
+    const label = (value?: Entity) => {
+      if (resource === 'PasswordEntry' || !value) return null
+      const field = resource === 'IPEntry' ? value.ip : value.name ?? value.title ?? value.label
+      return typeof field === 'string' ? field.slice(0, 260) : null
+    }
+    const oldName = label(oldItem)
+    const name = label(item)
+    const add = (action: string, previousName: string | null = null) => emitted.push({
+      organizationId,
+      event: { id: id(), occurredAt, actorId: user.id, actorName: user.displayName, action,
+        resource, resourceId: item.id, resourceName: name, previousName },
+    })
+    if (!oldRow) { add('created'); continue }
+    if (!newRow) { add('deleted'); continue }
+    const changes = new Set(Object.keys({ ...oldItem, ...item }).filter(field =>
+      field !== 'updatedAt' && JSON.stringify(oldItem?.[field]) !== JSON.stringify(item[field])))
+    if (changes.delete('isDeleted')) add(item.isDeleted ? 'deleted' : 'restored')
+    if (changes.delete('isArchived')) { changes.delete('archivedAt'); add(item.isArchived ? 'archived' : 'restored') }
+    if (changes.delete('activityRetentionDays')) add('retention-updated')
+    if (oldName !== name) {
+      for (const field of ['name', 'title', 'label', 'ip']) changes.delete(field)
+      add(resource === 'IPEntry' ? 'address-updated' : 'renamed', oldName)
+    }
+    if (['folderId', 'parentFolderId', 'subnetId', 'x', 'y'].map(field => changes.delete(field)).some(Boolean)) add('moved')
+    if (changes.delete('sortIndex')) add('reordered')
+    if ((resource === 'StoredFile' && state.fileContents[item.id] !== previous.fileContents[item.id]) ||
+        (['Contract', 'WarrantyItem'].includes(resource) && state.fileContents[`document:${item.id}`] !== previous.fileContents[`document:${item.id}`])) {
+      for (const field of ['size', 'mimeType', 'document', 'contentRevision']) changes.delete(field)
+      add('content-updated')
+    }
+    if (changes.size) add('updated')
+  }
+  state.organizationActivity = [...emitted, ...activity]
+}
+
 function writeState(state: DemoState) {
   try {
+    const previous = localStorage.getItem(DEMO_STORAGE_KEY)
+    if (previous) trackActivity(state, JSON.parse(previous) as DemoState)
     localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(state))
   } catch {
     throw new ApiError(
@@ -672,6 +762,29 @@ async function request<T>(
     const tail = orgMatch[2] ?? ""
     const org = state.organizations.find((item) => item.id === orgId)
     if (!org) throw new ApiError(404, "Organization not found.")
+    if (tail === 'activity' || tail.startsWith('activity/')) {
+      const member = state.memberships.find(value => value.organizationId === orgId && value.userId === user.id)
+      if (!member || !['Owner', 'Admin'].includes(member.role) || member.customRoleId || user.systemRole === 'Client' ||
+          state.deletedOrganizationIds.includes(orgId)) throw new ApiError(403, 'Access forbidden.')
+      const retentionDays = Number(org.activityRetentionDays ?? 7)
+      const items = retainedActivity(state, orgId, retentionDays).map(row => row.event)
+      if (tail === 'activity/export' && method === 'GET' && responseType === 'blob')
+        return new Blob([JSON.stringify(items)], { type: 'application/json' }) as T
+      if (tail === 'activity' && method === 'GET') {
+        const page = Number(url.searchParams.get('page') ?? 1)
+        if (!Number.isInteger(page) || page < 1) throw new ApiError(400, 'Invalid activity page.')
+        return { retentionDays, page, hasMore: items.length > page * 50, items: items.slice((page - 1) * 50, page * 50) } as T
+      }
+      if (tail === 'activity/settings' && method === 'PUT') {
+        const days = Number(body.retentionDays)
+        if (!Number.isInteger(days) || days < 1 || days > 365) throw new ApiError(400, 'Activity retention must be between 1 and 365 days.')
+        if (days !== retentionDays) {
+          org.activityRetentionDays = days
+          writeState(state)
+        }
+        return { retentionDays: days } as T
+      }
+    }
     if ((tail === "archive" || tail === "unarchive") && method === "POST") {
       const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
       if (!member || !["Owner", "Admin"].includes(member.role) || member.customRoleId || user.systemRole === "Client" || state.deletedOrganizationIds.includes(orgId)) throw new ApiError(403, "Access forbidden.")
@@ -837,7 +950,7 @@ async function request<T>(
         : undefined
       return {
         roleName: custom?.name ?? membership.role,
-        canManageRoles: ["Owner", "Admin"].includes(membership.role),
+        canManageRoles: user.systemRole !== "Client" && !membership.customRoleId && ["Owner", "Admin"].includes(membership.role),
         hiddenModules: org.hiddenModules ?? [],
         permissions:
           custom?.permissions ?? allPermissions(membership.role !== "ReadOnly", ["Owner", "Admin"].includes(membership.role)),
@@ -1084,6 +1197,49 @@ async function request<T>(
     writeState(state)
     return result as T
   }
+  const reservationMatch = route.match(/^\/subnets\/([^/]+)\/ips\/reserve$/)
+  if (reservationMatch && method === 'POST') {
+    const subnet = state.resources.subnets.find(item => item.id === reservationMatch[1])
+    if (!subnet || !demoPermission(state, user, String(subnet.organizationId), 'networks', false, subnet.id))
+      throw new ApiError(404, 'Subnet not found.')
+    if (!demoPermission(state, user, String(subnet.organizationId), 'networks', true, subnet.id))
+      throw new ApiError(403, 'Access forbidden.')
+    if (!Array.isArray(body.targets) || body.targets.length < 1 || body.targets.length > 256)
+      throw new ApiError(400, 'Select between 1 and 256 IP addresses.')
+    const description = String(body.description ?? '').trim()
+    if (description.length > 100000) throw new ApiError(400, 'The reservation description is too long.')
+    const range = parseIpRange(String(subnet.cidr ?? ''))
+    if (!range) throw new ApiError(400, 'Enter a valid IPv4 or IPv6 CIDR.')
+
+    const entries = (subnet.ips ?? []) as Entity[]
+    const seen = new Set<bigint>()
+    const replacements = new Map<string, Entity>()
+    const additions: Entity[] = []
+    const reserved = body.targets.map((target) => {
+      const offset = typeof target?.ip === 'string' ? rangeOffset(range, target.ip) : undefined
+      if (offset === undefined || subnetAddressKind(range, offset)) throw new ApiError(400, 'Select host addresses within this subnet.')
+      if (seen.has(offset)) throw new ApiError(400, 'Each IP address may be selected only once.')
+      seen.add(offset)
+      const matches = entries.filter(entry => rangeOffset(range, String(entry.ip)) === offset)
+      const entry = matches[0]
+      if (matches.length > 1 || entry?.id !== (target.entryId ?? undefined) ||
+          (entry && (entry.status !== 'free' || entry.assetId || entry.isAutoManaged)))
+        throw new ApiError(409, 'A selected address is no longer available. No addresses were reserved.')
+      const oldNotes = String(entry?.notes ?? '')
+      const notes = description ? [oldNotes.trimEnd(), description].filter(Boolean).join('\n\n') : oldNotes
+      if (notes.length > 100000) throw new ApiError(400, 'The reservation description and existing notes are too long.')
+      const updated = entry ? { ...entry, status: 'reserved', notes } : {
+        id: id(), ip: formatIpAddress({ bits: range.bits, value: range.first + offset }), label: '', status: 'reserved', notes,
+      }
+      if (entry) replacements.set(entry.id, updated)
+      else additions.push(updated)
+      return updated
+    })
+    subnet.ips = [...entries.map(entry => replacements.get(entry.id) ?? entry), ...additions]
+    writeState(state)
+    return reserved as T
+  }
+
   const ipMatch = route.match(/^\/subnets\/([^/]+)\/ips(?:\/([^/]+))?$/)
   if (ipMatch) {
     const subnet = state.resources.subnets.find(
@@ -1187,6 +1343,20 @@ async function request<T>(
   )
 }
 
+function fileRevision(file: Entity) {
+  return JSON.stringify([file.name, file.contentRevision ?? null])
+}
+
+function fileSnapshot(path: string) {
+  const fileId = path.split('/')[2]
+  const state = readState()
+  const user = actor(state)
+  const file = state.resources.files.find(item => item.id === fileId)
+  if (!file || !demoPermission(state, user, String(file.organizationId), 'files', false, file.id))
+    throw new ApiError(404, "File not found.")
+  return { blob: dataUrlBlob(state.fileContents[file.id]), revision: fileRevision(file) }
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const url = new URL(path, "https://demo.local")
   const state = readState()
@@ -1208,12 +1378,20 @@ async function upload<T>(path: string, file: File): Promise<T> {
   }
   const replacement = url.pathname.match(/^\/files\/([^/]+)\/replace$/)
   if (replacement) {
-    const item = state.resources.files.find(value => value.id === replacement[1])
-    if (!item) throw new ApiError(404, "File not found.")
     const content = await dataUrl(file)
-    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size })
-    state.fileContents[item.id] = content
-    writeState(state)
+    const latest = readState()
+    const user = actor(latest)
+    const item = latest.resources.files.find(value => value.id === replacement[1])
+    if (!item || !demoPermission(latest, user, String(item.organizationId), 'files', false, item.id))
+      throw new ApiError(404, "File not found.")
+    if (!demoPermission(latest, user, String(item.organizationId), 'files', true, item.id))
+      throw new ApiError(403, "Access forbidden.")
+    const revision = url.searchParams.get("revision")
+    if (revision !== null && (revision !== fileRevision(item) || file.name !== item.name))
+      throw new ApiError(409, "This file changed. Reopen it before editing again.")
+    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, contentRevision: id() })
+    latest.fileContents[item.id] = content
+    writeState(latest)
     return item as T
   }
   const document = url.pathname.match(
@@ -1239,4 +1417,4 @@ async function upload<T>(path: string, file: File): Promise<T> {
   )
 }
 
-export const mockApi = { request, upload }
+export const mockApi = { request, upload, fileSnapshot }

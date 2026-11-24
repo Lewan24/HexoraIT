@@ -17,17 +17,19 @@ pozostają skuteczne. Samodzielny PDF wpisu nadal wymaga wysłania dokumentu.
 
 ## Układ dokumentu
 
-Krótkie wpisy (np. konta dostępowe, licencje, kontakty i urządzenia) są prezentowane
-w kartach w dwóch kolumnach. Każda karta ma własny tytuł, numer, etykiety pól
-i wyróżnione wartości. Hasła i klucze licencji mają dodatkowe tło;
-pojawiają się wyłącznie po zatwierdzeniu eksportu sekretów.
+Ewidencje z powtarzalnymi polami, takie jak zasoby, kontakty i licencje,
+są prezentowane w tabelach. Nagłówki kolumn są powtarzane po przejściu tabeli
+na kolejną stronę. Sekcje mogą dzielić stronę, a klikalny spis treści
+prowadzi do ich początku. Krótkie rekordy z dodatkowymi polami zachowują układ
+kart, a dłuższe opisy, instrukcje i notatki zajmują pełną szerokość strony.
 
-Dłuższe wpisy zajmują pełną szerokość strony. Artykuły i notatki przepływają
-między stronami, a krótkie karty pozostają w całości na jednej stronie.
-O wyborze układu decyduje długość i struktura wpisu. Długie wartości bez spacji
-są zawijane bez obcinania danych i bez dodawania myślników.
-Sekcje mają krótkie wprowadzenia w języku raportu. Zachowane są spis treści,
-numeracja stron, osadzone czcionki i dotychczasowe zasady doboru danych.
+Spis zasobów obejmuje typ, adres IP, lokalizację, opiekuna i numer seryjny,
+gdy te informacje są uzupełnione. Sekcja sieci zawiera CIDR, VLAN, bramę, DNS
+i zakres DHCP. Wykaz adresów pokazuje zapisane przypisania i rezerwacje.
+Po włączeniu notatek opis rezerwacji jest podpisany adresem IP.
+Licencje zawierają model, wykorzystanie stanowisk i datę ważności.
+Umowy i gwarancje zachowują terminy oraz dane potrzebne do odnowienia
+lub zgłoszenia. Wykaz plików podaje nazwy i foldery.
 
 Przykładowy PDF można wygenerować podczas testu `CardLayoutRenders` przez
 ustawienie zmiennej `HEXORA_DOCUMENTATION_CARD_SAMPLE` na docelową ścieżkę pliku.

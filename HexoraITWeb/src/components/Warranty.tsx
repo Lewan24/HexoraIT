@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
@@ -381,7 +383,7 @@ function WarrantyDetail({ item, onBack, onEdit, onDelete }: {
 
 export default function Warranty() {
   useLocale()
-  const { warrantyItems, isLoading, reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, toast } = useApp()
+  const { warrantyItems, isLoading, reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, toast, canWrite } = useApp()
 
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
@@ -407,16 +409,14 @@ export default function Warranty() {
     setMobileDetailOpen(true)
   }
 
-  const handleDelete = async () => {
-    if (!selected)
-       return
-
-    const deletedId = selected.id
-    await deleteWarranty(deletedId)
+  const handleDelete = async (id = selected?.id) => {
+    if (!id) return
+    await deleteWarranty(id)
     toast(tr("Warranty deleted"))
-    
-    setMobileDetailOpen(false)
-    setSelectedId(null)
+    if (selected?.id === id) {
+      setMobileDetailOpen(false)
+      setSelectedId(null)
+    }
   }
 
   if (isLoading) {
@@ -470,15 +470,19 @@ export default function Warranty() {
             const days = daysUntil(w.warrantyEndDate)
             const s = STATUS_STYLES[w.status]
             return (
-              <div key={w.id} onClick={() => selectItem(w.id)}
+              <div key={w.id} {...contextItem('warranty', w.id, w.name, { open: tr('Open details') })} onClick={() => selectItem(w.id)}
                 className={`w-full px-4 py-3 text-left transition-all hover:bg-navy-800/80 cursor-pointer ${effectiveSelectedId === w.id ? 'bg-navy-800 md:border-r-2 md:border-blue-500' : ''}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-xs font-medium text-ink-primary truncate"><RecordIndex index={w.sortIndex} />{w.name}</span>
-                  <button onClick={e => { e.stopPropagation(); toggleStarWarranty(w.id) }}
+                  <button data-context-action={tr(w.starred ? "Unstar" : "Star")} disabled={!canWrite("warranty", w.id)} onClick={e => { e.stopPropagation(); toggleStarWarranty(w.id) }}
                     className={`flex-shrink-0 transition-colors ${w.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-yellow-400'}`}>
                     <Star size={10} fill={w.starred ? 'currentColor' : 'none'} />
                   </button>
                 </div>
+                {canWrite('warranty', w.id) && <>
+                  <ContextCommand label={tr("Edit")} run={() => setEditItem(w)} />
+                  <ContextDelete name={w.name} run={() => handleDelete(w.id)} />
+                </>}
                 <p className="text-[10px] text-ink-muted mb-1.5">{w.vendor}</p>
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[10px] font-mono text-ink-muted truncate">{w.serialNumber || '—'}</span>

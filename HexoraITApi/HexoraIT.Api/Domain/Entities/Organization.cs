@@ -8,6 +8,7 @@ public class Organization
     public string Initials { get; set; } = "";
     public string Description { get; set; } = "";
     public List<string> HiddenModules { get; set; } = [];
+    public int ActivityRetentionDays { get; set; } = OrganizationActivityRetention.DefaultDays;
     public bool IsTemporary { get; set; }
     public bool IsArchived { get; set; }
     public DateTime? ArchivedAt { get; set; }

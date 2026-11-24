@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8')
 const compile = (source, filename = 'source.ts') => 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(source, { fileName: filename, compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')))).toString('base64')
-const { validateOperationForm, operationVisible, operationDefaults } = await import(compile(read('../src/lib/operationForm.ts')))
+const { validateOperationForm, operationVisible, operationDefaults, searchOperationTemplates, compatibleOperationValues } = await import(compile(read('../src/lib/operationForm.ts')))
 const labels = { en: 'Setting <script>', pl: 'Ustawienie' }
 const fields = [{ key: 'name', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'changes', label: labels, type: 'table', required: true, maxLength: 4000, fields: [{ key: 'previous', label: labels, type: 'text', required: true, maxLength: 20 }, { key: 'next', label: labels, type: 'text', required: true, maxLength: 20 }] }]
 const schema = { schemaVersion: 1, key: 'A02', fields }
@@ -20,7 +20,7 @@ test('basic editor saves only basic content while advanced records retain detail
   source = source.replace('export default function', 'function')
   const states = [], requests = []; let slot = 0
   const context = { React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
-    useEffect() {}, useLocale: () => ({ i18n: { language: 'en' } }), tr: s => s,
+    useEffect() {}, useRef(value) { return { current: value } }, useLocale: () => ({ i18n: { language: 'en' } }), tr: s => s,
     useApp: () => ({ assets: [], canWrite: () => true }), input: '', button: '',
     operationDefaults, validateOperationForm,
     useState(initial) { const i = slot++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value }] },
@@ -32,7 +32,7 @@ test('basic editor saves only basic content while advanced records retain detail
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
   const basic = { schemaVersion: 1, key: 'BASIC', name: { en: 'Basic document' }, description: { en: 'Simple content' }, controls: [], fields: [{ key: 'content', label: { en: 'Content' }, type: 'multiline', required: true, maxLength: 10000 }] }
   let created
-  const render = s => { slot = 0; return nodes(context.OperationEditor({ org: 'organization', template: { id: 'template', schemaJson: JSON.stringify(s) }, onBack() {}, onCreated: id => { created = id } })) }
+  const render = s => { slot = 0; return nodes(context.OperationEditor({ org: 'organization', template: { id: 'template', schemaJson: JSON.stringify(s) }, choices: [], onBack() {}, onCreated: id => { created = id } })) }
   let tree = render(basic)
   assert.equal(tree.filter(n => n.type === 'select').length, 1, 'only the optional asset selector is needed for basic records')
   assert.equal(tree.some(n => n.props?.type === 'datetime-local'), false)
@@ -130,4 +130,21 @@ test('lifetime license create and edit dialogs disable expiry and save without r
   states[0] = { ...states[0], type: 'Subscription' }; states[2] = false
   tree = render()
   assert.equal(tree.find(n => n.props?.id === 'license-expiry').props.disabled, false)
+})
+
+test('the template picker searches codes, titles and descriptions with Polish accents ignored', () => {
+  const options = [
+    { template: { key: 'A06' }, schema: { name: { en: 'Firewall', pl: 'Zapora' }, description: { en: 'Review assigned addresses', pl: 'Zmień reguły sieci' } } },
+    { template: { key: 'D02' }, schema: { name: { en: 'Restore', pl: 'Odtworzenie' }, description: { en: 'Check recovery evidence', pl: 'Zweryfikuj kopię' } } },
+  ]
+  assert.deepEqual(searchOperationTemplates(options, '  sieci  reguly ').map(x => x.template.key), ['A06'])
+  assert.deepEqual(searchOperationTemplates(options, 'KOPIE').map(x => x.template.key), ['D02'])
+  assert.deepEqual(searchOperationTemplates(options, 'A06 assigned').map(x => x.template.key), ['A06'])
+  assert.deepEqual(searchOperationTemplates(options, 'missing'), [])
+})
+
+test('template changes carry over compatible fields and preserve valid defaults', () => {
+  const source = { fields: [{ key: 'evidence', type: 'text', maxLength: 100 }, { key: 'other', type: 'text', maxLength: 20 }] }
+  const target = { fields: [{ key: 'evidence', type: 'text', maxLength: 30 }, { key: 'enabled', type: 'boolean', defaultValue: true }] }
+  assert.deepEqual(compatibleOperationValues(source, target, { evidence: 'Evidence', other: 'Obsolete' }), { evidence: 'Evidence', enabled: true })
 })

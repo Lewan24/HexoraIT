@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import AuditLog from './AuditLog'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect } from 'react'
@@ -144,7 +145,7 @@ function UserManagement() {
                         const isSelf = u.id === currentUser?.id
                         const busy = busyUserId === u.id
                         return (
-                            <div key={u.id} className="flex items-center gap-3 px-5 py-3 flex-wrap">
+                            <div key={u.id} {...contextItem("users", u.id, u.displayName, { link: false })} className="flex items-center gap-3 px-5 py-3 flex-wrap">
                                 <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center text-xs font-semibold flex-shrink-0">
                                     {u.displayName.slice(0, 2).toUpperCase()}
                                 </div>
@@ -160,11 +161,11 @@ function UserManagement() {
                                     <option value="Admin">{tr("Admin")}</option>
                                 </select>
                                 {u.isBlocked && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30 flex-shrink-0">{tr("Blocked")}</span>}
-                                <button onClick={() => setResetTarget(u)} disabled={busy}
+                                <button data-context-action={tr("Reset password")} onClick={() => setResetTarget(u)} disabled={busy}
                                     className="p-1.5 rounded-md text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition-colors disabled:opacity-40" title={tr("Reset password")}>
                                     <KeyRound size={13} />
                                 </button>
-                                <button onClick={() => toggleBlocked(u)} disabled={isSelf || busy}
+                                <button data-context-action={tr(u.isBlocked ? "Unblock" : "Block")} onClick={() => toggleBlocked(u)} disabled={isSelf || busy}
                                     className={`p-1.5 rounded-md transition-colors disabled:opacity-40 ${u.isBlocked ? 'text-green-400 hover:bg-navy-700' : 'text-ink-muted hover:text-red-400 hover:bg-navy-700'}`}
                                     title={u.isBlocked ? tr("Unblock") : tr("Block")}>
                                     {busy ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}

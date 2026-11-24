@@ -9,12 +9,15 @@ public record CreateIPEntryDto([Required, StringLength(45)] string Ip, [StringLe
 public record UpdateIPEntryDto([Required, StringLength(45)] string Ip, [StringLength(200)] string Label, IPEntryStatus Status,
     Guid? AssetId, [StringLength(500)] string? PlainText, [StringLength(100000)] string Notes);
 
+public record IpReservationTarget(string Ip, Guid? EntryId = null);
+public record ReserveIpEntriesDto(List<IpReservationTarget> Targets, string? Description);
+
 public record SubnetDto(Guid Id, string Name, string Cidr, int? Vlan, SubnetType Type,
-    string Gateway, string Dns, string Description, List<IPEntryDto> Ips, int? SortIndex = null);
+    string Gateway, string Dns, string Description, List<IPEntryDto> Ips, int? SortIndex = null, string? DhcpStart = null, string? DhcpEnd = null);
 
 public record CreateSubnetDto([Required, StringLength(200)] string Name, [Required, StringLength(50)] string Cidr,
     [Range(0, 4094)] int? Vlan, SubnetType Type, [StringLength(45)] string Gateway, [StringLength(500)] string Dns,
-    [StringLength(100000)] string Description);
+    [StringLength(100000)] string Description, [StringLength(45)] string? DhcpStart = null, [StringLength(45)] string? DhcpEnd = null);
 public record UpdateSubnetDto([Required, StringLength(200)] string Name, [Required, StringLength(50)] string Cidr,
     [Range(0, 4094)] int? Vlan, SubnetType Type, [StringLength(45)] string Gateway, [StringLength(500)] string Dns,
-    [StringLength(100000)] string Description);
+    [StringLength(100000)] string Description, [StringLength(45)] string? DhcpStart = null, [StringLength(45)] string? DhcpEnd = null);

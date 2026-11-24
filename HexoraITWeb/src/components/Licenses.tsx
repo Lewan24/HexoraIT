@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
@@ -374,7 +376,7 @@ function LicenseDetail({ license, onEdit, onDelete, onToggleStar }: {
 
 export default function Licenses() {
   useLocale()
-  const { licenses, isLoading, addLicense, updateLicense, deleteLicense, toggleStarLicense, currentOrg } = useApp()
+  const { licenses, isLoading, addLicense, updateLicense, deleteLicense, toggleStarLicense, currentOrg, canWrite } = useApp()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<LicenseCategory | 'All'>('All')
   const [statusFilter, setStatusFilter] = useState<LicenseStatus | 'All'>('All')
@@ -534,10 +536,15 @@ export default function Licenses() {
                   const sc = STATUS_CONFIG[lic.status]
                   const cc = CAT_COLORS[getLicenseCategoryFromString(lic.category)]
                   return (
-                    <tr key={lic.id}
+                    <tr key={lic.id} {...contextItem('licenses', lic.id, lic.name, { open: tr('Open details') })}
                       onClick={() => { setSelectedId(lic.id); setMobileDetailOpen(true) }}
                       className={`cursor-pointer hover:bg-navy-700/50 transition-colors ${effectiveSelectedId === lic.id ? 'bg-navy-700/70 border-l-2 border-l-blue-500' : ''}`}>
                       <td className="px-4 py-3">
+                        {canWrite('licenses', lic.id) && <>
+                          <ContextCommand label={tr("Edit")} run={() => setModal({ open: true, initial: lic })} />
+                          <ContextDelete name={lic.name} run={() => handleDelete(lic.id)} />
+                          <ContextCommand label={tr(lic.starred ? "Unstar" : "Star")} run={() => { void toggleStarLicense(lic.id).catch(() => {}) }} />
+                        </>}
                         <div className="flex items-start gap-2">
                           {lic.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 mt-0.5 flex-shrink-0" />}
                           <div className="min-w-0">

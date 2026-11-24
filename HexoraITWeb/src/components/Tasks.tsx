@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useRef, useState } from 'react'
@@ -303,8 +305,8 @@ function TaskModal({ initial, projects, defaultProjectId, onClose, onSave, onDel
   )
 }
 
-function TaskCard({ task, onEdit, onStatus, onPreview, dragBindings, dragging, pending }: {
-  task: Task; onEdit: () => void; onStatus: (status: TaskStatus) => void; onPreview: () => void
+function TaskCard({ task, onEdit, onDelete, onStatus, onPreview, dragBindings, dragging, pending }: {
+  task: Task; onEdit: () => void; onDelete: () => Promise<void>; onStatus: (status: TaskStatus) => void; onPreview: () => void
   dragBindings: ReturnType<typeof useTaskDrag>['bindings']; dragging: boolean; pending: boolean
 }) {
   const { canWrite } = useApp()
@@ -312,12 +314,13 @@ function TaskCard({ task, onEdit, onStatus, onPreview, dragBindings, dragging, p
   const writable = canWrite('tasks', task.id)
   const pc = PRIORITY_CONFIG[task.priority]
   const overdue = isOverdue(task.dueDate) && task.status !== 'done'
-  return <article data-task-id={task.id} aria-busy={pending} className={`group rounded-xl border bg-navy-800 p-3 shadow-sm transition-colors ${dragging ? 'border-blue-500 opacity-40' : overdue ? 'border-red-500/25' : 'border-edge-subtle hover:border-edge-strong'}`}>
+  return <article {...contextItem("tasks", task.id, task.title)} data-task-id={task.id} aria-busy={pending} className={`group rounded-xl border bg-navy-800 p-3 shadow-sm transition-colors ${dragging ? 'border-blue-500 opacity-40' : overdue ? 'border-red-500/25' : 'border-edge-subtle hover:border-edge-strong'}`}>
     <div className="flex items-start gap-2">
       {writable && <button {...dragBindings(task.id)} disabled={pending} type="button" aria-label={tr('Drag task {{name}}', { name: task.title })} title={tr('Drag to change status')} style={{ touchAction: 'none', cursor: pending ? 'not-allowed' : 'grab' }} className="-ml-1 cursor-grab rounded-md p-1 text-ink-muted hover:bg-navy-700 active:cursor-grabbing disabled:opacity-30"><GripVertical size={16} /></button>}
-      <button onClick={onPreview} className="min-w-0 flex-1 break-words text-left text-xs font-semibold leading-relaxed text-ink-primary hover:text-blue-400"><RecordIndex index={task.sortIndex} />{task.title}</button>
-      {writable && <button onClick={onEdit} disabled={pending} aria-label={tr('Edit task {{name}}', { name: task.title })} className="rounded-md p-1 text-ink-muted hover:bg-navy-700 hover:text-ink-primary disabled:opacity-30"><Edit2 size={12} /></button>}
+      <button data-context-action={tr("Open details")} onClick={onPreview} className="min-w-0 flex-1 break-words text-left text-xs font-semibold leading-relaxed text-ink-primary hover:text-blue-400"><RecordIndex index={task.sortIndex} />{task.title}</button>
+      {writable && <button data-context-action={tr("Edit")} onClick={onEdit} disabled={pending} aria-label={tr('Edit task {{name}}', { name: task.title })} className="rounded-md p-1 text-ink-muted hover:bg-navy-700 hover:text-ink-primary disabled:opacity-30"><Edit2 size={12} /></button>}
     </div>
+    {writable && !pending && <ContextDelete name={task.title} run={onDelete} />}
     {task.description.trim() && <div className="mt-2 max-h-12 overflow-hidden space-y-0.5">{renderMarkdownCompact(task.description, 2)}</div>}
     <div className="mt-3 flex flex-wrap items-center gap-2">
       <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[9px] ${pc.cls}`}><span className={`h-1 w-1 rounded-full ${pc.dot}`} />{tr(pc.label)}</span>
@@ -474,14 +477,14 @@ function ProjectSwitcher({ projects, activeId, onSelect, onNew, onEdit }: {
             </button>
             {projects.length > 0 && <div className="border-t border-edge-subtle" />}
             {projects.map(p => (
-              <div key={p.id} className={`flex items-center hover:bg-navy-700 transition-colors ${activeId === p.id ? 'text-blue-400' : 'text-ink-secondary'}`}>
-                <button onClick={() => { onSelect(p.id); setOpen(false) }} className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left text-xs min-w-0">
+              <div key={p.id} {...contextItem("projects", p.id, p.name)} className={`flex items-center hover:bg-navy-700 transition-colors ${activeId === p.id ? 'text-blue-400' : 'text-ink-secondary'}`}>
+                <button data-context-action={tr('Select project')} onClick={() => { onSelect(p.id); setOpen(false) }} className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left text-xs min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                   <span className="truncate"><RecordIndex index={p.sortIndex} />{p.name}</span>
                   <span className="text-[10px] text-ink-muted flex-shrink-0">{p.taskCount}</span>
                   {activeId === p.id && <Check size={11} className="ml-auto flex-shrink-0" />}
                 </button>
-                <button hidden={!canWrite('projects', p.id)} onClick={() => { onEdit(p); setOpen(false) }} className="p-2 text-ink-muted hover:text-ink-primary flex-shrink-0"><Edit2 size={11} /></button>
+                <button data-context-action={tr("Edit")} hidden={!canWrite('projects', p.id)} onClick={() => { onEdit(p); setOpen(false) }} className="p-2 text-ink-muted hover:text-ink-primary flex-shrink-0"><Edit2 size={11} /></button>
               </div>
             ))}
             <div className="border-t border-edge-subtle">
@@ -632,7 +635,7 @@ function TaskWorkspace() {
           <div className="shrink-0 border-b border-edge-subtle px-4 pt-4">{colHeader(status)}</div>
           <div data-task-scroll tabIndex={0} aria-label={tr('Tasks: {{status}}', { status: tr(STATUS_CONFIG[status].label) })} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 focus-visible:outline-2 focus-visible:outline-blue-400">
             {byStatus(status).length === 0 ? <div className="flex h-full min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-edge-subtle"><CheckSquare size={22} className="text-ink-muted opacity-40" /><p className="text-xs text-ink-muted">{tr('No tasks')}</p>{drag && <p className="text-xs text-blue-400">{tr('Drop task here')}</p>}</div> : byStatus(status).map(task =>
-              <TaskCard key={task.id} task={task} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onStatus={next => { void changeStatus(task.id, next) }} dragBindings={bindings} dragging={drag?.id === task.id} pending={pending.has(task.id)} />)}
+              <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id)} onEdit={() => setModal({ open: true, initial: task })} onPreview={() => setPreviewTask(task)} onStatus={next => { void changeStatus(task.id, next) }} dragBindings={bindings} dragging={drag?.id === task.id} pending={pending.has(task.id)} />)}
           </div>
         </section>)}
       </div>

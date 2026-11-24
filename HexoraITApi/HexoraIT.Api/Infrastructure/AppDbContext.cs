@@ -52,6 +52,7 @@ public interface ICurrentOrgAccessor
 public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserIdProvider currentUser) : DbContext(options)
 {
     public DbSet<OperationTemplateVersion> OperationTemplates => Set<OperationTemplateVersion>();
+    public DbSet<OperationResourceLink> OperationResourceLinks => Set<OperationResourceLink>();
     public DbSet<OperationRecord> OperationRecords => Set<OperationRecord>();
     public DbSet<OperationRevision> OperationRevisions => Set<OperationRevision>();
     public DbSet<OperationActivity> OperationActivities => Set<OperationActivity>();
@@ -70,16 +71,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        ProtectOperationHistory();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        var activity = CaptureOrganizationActivity();
+        try { return base.SaveChanges(acceptAllChangesOnSuccess) - activity.Count; }
+        catch { DetachActivity(activity); throw; }
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        var activity = CaptureOrganizationActivity();
+        try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken) - activity.Count; }
+        catch { DetachActivity(activity); throw; }
+    }
+
+    private List<OrganizationActivity> CaptureOrganizationActivity()
     {
         ProtectOperationHistory();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        if (CurrentUserId is not { } actor || actor == Guid.Empty) return [];
+        var activity = OrganizationActivityCapture.Collect(ChangeTracker, actor);
+        OrganizationActivities.AddRange(activity);
+        return activity;
     }
+
+    private void DetachActivity(List<OrganizationActivity> activity)
+    {
+        foreach (var item in activity) Entry(item).State = EntityState.Detached;
+    }
+
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<OrganizationActivity> OrganizationActivities => Set<OrganizationActivity>();
     private Guid? CurrentUserId => currentUser.UserId;
     public DbSet<ClientPermission> ClientPermissions => Set<ClientPermission>();
     public DbSet<PrivateNote> PrivateNotes => Set<PrivateNote>();
@@ -168,6 +187,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
             e.HasOne<UserOrganization>().WithMany().HasForeignKey(r => new { r.ImplementerId, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<UserOrganization>().WithMany().HasForeignKey(r => new { r.OwnerId, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
         });
+        b.Entity<OperationResourceLink>(e =>
+        {
+            e.HasKey(link => new { link.RecordId, link.Resource, link.ResourceId });
+            e.Property(link => link.Resource).HasMaxLength(32);
+            e.HasIndex(link => new { link.OrganizationId, link.Resource, link.ResourceId });
+            e.HasOne<OperationRecord>().WithMany(record => record.ResourceLinks)
+                .HasForeignKey(link => new { link.RecordId, link.OrganizationId }).HasPrincipalKey(record => new { record.Id, record.OrganizationId });
+        });
         b.Entity<OperationRevision>(e =>
         {
             e.Property(r => r.SnapshotJson).HasColumnType("jsonb");
@@ -181,6 +208,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
             e.Property(a => a.ToStatus).HasMaxLength(40);
             e.HasOne<OperationRecord>().WithMany().HasForeignKey(a => new { a.RecordId, a.OrganizationId }).HasPrincipalKey(r => new { r.Id, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(a => new { a.OrganizationId, a.RecordId, a.OccurredAt });
+        });
+        b.Entity<Organization>().Property(o => o.ActivityRetentionDays).HasDefaultValue(OrganizationActivityRetention.DefaultDays);
+        b.Entity<OrganizationActivity>(e =>
+        {
+            e.Property(a => a.Action).HasMaxLength(32);
+            e.Property(a => a.Resource).HasMaxLength(64);
+            e.Property(a => a.ResourceName).HasMaxLength(260);
+            e.Property(a => a.PreviousName).HasMaxLength(260);
+            e.HasOne<Organization>().WithMany().HasForeignKey(a => a.OrganizationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.OrganizationId, a.OccurredAt, a.Id });
         });
         b.Entity<AuditEvent>(e =>
         {
@@ -412,6 +449,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        b.Entity<Subnet>().Property(s => s.DhcpStart).HasMaxLength(45);
+        b.Entity<Subnet>().Property(s => s.DhcpEnd).HasMaxLength(45);
         b.Entity<Subnet>().Property(s => s.SyncRevision).IsConcurrencyToken();
         b.Entity<IPEntry>().Property(ip => ip.IsAutoManaged).IsConcurrencyToken();
         b.Entity<IPEntry>().HasIndex(ip => ip.AssetId).IsUnique()

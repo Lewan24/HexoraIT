@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import { tr, useLocale } from '../i18n'
 import { useEffect, useState } from 'react'
 import { rolesApi } from '../api/roles'
@@ -129,18 +130,18 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
       <div className="space-y-2">
         {roles.length === 0 && <p className="text-sm text-ink-muted">{tr("No custom roles yet. Create a role and choose its permissions.")}</p>}
         {roles.map(role => (
-          <div key={role.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-edge-default p-3">
+          <div key={role.id} {...contextItem("roles", role.id, role.name, { link: false })} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-edge-default p-3">
             <span>{role.name}</span>
             <div className="flex flex-wrap gap-2">
-              <button className={buttonClass} disabled={busy} onClick={() => { setClientId(''); setDraft(structuredClone(role)) }}>{tr("Edit")}</button>
-              <button className={buttonClass} disabled={busy} onClick={() => { setCopyRole(role); setTargets([]); setConfirmOverwrite(false); setConflicts([]) }}>{tr('Copy to organizations')}</button>
-              <button className={buttonClass} disabled={busy || members.some(m => m.customRoleId === role.id)}
+              <button data-context-action={tr("Edit")} className={buttonClass} disabled={busy} onClick={() => { setClientId(''); setDraft(structuredClone(role)) }}>{tr("Edit")}</button>
+              <button data-context-action={tr("Copy to organizations")} className={buttonClass} disabled={busy} onClick={() => { setCopyRole(role); setTargets([]); setConfirmOverwrite(false); setConflicts([]) }}>{tr('Copy to organizations')}</button>
+              <button data-context-action={tr("Delete")} data-context-danger="true" className={buttonClass} disabled={busy || members.some(m => m.customRoleId === role.id)}
                 title={tr("Only unassigned roles can be deleted")}
-                onClick={() => run(async () => {
+                onClick={() => { if (window.confirm(tr("Delete “{{name}}”?", { name: role.name }))) void run(async () => {
                   await rolesApi.delete(orgId, role.id)
                   setRoles(previous => previous.filter(r => r.id !== role.id))
                   if (draft?.id === role.id) setDraft(null)
-                })}>{tr("Delete")}</button>
+                }) }}>{tr("Delete")}</button>
             </div>
           </div>
         ))}
@@ -224,9 +225,9 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
       {section === 'clients' && <section className="space-y-4 rounded-xl border border-edge-default bg-navy-800 p-4">
       <h3 className="font-semibold">{tr('Clients')}</h3>
       <p className="text-xs text-ink-muted">{tr('Clients belong to one organization. Reports and personal settings are always available.')}</p>
-      {members.filter(m => m.systemRole === 'Client').map(member => <div key={member.userId} className="flex flex-wrap items-center justify-between gap-3">
+      {members.filter(m => m.systemRole === 'Client').map(member => <div key={member.userId} {...contextItem("clients", member.userId, member.displayName, { link: false })} className="flex flex-wrap items-center justify-between gap-3">
         <span>{member.displayName} · {member.email}</span>
-        <button className={buttonClass} disabled={busy} onClick={() => run(async () => {
+        <button data-context-action={tr("Client permissions")} className={buttonClass} disabled={busy} onClick={() => run(async () => {
           const permissions = await rolesApi.clientPermissions(orgId, member.userId)
           setClientId(member.userId); setDraft({ id: '', name: member.displayName || member.email, permissions })
         })}>{tr('Client permissions')}</button>

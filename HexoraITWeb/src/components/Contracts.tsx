@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState, useRef } from 'react'
@@ -285,7 +287,7 @@ function ContractDetail({ contract, onEdit, onDelete, onToggleStar }: {
 
 export default function Contracts() {
   useLocale()
-  const { contracts, isLoading, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract, toast } = useApp()
+  const { contracts, isLoading, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract, toast, canWrite } = useApp()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ContractStatus | 'All'>('All')
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -435,10 +437,15 @@ export default function Contracts() {
                   const days = daysUntil(c.endDate)
                   const sc = STATUS_CONFIG[c.status]
                   return (
-                    <tr key={c.id}
+                    <tr key={c.id} {...contextItem('contracts', c.id, c.name, { open: tr('Open details') })}
                       onClick={() => { setSelectedId(c.id); setMobileDetailOpen(true) }}
                       className={`cursor-pointer hover:bg-navy-700/50 transition-colors ${activeSelectedId === c.id ? 'bg-navy-700/70 border-l-2 border-l-blue-500' : ''}`}>
                       <td className="px-4 py-3">
+                        {canWrite('contracts', c.id) && <>
+                          <ContextCommand label={tr("Edit")} run={() => { savedContract.current = null; setModal({ open: true, initial: c }) }} />
+                          <ContextDelete name={c.name} run={() => handleDelete(c.id)} />
+                          <ContextCommand label={tr(c.starred ? "Unstar" : "Star")} run={() => { void toggleStarContract(c.id).catch(() => {}) }} />
+                        </>}
                         <div className="flex items-start gap-2">
                           {c.starred && <Star size={10} className="text-yellow-400 fill-yellow-400 mt-0.5 flex-shrink-0" />}
                           <div className="min-w-0">

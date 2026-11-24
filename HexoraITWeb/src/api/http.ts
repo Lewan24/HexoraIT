@@ -184,6 +184,18 @@ export const http = {
     return res.blob()
   },
 
+  getVersionedBlob: async (path: string): Promise<{ blob: Blob; revision: string | null }> => {
+    if (config.appMode === "mock") {
+      const { mockApi } = await import("./mockApi")
+      return mockApi.fileSnapshot(path)
+    }
+    const response = await checkedFetch(path, {})
+    return {
+      blob: await response.blob(),
+      revision: response.headers.get("ETag")?.replace(/^"|"$/g, "") ?? null,
+    }
+  },
+
   postBlob: async (path: string, body: unknown, signal?: AbortSignal): Promise<Blob> => {
     if (config.appMode === "mock") {
       const { mockApi } = await import("./mockApi")

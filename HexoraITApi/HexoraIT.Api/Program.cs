@@ -79,6 +79,8 @@ builder.Services.AddScoped<OrganizationCustomizationService>();
 builder.Services.AddScoped<HexoraITApi.Application.Documentation.DocumentationService>();
 builder.Services.AddSingleton<HexoraITApi.Application.Documentation.IDocumentationPdfRenderer, HexoraITApi.Application.Documentation.DocumentationPdfRenderer>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<OrganizationActivityService>();
+builder.Services.AddHostedService<OrganizationActivityCleanup>();
 builder.Services.AddScoped<IOrganizationRoleService, OrganizationRoleService>();
 builder.Services.AddScoped<HexoraITApi.Application.DataTransfer.OrganizationArchiveService>();
 builder.Services.AddSingleton<HexoraITApi.Application.DataTransfer.ArchiveDownloadStore>();
@@ -235,7 +237,7 @@ builder.Services.AddCors(opt =>
         .WithOrigins(appSettings.AllowOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .WithExposedHeaders("X-Total-Count", "X-Page", "X-Page-Size", "X-Result-Capped")
+        .WithExposedHeaders("X-Total-Count", "X-Page", "X-Page-Size", "X-Result-Capped", "ETag")
         .AllowCredentials());
 });
 
@@ -330,6 +332,7 @@ app.MapClientReportEndpoints();
 app.MapAdminEndpoints();
 app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
+app.MapOrganizationActivityEndpoints();
 app.MapDocumentationEndpoints();
 app.MapDataTransferEndpoints();
 app.MapOrganizationRoleEndpoints();

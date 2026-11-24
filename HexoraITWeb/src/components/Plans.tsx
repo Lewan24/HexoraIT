@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale, locale } from '../i18n'
 import { useState } from 'react'
@@ -233,14 +235,14 @@ function PlanModal({ initial, onClose, onSave, onDelete }: {
 
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
-function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
+function PlanCard({ plan, onClick, onDelete }: { plan: Plan; onClick: () => void; onDelete?: () => Promise<void> }) {
   useLocale()
   const { subnets } = useApp()
   const sc = STATUS_CONFIG[plan.status]
   const pc = PRIORITY_CONFIG[plan.priority]
 
   return (
-    <button onClick={onClick}
+    <button {...contextItem("plans", plan.id, plan.title, { open: tr(onDelete ? "Edit" : "Open details") })} onClick={onClick}
       className="cursor-pointer w-full text-left bg-navy-800 border border-edge-subtle rounded-xl px-4 py-4 hover:border-edge-default hover:bg-navy-750 transition-all group">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -284,6 +286,7 @@ function PlanCard({ plan, onClick }: { plan: Plan; onClick: () => void }) {
         )}
       </div>
 
+      {onDelete && <ContextDelete name={plan.title} run={onDelete} />}
       {!!plan.subnetIds?.length && <div className="mt-2 flex flex-wrap gap-1.5">{plan.subnetIds.slice(0, 3).map(id => { const subnet = subnets.find(network => network.id === id); return <span key={id} className="rounded-md border border-blue-500/20 bg-blue-500/5 px-2 py-1 text-[10px] text-blue-400">{subnet ? `${subnet.name} · ${subnet.cidr}` : tr('Linked network')}</span> })}{plan.subnetIds.length > 3 && <span className="text-xs text-ink-muted">+{plan.subnetIds.length - 3}</span>}</div>}
       {plan.tags.length > 0 && (
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
@@ -408,7 +411,7 @@ export default function Plans() {
       ) : (
         <div className="space-y-3">
           {filtered.map(plan => (
-            <PlanCard key={plan.id} plan={plan} onClick={() => setModal({ open: true, initial: plan })} />
+            <PlanCard key={plan.id} plan={plan} onDelete={canWrite("plans", plan.id) ? () => handleDelete(plan.id) : undefined} onClick={() => setModal({ open: true, initial: plan })} />
           ))}
         </div>
       )}

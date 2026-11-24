@@ -186,7 +186,7 @@ public sealed class RecordOrderTests : IDisposable
         renderer.Snapshot!.Sections.Single(s => s.Key == "contacts").Records.Select(x => x.Id).Should().Equal(b.Id, a.Id);
         renderer.Snapshot.Sections.Single(s => s.Key == "contacts").Records.Select(x => x.SortIndex).Should().Equal(10, 20);
         var nested = renderer.Snapshot.Sections.Single(s => s.Key == "networks").Records.Single();
-        nested.Fields.Where(x => x.Label == "IP entry").Select(x => x.Value).Should().Equal("10.0.0.9 —  (Used)", "10.0.0.2 —  (Used)");
+        nested.Addresses!.Select(x => x.Ip).Should().Equal("10.0.0.9", "10.0.0.2");
     }
 
     public void Dispose() => fixture.Dispose();

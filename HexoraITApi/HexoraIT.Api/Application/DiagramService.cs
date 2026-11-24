@@ -43,22 +43,35 @@ public sealed class DiagramService(AppDbContext db, IMapper mapper, ICurrentUser
         if (nodeIds.Count != dto.Nodes.Count || dto.Edges.Any(edge => !nodeIds.Contains(edge.Source) || !nodeIds.Contains(edge.Target)))
             return new(StatusCodes.Status400BadRequest, "Diagram contains invalid nodes or edges.");
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var existingNodes = await db.DiagramNodes.Where(node => node.OrganizationId == organizationId).ToListAsync(cancellationToken);
-        var existingEdges = await db.DiagramEdges.Where(edge => edge.OrganizationId == organizationId).ToListAsync(cancellationToken);
-        db.DiagramEdges.RemoveRange(existingEdges);
-        db.DiagramNodes.RemoveRange(existingNodes);
-        await db.SaveChangesAsync(cancellationToken);
+        if (dto.Edges.Select(edge => edge.Id).Distinct().Count() != dto.Edges.Count)
+            return new(StatusCodes.Status400BadRequest, "Diagram contains duplicate connections.");
 
-        var nodes = mapper.Map<List<DiagramNode>>(dto.Nodes);
-        var existingOrder = existingNodes.ToDictionary(node => node.Id, node => node.SortIndex);
-        nodes.ForEach(node => { node.OrganizationId = organizationId; node.SortIndex = existingOrder.GetValueOrDefault(node.Id); });
-        var edges = mapper.Map<List<DiagramEdge>>(dto.Edges);
-        edges.ForEach(edge => edge.OrganizationId = organizationId);
-        db.DiagramNodes.AddRange(nodes);
-        db.DiagramEdges.AddRange(edges);
+        var existingNodes = await db.DiagramNodes.Where(node => node.OrganizationId == organizationId)
+            .ToDictionaryAsync(node => node.Id, cancellationToken);
+        var existingEdges = await db.DiagramEdges.Where(edge => edge.OrganizationId == organizationId)
+            .ToDictionaryAsync(edge => edge.Id, cancellationToken);
+        foreach (var dtoNode in dto.Nodes)
+        {
+            if (existingNodes.Remove(dtoNode.Id, out var existing))
+                mapper.Map(dtoNode, existing);
+            else
+            {
+                var node = mapper.Map<DiagramNode>(dtoNode);
+                node.OrganizationId = organizationId;
+                db.DiagramNodes.Add(node);
+            }
+        }
+        foreach (var dtoEdge in dto.Edges)
+        {
+            var edge = mapper.Map<DiagramEdge>(dtoEdge);
+            edge.OrganizationId = organizationId;
+            if (existingEdges.Remove(edge.Id, out var existing))
+                db.Entry(existing).CurrentValues.SetValues(edge);
+            else db.DiagramEdges.Add(edge);
+        }
+        db.DiagramEdges.RemoveRange(existingEdges.Values);
+        db.DiagramNodes.RemoveRange(existingNodes.Values);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return new(StatusCodes.Status204NoContent);
     }
 }

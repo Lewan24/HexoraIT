@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import RecordIndex from './RecordIndex'
 import AssetForm from './AssetForm'
 import { ASSET_TYPES, ASSET_STATUSES } from '../lib/assetOptions'
@@ -155,6 +156,7 @@ export default function AssetInventory({ navigate }: Props) {
   const onlineCount = assets.filter(a => a.status === 'online').length
 
   const handleBulkDelete = async () => {
+    if (!window.confirm(tr("Delete {{count}} selected items?", { count: selected.size }))) return
     setBulkDeleting(true)
     // Settle all deletes even if some fail — a failed one keeps its row,
     // rather than one rejection aborting the whole batch silently.
@@ -217,8 +219,10 @@ export default function AssetInventory({ navigate }: Props) {
 
         {selected.size > 0 && (
           <div className="ml-auto flex items-center gap-2">
+            <span hidden data-context-clear-native="" onClick={() => setSelected(new Set())} />
             <span className="text-xs text-ink-muted font-mono">{selected.size}  {tr("selected")}</span>
             <button
+              data-context-bulk-action="assets" data-context-bulk-count={selected.size} data-context-action={tr("Delete selected")}
               onClick={handleBulkDelete}
               disabled={bulkDeleting || Array.from(selected).some(id => !canWrite('assets', id))}
               className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 border border-red-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50">
@@ -236,22 +240,23 @@ export default function AssetInventory({ navigate }: Props) {
             <button onClick={() => { setQuery(''); setTypeFilter('All'); setStatusFilter('All') }} className="text-xs text-blue-400 hover:text-blue-300 mt-2 transition-colors">{tr("Clear filters")}</button>
           </div>
         ) : paged.map(asset => (
-          <div key={asset.id} className="bg-navy-800 border border-edge-subtle rounded-xl p-4 flex items-center gap-3">
+          <div key={asset.id} {...contextItem("assets", asset.id, asset.name)} data-context-native-selected={selected.has(asset.id) || undefined} className="bg-navy-800 border border-edge-subtle rounded-xl p-4 flex items-center gap-3">
             <div className="flex-1 min-w-0">
+              {canWrite('assets', asset.id) && <span hidden data-context-toggle-native="" onClick={() => toggleSelect(asset.id)} />}
               <div className="flex items-center gap-2 mb-1">
-                <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link font-medium text-sm"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
+                <button data-context-action={tr("View")} onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link font-medium text-sm"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
                 <StatusBadge status={asset.status} />
               </div>
               <p className="text-[10px] font-mono text-ink-muted">{asset.ip} · {asset.location}</p>
               <p className="text-[10px] text-ink-muted mt-0.5">{tr(asset.type)} · {asset.owner}</p>
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0">
-              <button disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)}
+              <button data-context-action={tr(asset.starred ? "Unstar" : "Star")} disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)}
                 className={`p-2 rounded-md transition-colors ${asset.starred ? 'text-yellow-400' : 'text-ink-muted'}`}>
                 <Star size={14} fill={asset.starred ? 'currentColor' : 'none'} />
               </button>
-              <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} className="p-2 rounded-md text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={14} /></button>
-              <button disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} className="p-2 rounded-md text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={14} /></button>
+              <button data-context-action={tr("Edit")} disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} className="p-2 rounded-md text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={14} /></button>
+              <button data-context-action={tr("Delete")} data-context-danger="true" disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} className="p-2 rounded-md text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}
@@ -305,15 +310,15 @@ export default function AssetInventory({ navigate }: Props) {
                   <button onClick={() => { setQuery(''); setTypeFilter('All'); setStatusFilter('All') }} className="text-xs text-blue-400 hover:text-blue-300 mt-2 transition-colors">{tr("Clear filters")}</button>
                 </td></tr>
               ) : paged.map(asset => (
-                <tr key={asset.id} className={`group hover:bg-navy-700/50 transition-colors ${selected.has(asset.id) ? 'bg-blue-500/5' : ''}`}>
+                <tr key={asset.id} {...contextItem("assets", asset.id, asset.name)} data-context-native-selected={selected.has(asset.id) || undefined} className={`group hover:bg-navy-700/50 transition-colors ${selected.has(asset.id) ? 'bg-blue-500/5' : ''}`}>
                   <td className="pl-4 pr-2 py-3">
-                    <div onClick={() => toggleSelect(asset.id)}
+                    <div data-context-toggle-native={canWrite("assets", asset.id) || undefined} onClick={() => toggleSelect(asset.id)}
                       className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-all ${selected.has(asset.id) ? 'bg-blue-500 border-blue-500' : 'border-edge-strong group-hover:border-blue-500/40'}`}>
                       {selected.has(asset.id) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <button onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link hover:text-blue-300 font-medium transition-colors"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
+                    <button data-context-action={tr("View")} onClick={() => navigate('asset-detail', asset.id)} className="font-mono text-ink-link hover:text-blue-300 font-medium transition-colors"><RecordIndex index={asset.sortIndex} />{asset.name}</button>
                     <p className="text-ink-muted font-mono mt-0.5 text-[10px]">{asset.ip}</p>
                   </td>
                   <td className="px-3 py-3">
@@ -327,13 +332,13 @@ export default function AssetInventory({ navigate }: Props) {
                   <td className="px-3 py-3 text-ink-muted font-mono">{asset.updatedAt}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-0.5">
-                      <button disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)} title={asset.starred ? tr("Unstar") : tr("Star")}
+                      <button data-context-action={tr(asset.starred ? "Unstar" : "Star")} disabled={!canWrite('assets', asset.id)} onClick={() => toggleStarAsset(asset.id)} title={asset.starred ? tr("Unstar") : tr("Star")}
                         className={`p-1.5 rounded-md transition-colors ${asset.starred ? 'text-yellow-400' : 'text-ink-muted hover:text-yellow-400'} hover:bg-navy-600`}>
                         <Star size={13} fill={asset.starred ? 'currentColor' : 'none'} />
                       </button>
-                      <button onClick={() => navigate('asset-detail', asset.id)} title={tr("View")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-blue-400 transition-colors"><Eye size={13} /></button>
-                      <button disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} title={tr("Edit")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={13} /></button>
-                      <button disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} title={tr("Delete")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={13} /></button>
+                      <button data-context-action={tr("View")} onClick={() => navigate('asset-detail', asset.id)} title={tr("View")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-blue-400 transition-colors"><Eye size={13} /></button>
+                      <button data-context-action={tr("Edit")} disabled={!canWrite('assets', asset.id)} onClick={() => setEditAsset(asset)} title={tr("Edit")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-ink-primary transition-colors disabled:opacity-40"><Edit2 size={13} /></button>
+                      <button data-context-action={tr("Delete")} data-context-danger="true" disabled={!canWrite('assets', asset.id)} onClick={() => setDeleteTarget(asset)} title={tr("Delete")} className="p-1.5 rounded-md hover:bg-navy-600 text-ink-muted hover:text-red-400 transition-colors disabled:opacity-40"><Trash2 size={13} /></button>
                     </div>
                   </td>
                 </tr>

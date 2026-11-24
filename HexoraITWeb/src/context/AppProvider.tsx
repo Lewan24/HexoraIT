@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } fro
 import { AppContext } from './useApp'
 import { useAuth } from './useAuth'
 import type {
-  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, License, Contact, Contract,
+  CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
   DiagramNode, DiagramEdge, Toast,
   OrgMembership,
@@ -398,6 +398,20 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     toast(tr("IP {{value1}} added", { value1: e.ip }))
   }, [guarded, toast])
 
+  const reserveIPEntries = useCallback(async (subnetId: string, targets: IpReservationTarget[], description: string) => {
+    const entries = await guarded(() => subnetsApi.reserveIps(subnetId, targets, description), 'Failed to reserve IP addresses')
+    const reserved = new Map(entries.map(entry => [entry.id, entry]))
+    setData(data => ({ ...data, subnets: data.subnets.map(subnet => {
+      if (subnet.id !== subnetId) return subnet
+      const currentIds = new Set(subnet.ips.map(entry => entry.id))
+      return { ...subnet, ips: [
+        ...subnet.ips.map(entry => reserved.get(entry.id) ?? entry),
+        ...entries.filter(entry => !currentIds.has(entry.id)),
+      ] }
+    }) }))
+    toast(tr('Reserved IP addresses: {{count}}', { count: entries.length }))
+  }, [guarded, toast])
+
   const updateIPEntry = useCallback(async (subnetId: string, e: IPEntry) => {
     await guarded(() => subnetsApi.updateIp(subnetId, e), 'Failed to update IP entry')
     setData(d => ({ ...d, subnets: d.subnets.map(s => s.id === subnetId ? { ...s, ips: s.ips.map(ip => ip.id === e.id ? e : ip) } : s) }))
@@ -703,7 +717,7 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     toasts, dismissToast, toast,
     addAsset, updateAsset, deleteAsset, toggleStarAsset,
     addPassword, updatePassword, deletePassword, toggleStarPassword, revealPassword,
-    syncNetworkAssets, addSubnet, updateSubnet, deleteSubnet, addIPEntry, updateIPEntry, deleteIPEntry,
+    syncNetworkAssets, addSubnet, updateSubnet, deleteSubnet, addIPEntry, reserveIPEntries, updateIPEntry, deleteIPEntry,
     addLicense, updateLicense, deleteLicense, toggleStarLicense,
     addContact, updateContact, deleteContact, toggleStarContact,
     reloadContracts, addContract, uploadContractDocument, updateContract, deleteContract, toggleStarContract,

@@ -16,15 +16,16 @@ public sealed record OperationInput(
     [RegularExpression("^(Low|Medium|High)$")] string Priority = "Medium",
     Guid? ImplementerId = null, Guid? OwnerId = null, Guid? AssetId = null,
     DateTime? PlannedStart = null, DateTime? PlannedEnd = null,
-    DateTime? ActualStart = null, DateTime? ActualEnd = null, Guid? RevisionToken = null);
+    DateTime? ActualStart = null, DateTime? ActualEnd = null, Guid? RevisionToken = null, List<OperationResourceReference>? RelatedResources = null);
 public sealed record OperationTransition(Guid RevisionToken, [Required, StringLength(40)] string Target, [StringLength(4000)] string Reason = "", [StringLength(4000)] string ExceptionReason = "");
 public sealed record OperationList(List<OperationRecordView> Items, int Total, int Page, int PageSize);
 public sealed record OperationDetail(OperationRecordView Record, OperationTemplateVersion Template, OperationSchema Schema,
-    JsonElement Values, List<OperationActivity> Activity, List<OperationRevisionInfo> Revisions, string[] AllowedTransitions, bool CanEdit, bool CanPolicyException = false);
+    JsonElement Values, List<OperationActivity> Activity, List<OperationRevisionInfo> Revisions, string[] AllowedTransitions, bool CanEdit, bool CanPolicyException = false, List<OperationResourceView>? RelatedResources = null);
 public sealed record OperationRevisionInfo(Guid Id, Guid RevisionToken, Guid ActorId, DateTime CreatedAt);
 
 public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
 {
+    private OperationResourceReferences References => new(db, user);
     private OperationAdministrationService Administration => new(db, user);
     public async Task<bool> CanRead(Guid org) => await user.HasPermissionAsync(org, "operations");
     private async Task<bool> Active(Guid org) => await db.Organizations.AnyAsync(o => o.Id == org && !o.IsArchived);
@@ -60,7 +61,12 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         if (!string.IsNullOrEmpty(risk)) query = query.Where(r => r.Risk == risk);
         if (!string.IsNullOrEmpty(type)) query = query.Where(r => r.ChangeType == type);
         if (!string.IsNullOrEmpty(category)) query = query.Where(r => r.Category == category);
-        if (assetId.HasValue) query = query.Where(r => r.AssetId == assetId);
+        if (assetId.HasValue)
+        {
+            if (!await user.HasPermissionAsync(org, "assets", false, assetId)) return new(403);
+            query = query.Where(r => r.AssetId == assetId ||
+                db.OperationResourceLinks.Any(link => link.OrganizationId == org && link.RecordId == r.Id && link.Resource == "assets" && link.ResourceId == assetId));
+        }
         if (requester.HasValue) query = query.Where(r => r.RequesterId == requester);
         if (implementer.HasValue) query = query.Where(r => r.ImplementerId == implementer);
         if (from.HasValue) query = query.Where(r => r.CreatedAt >= from);
@@ -72,7 +78,7 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
     }
 
     public async Task<OperationRecord?> Find(Guid org, Guid id, CancellationToken token) =>
-        await db.OperationRecords.FirstOrDefaultAsync(r => r.OrganizationId == org && r.Id == id, token);
+        await db.OperationRecords.Include(r => r.ResourceLinks).FirstOrDefaultAsync(r => r.OrganizationId == org && r.Id == id, token);
 
     public async Task<ApiOperationResult> Detail(Guid org, Guid id, CancellationToken token)
     {
@@ -95,7 +101,9 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         var publicSchema = OperationSchemas.PublicSchema(schema, sensitive);
         var publicTemplate = sensitive ? template : new OperationTemplateVersion { Id = template.Id, Key = template.Key, Version = template.Version, ContentHash = template.ContentHash,
             SchemaJson = OperationSchemas.Serialize(publicSchema), PublishedAt = template.PublishedAt, OrganizationId = template.OrganizationId, PublishedBy = template.PublishedBy };
-        return new(200, new OperationDetail(OperationRecordView.From(r), publicTemplate, publicSchema, OperationSchemas.PublicValues(schema, JsonSerializer.Deserialize<JsonElement>(r.ValuesJson), sensitive), activity, revisions, allowed.ToArray(), write && r.Status == "Draft" && (r.RequesterId == user.UserId || admin), admin && policy.AllowDocumentedExceptions));
+        var related = await References.Read(org, r.ResourceLinks.OrderBy(link => link.Resource).ThenBy(link => link.ResourceId)
+            .Select(link => new OperationResourceReference(link.Resource, link.ResourceId)), token);
+        return new(200, new OperationDetail(OperationRecordView.From(r), publicTemplate, publicSchema, OperationSchemas.PublicValues(schema, JsonSerializer.Deserialize<JsonElement>(r.ValuesJson), sensitive), activity, revisions, allowed.ToArray(), write && r.Status == "Draft" && (r.RequesterId == user.UserId || admin), admin && policy.AllowDocumentedExceptions, related));
     }
 
     private static bool CanTransition(OperationRecord r, string target, OperationSchema schema, OperationPolicy policy) =>
@@ -108,8 +116,14 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         if (record is null) return new(404);
         var revision = await db.OperationRevisions.AsNoTracking().FirstOrDefaultAsync(r => r.OrganizationId == org && r.RecordId == id && r.Id == revisionId, token);
         if (revision is null) return new(404);
-        var schema = OperationSchemas.Parse((await db.OperationTemplates.AsNoTracking().SingleAsync(t => t.Id == record.TemplateVersionId, token)).SchemaJson);
         var snapshot = JsonNode.Parse(revision.SnapshotJson)!.AsObject();
+        var version = snapshot["TemplateVersionId"]?.GetValue<Guid>() ?? record.TemplateVersionId;
+        var schema = OperationSchemas.Parse((await db.OperationTemplates.AsNoTracking().SingleAsync(t => t.Id == version, token)).SchemaJson);
+        if (snapshot["RelatedResources"] is { } references)
+        {
+            var readable = await References.Read(org, references.Deserialize<List<OperationResourceReference>>() ?? [], token);
+            snapshot["RelatedResources"] = JsonSerializer.SerializeToNode(readable.Select(link => new OperationResourceReference(link.Resource, link.Id)));
+        }
         if (snapshot["ValuesJson"] is { } values) snapshot["ValuesJson"] = OperationSchemas.PublicValues(schema, JsonSerializer.Deserialize<JsonElement>(values.GetValue<string>()), await Administration.Sensitive(org)).GetRawText();
         return new(200, new { revision.Id, revision.ActorId, revision.CreatedAt, revision.RevisionToken, SnapshotJson = snapshot.ToJsonString() });
     }
@@ -148,6 +162,7 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         var next = (await db.OperationRecords.IgnoreQueryFilters().Where(r => r.OrganizationId == org && r.Year == year).MaxAsync(r => (int?)r.Sequence, token) ?? 0) + 1;
         var r = new OperationRecord { OrganizationId = org, Year = year, Sequence = next, Number = $"{(OperationCatalog.IsRecord(schema) ? "OPS" : "CHG")}-{year}-{next:0000}", TemplateVersionId = template.Id,
             RequesterId = user.UserId, ModifiedBy = user.UserId, Category = schema.Category ?? (schema.Key.StartsWith("ORG_", StringComparison.Ordinal) ? "E" : schema.Key[..1]) };
+        if (!await References.Apply(r, input.RelatedResources, token)) return new(400, "One or more related resources are unavailable.");
         Apply(r, input);
         db.OperationRecords.Add(r);
         await Save(r, "Created", "", token);
@@ -163,18 +178,42 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         if (r.RequesterId != user.UserId && !await Admin(org)) return new(403);
         if (input.RevisionToken != r.RevisionToken) return new(409, "Record changed. Reload before saving.");
         if (r.Status != "Draft") return new(409, "Only drafts can be edited. Execution evidence is recorded with workflow actions.");
-        if (input.TemplateVersionId != r.TemplateVersionId) return new(400, "Template version cannot be changed.");
-        var template = await db.OperationTemplates.SingleAsync(t => t.Id == r.TemplateVersionId, token);
+        var currentTemplate = await db.OperationTemplates.AsNoTracking().SingleAsync(t => t.Id == r.TemplateVersionId, token);
+        var changingTemplate = input.TemplateVersionId != r.TemplateVersionId;
+        await using var conversion = changingTemplate
+            ? await db.Database.BeginTransactionAsync(db.Database.IsNpgsql() ? IsolationLevel.ReadCommitted : IsolationLevel.Serializable, token)
+            : null;
+        var template = currentTemplate;
+        if (changingTemplate)
+        {
+            if (currentTemplate.Key != "BASIC") return new(400, "Only basic drafts can be converted to another template.");
+            if (db.Database.IsNpgsql()) await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({org.ToString()}, 0))", token);
+            var requested = await db.OperationTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == input.TemplateVersionId && (t.OrganizationId == null || t.OrganizationId == org), token);
+            if (requested is null) return new(400, "Unknown template version.");
+            if (!await Administration.IsActive(org, requested.Key, token) ||
+                await db.OperationTemplates.AnyAsync(t => t.Key == requested.Key && t.Version > requested.Version, token))
+                return new(409, "Select an active latest template version.");
+            template = requested;
+        }
         var schema = OperationSchemas.Parse(template.SchemaJson);
         var rawErrors = OperationSchemas.Validate(schema, input.Values, false);
         if (rawErrors.Count > 0) return new(400, string.Join(" ", rawErrors.Select(e => e.Key + ": " + e.Value[0])));
         var sensitive = await Administration.Sensitive(org);
         if (!sensitive && OperationSchemas.WritesProtected(schema, input.Values)) return new(403);
-        input = input with { Values = OperationSchemas.PrepareValues(schema, input.Values, sensitive, JsonSerializer.Deserialize<JsonElement>(r.ValuesJson)) };
+        input = input with { Values = OperationSchemas.PrepareValues(schema, input.Values, sensitive, changingTemplate ? null : JsonSerializer.Deserialize<JsonElement>(r.ValuesJson)) };
         var error = await ValidateInput(org, input, schema, token);
         if (error is not null) return new(400, error);
+        if (!await References.Apply(r, input.RelatedResources, token)) return new(400, "One or more related resources are unavailable.");
+        if (changingTemplate)
+        {
+            r.TemplateVersionId = template.Id;
+            r.Category = schema.Category ?? (schema.Key.StartsWith("ORG_", StringComparison.Ordinal) ? "E" : schema.Key[..1]);
+        }
         Apply(r, input);
-        return await SaveResult(r, "DraftSaved", r.Status, token);
+        var saved = await SaveResult(r, changingTemplate ? "TemplateChanged" : "DraftSaved", r.Status, token);
+        if (conversion is not null && saved.StatusCode == 200) await conversion.CommitAsync(token);
+        return saved;
     }
 
     public async Task<ApiOperationResult> Transition(Guid org, Guid id, OperationTransition input, CancellationToken token)
@@ -249,7 +288,7 @@ public sealed class OperationService(AppDbContext db, ICurrentUserContext user)
         r.RevisionToken = Guid.NewGuid(); r.ModifiedAt = DateTime.UtcNow; r.ModifiedBy = user.UserId;
         db.OperationRevisions.Add(new() { OrganizationId = r.OrganizationId, RecordId = r.Id, RevisionToken = r.RevisionToken, ActorId = user.UserId,
             SnapshotJson = JsonSerializer.Serialize(new { r.Title, r.Description, r.Number, r.Status, r.ValuesJson, r.TemplateVersionId, r.AssetId, r.RequesterId, r.ImplementerId, r.OwnerId, r.ChangeType, r.Risk, r.Priority,
-                r.PlannedStart, r.PlannedEnd, r.ActualStart, r.ActualEnd, r.ClosedAt, r.EmergencyBypassed, r.RetrospectiveReviewed, Reason = reason, Policy = policy }) });
+                r.PlannedStart, r.PlannedEnd, r.ActualStart, r.ActualEnd, r.ClosedAt, r.EmergencyBypassed, r.RetrospectiveReviewed, RelatedResources = r.ResourceLinks.Select(link => new OperationResourceReference(link.Resource, link.ResourceId)), Reason = reason, Policy = policy }) });
         db.OperationActivities.Add(new() { OrganizationId = r.OrganizationId, RecordId = r.Id, ActorId = user.UserId, EventType = action, FromStatus = previous, ToStatus = r.Status });
         await db.SaveChangesAsync(token);
     }

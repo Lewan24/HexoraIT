@@ -1,3 +1,4 @@
+import { contextItem } from "./ui/contextItems"
 import { useEffect, useState } from "react"
 import { tr, useLocale } from "../i18n"
 import {
@@ -302,6 +303,7 @@ export function OperationTemplateLibrary({
           return (
             <article
               key={t.id}
+              {...contextItem("operation-templates", t.id, schema.name[i18n.language === "en" ? "en" : "pl"], { link: false })}
               className="min-w-0 rounded-xl border border-edge-subtle bg-navy-800 p-5"
             >
               <p className="mb-1 text-xs text-ink-muted">
@@ -330,7 +332,7 @@ export function OperationTemplateLibrary({
                 {templates
                   .filter((v) => v.key === t.key)
                   .map((v) => (
-                    <details key={v.id} className="mt-3">
+                    <details key={v.id} {...contextItem("operation-templates", v.id, t.key, { link: false })} className="mt-3">
                       <summary className="cursor-pointer">
                         v{v.version} · {v.contentHash.slice(0, 12)}
                       </summary>
@@ -339,7 +341,7 @@ export function OperationTemplateLibrary({
                       </pre>
                       <button
                         className={`${button} mt-2`}
-                        onClick={() => download(v)}
+                        data-context-action={tr("Export JSON")} onClick={() => download(v)}
                       >
                         {tr("Export JSON")}
                       </button>
@@ -351,12 +353,12 @@ export function OperationTemplateLibrary({
                   <button
                     className={button}
                     disabled={busy}
-                    onClick={() => onCreate(t)}
+                    data-context-action={tr("New record")} onClick={() => onCreate(t)}
                   >
                     {tr("New record")}
                   </button>
                 )}
-                <button className={button} onClick={() => download(t)}>
+                <button data-context-action={tr("Export JSON")} className={button} onClick={() => download(t)}>
                   {tr("Export JSON")}
                 </button>
                 {canManage && (
@@ -364,6 +366,7 @@ export function OperationTemplateLibrary({
                     <button
                       className={button}
                       disabled={busy}
+                      data-context-action={tr("Clone to organization")}
                       onClick={() =>
                         run(async () => {
                           await operationsApi.clone(org, t.id)
@@ -379,6 +382,7 @@ export function OperationTemplateLibrary({
                       <button
                         className={button}
                         disabled={busy}
+                        data-context-action={tr("Edit as new version")}
                         onClick={() => {
                           setEditing(t)
                           setSource(JSON.stringify(schema, null, 2))
@@ -392,6 +396,7 @@ export function OperationTemplateLibrary({
                     <button
                       className={button}
                       disabled={busy}
+                      data-context-action={tr(t.active === false ? "Activate" : "Deactivate")}
                       onClick={() =>
                         run(() =>
                           operationsApi.activate(org, t, t.active === false),

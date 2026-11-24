@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HexoraITApi.Api.Interfaces;
@@ -15,7 +17,7 @@ public interface IFileExplorerService
     Task<ApiOperationResult> DeleteFolderAsync(Guid id, CancellationToken token = default);
     Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default);
     Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default);
-    Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default);
+    Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default, string? revision = null);
     Task<ApiOperationResult> GetContentAsync(Guid id, bool download, CancellationToken token = default);
     Task<ApiOperationResult> DeleteFileAsync(Guid id, CancellationToken token = default);
     Task<ApiOperationResult> RenameFolderAsync(Guid id, RenameFolderDto dto, CancellationToken token = default);
@@ -97,27 +99,34 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         return new(StatusCodes.Status200OK, mapper.Map<StoredFileDto>(stored));
     }
 
-    public async Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default)
+    public async Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default, string? revision = null)
     {
         var stored = await db.StoredFiles.FirstOrDefaultAsync(item => item.Id == id, token);
         if (stored is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(stored.OrganizationId, "files", true, stored.Id))
             return new(StatusCodes.Status403Forbidden);
+        var editing = revision is not null;
+        if (editing && (revision != ContentRevision(stored) || file.FileName != stored.Name))
+            return ContentConflict();
         ValidatedUpload validated;
-        try { validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token); }
+        try
+        {
+            validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token,
+                allowEmptyText: editing);
+        }
         catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
         await using var content = file.OpenReadStream();
         var path = await storage.SaveAsync(content, validated.FileName, validated.ContentType);
         var previousPath = stored.BlobPath;
         stored.BlobPath = path;
-        stored.Name = validated.FileName;
+        if (!editing) stored.Name = validated.FileName;
         stored.MimeType = validated.ContentType;
         stored.Size = file.Length;
         try { await db.SaveChangesAsync(token); }
         catch (DbUpdateConcurrencyException)
         {
             await DeleteBlobSafelyAsync(path, "after a concurrent replacement");
-            return new(StatusCodes.Status409Conflict, "This file changed during the upload. Refresh and try again.");
+            return ContentConflict();
         }
         catch { await DeleteBlobSafelyAsync(path, "after a replacement database failure"); throw; }
         await DeleteBlobSafelyAsync(previousPath, "after replacing its content");
@@ -129,7 +138,7 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         var file = await db.StoredFiles.FirstOrDefaultAsync(item => item.Id == id, token); if (file is null) return new(StatusCodes.Status404NotFound);
         var stream = await storage.OpenAsync(file.BlobPath); var canInline = FileUploadSecurity.CanRenderInline(file.Name, file.MimeType);
         return new(StatusCodes.Status200OK, new DocumentDownload(stream, canInline ? file.MimeType : "application/octet-stream",
-            FileUploadSecurity.SafeDownloadName(file.Name), Inline: !download && canInline));
+            FileUploadSecurity.SafeDownloadName(file.Name), Inline: !download && canInline, Revision: ContentRevision(file)));
     }
 
     public async Task<ApiOperationResult> DeleteFileAsync(Guid id, CancellationToken token = default)
@@ -183,6 +192,12 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
             return new(StatusCodes.Status400BadRequest, "Target folder does not exist.");
         file.FolderId = dto.NewFolderId; await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);
     }
+
+    private static string ContentRevision(StoredFile file) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(file.BlobPath + "\0" + file.Name)));
+
+    private static ApiOperationResult ContentConflict() =>
+        new(StatusCodes.Status409Conflict, "This file changed. Reopen it before editing again.");
 
     private async Task DeleteBlobSafelyAsync(string path, string reason) { try { await storage.DeleteAsync(path); } catch (Exception ex) { logger.LogWarning(ex, "Unable to remove blob {BlobPath} {Reason}.", path, reason); } }
 }
