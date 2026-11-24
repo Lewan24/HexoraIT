@@ -8,6 +8,7 @@ const source = await readFile(
   "utf8",
 )
 const standaloneSource = source
+  .replace('"../lib/ipRange"', JSON.stringify(import.meta.resolve("../src/lib/ipRange.ts")))
   .replace(
     /import \{ ApiError \} from ["']\.\/errors["']/,
     `class ApiError extends Error { constructor(status, message, details) { super(message); this.status = status; this.details = details } }`,

@@ -268,3 +268,30 @@ export function validateOperationForm(
   }
   return errors
 }
+
+export interface OperationTemplateOption<T> {
+  template: T
+  schema: OperationSchema
+}
+
+export function searchOperationTemplates<T extends { key: string }>(options: readonly OperationTemplateOption<T>[], query: string) {
+  const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replaceAll('ł', 'l')
+  const terms = normalize(query).trim().split(/\s+/).filter(Boolean)
+  return options.filter(({ template, schema }) => {
+    const text = normalize([template.key, schema.name.en, schema.name.pl, schema.description.en, schema.description.pl].join(' '))
+    return terms.every(term => text.includes(term))
+  })
+}
+
+export function compatibleOperationValues(source: OperationSchema, target: OperationSchema, previous: OperationValues) {
+  const values = operationDefaults(target.fields)
+  for (const field of target.fields) {
+    if (field.sensitivity === 'Secret' || !Object.hasOwn(previous, field.key) ||
+        !source.fields.some(current => current.key === field.key && current.type === field.type && current.sensitivity === field.sensitivity)) continue
+    const candidate = { ...values, [field.key]: previous[field.key]! }
+    const errors = validateOperationForm(target, candidate, false)
+    if (!Object.keys(errors).some(key => key === field.key || key.startsWith(field.key + '.')))
+      values[field.key] = previous[field.key]!
+  }
+  return values
+}

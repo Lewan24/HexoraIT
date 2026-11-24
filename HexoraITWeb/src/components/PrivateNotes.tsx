@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from "./RecordIndex"
 import MarkdownEditor from "./MarkdownEditor"
 import { useDialogFocus } from "../lib/useDialogFocus"
@@ -200,6 +202,7 @@ function NotesWorkspace({ orgId }: { orgId: string }) {
           {filtered.map((note) => (
             <article
               key={note.id}
+              {...contextItem("private-notes", note.id, note.title, { link: false })}
               className="group relative flex h-52 flex-col overflow-hidden rounded-2xl border border-edge-subtle bg-navy-800 transition-colors hover:border-blue-500/40"
             >
               <div className="h-1 shrink-0 bg-amber-400/40" />
@@ -209,6 +212,7 @@ function NotesWorkspace({ orgId }: { orgId: string }) {
                   setSelected(note)
                 }}
                 className="flex min-h-0 flex-1 flex-col gap-3 p-4 text-left focus-visible:outline-2 focus-visible:outline-blue-400"
+                data-context-action={tr("Edit")}
                 aria-label={tr("Open note {{name}}", { name: note.title })}
               >
                 <div className="flex w-full items-start gap-2">
@@ -240,6 +244,7 @@ function NotesWorkspace({ orgId }: { orgId: string }) {
                   })}
                 </time>
               </button>
+              {!busy && <ContextDelete name={note.title} run={() => remove(note)} />}
             </article>
           ))}
         </div>

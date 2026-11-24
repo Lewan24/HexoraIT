@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import { tr, useLocale, locale } from '../i18n'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
@@ -340,7 +341,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {openTasks.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No open tasks")}</p>}
                 {openTasks.slice(0, maxItems).map(task => (
-                  <div key={task.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-navy-700/40">
+                  <div key={task.id} {...contextItem("tasks", task.id, task.title, { open: tr("Open module") })} className="px-4 py-2.5 flex items-center gap-3 hover:bg-navy-700/40">
                     <CircleAlert size={14} className="text-red-400" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-ink-primary truncate">{task.title}</p>
@@ -361,7 +362,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {expiringLicenses.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("Nothing expiring soon")}</p>}
                 {expiringLicenses.slice(0, maxItems).map(item => (
-                  <div key={item.id} className="px-4 py-2.5 flex gap-3 items-center">
+                  <div key={item.id} {...contextItem("licenses", item.id, item.name, { open: tr("Open module") })} className="px-4 py-2.5 flex gap-3 items-center">
                     <AlertTriangle size={13} className="text-orange-400" />
                     <span className="flex-1 text-xs text-ink-secondary truncate">{item.name}</span>
                     <span className="text-[10px] font-mono text-orange-400">{daysUntil(item.expiryDate)}{tr("d")}</span>
@@ -380,7 +381,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {expiringWarranties.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("Nothing expiring soon")}</p>}
                 {expiringWarranties.slice(0, maxItems).map(item => (
-                  <div key={item.id} className="px-4 py-2.5 flex gap-3 items-center">
+                  <div key={item.id} {...contextItem("warranty", item.id, item.name, { open: tr("Open module") })} className="px-4 py-2.5 flex gap-3 items-center">
                     <AlertTriangle size={13} className="text-cyan-400" />
                     <span className="flex-1 text-xs text-ink-secondary truncate">{item.name}</span>
                     <span className="text-[10px] font-mono text-cyan-400">{daysUntil(item.warrantyEndDate)}{tr("d")}</span>
@@ -399,7 +400,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {favoriteAssets.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No favorite assets")}</p>}
                 {favoriteAssets.map(asset => (
-                  <button key={asset.id} onClick={() => navigate('asset-detail', asset.id)}
+                  <button key={asset.id} {...contextItem("assets", asset.id, asset.name, { open: tr("Open details") })} onClick={() => navigate('asset-detail', asset.id)}
                     className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-navy-700/40 text-left cursor-pointer">
                     <StatusDot color={asset.status === 'online' ? 'bg-green-400' : 'bg-red-400'} />
                     <div className="flex-1 min-w-0">
@@ -422,7 +423,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {recentDocs.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No documents yet")}</p>}
                 {recentDocs.map(doc => (
-                  <button key={doc.id} onClick={() => navigate('knowledge')} className="w-full px-4 py-2.5 text-left hover:bg-navy-700/40 cursor-pointer">
+                  <button key={doc.id} {...contextItem("knowledge", doc.id, doc.title, { open: tr("Open module") })} onClick={() => navigate('knowledge')} className="w-full px-4 py-2.5 text-left hover:bg-navy-700/40 cursor-pointer">
                     <p className="text-xs text-ink-primary truncate">{doc.title}</p>
                     <p className="text-[10px] text-ink-muted mt-1">{doc.category}</p>
                   </button>
@@ -440,7 +441,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle ">
                 {projects.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No projects yet")}</p>}
                 {projects.slice(0, maxItems).map(project => (
-                  <button key={project.id} onClick={() => navigate('tasks')} className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-navy-700/40 text-left cursor-pointer">
+                  <button key={project.id} {...contextItem("projects", project.id, project.name, { open: tr("Open module") })} onClick={() => navigate('tasks')} className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-navy-700/40 text-left cursor-pointer">
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: project.color }} />
                     <span className="flex-1 text-xs text-ink-primary truncate">{project.name}</span>
                     <span className="text-[10px] font-mono text-ink-muted flex-shrink-0">{project.taskCount}  {tr("tasks")}</span>
@@ -458,7 +459,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {plans.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No plans yet")}</p>}
                 {plans.slice(0, maxItems).map(plan => (
-                  <div key={plan.id} className="px-4 py-2.5">
+                  <div key={plan.id} {...contextItem("plans", plan.id, plan.title, { open: tr("Open module") })} className="px-4 py-2.5">
                     <div className="flex justify-between mb-2 gap-2">
                       <span className="text-xs text-ink-primary truncate">{plan.title}</span>
                       <span className="text-[10px] font-mono text-cyan-400 flex-shrink-0">{plan.targetDate}</span>
@@ -480,7 +481,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {contracts.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No contracts yet")}</p>}
                 {contracts.slice(0, maxItems).map(contract => (
-                  <div key={contract.id} className="px-4 py-2.5">
+                  <div key={contract.id} {...contextItem("contracts", contract.id, contract.name, { open: tr("Open module") })} className="px-4 py-2.5">
                     <p className="text-xs text-ink-primary truncate">{contract.name}</p>
                     <div className="flex justify-between mt-1 gap-2">
                       <span className="text-[10px] text-ink-muted truncate">{contract.vendor}</span>
@@ -500,7 +501,7 @@ export default function Dashboard({ navigate }: Props) {
               <div className="divide-y divide-edge-subtle">
                 {contacts.length === 0 && <p className="px-5 py-6 text-center text-xs text-ink-muted">{tr("No contacts yet")}</p>}
                 {contacts.slice(0, maxItems).map(contact => (
-                  <div key={contact.id} className="px-4 py-2.5 flex gap-3 items-center">
+                  <div key={contact.id} {...contextItem("contacts", contact.id, contact.name, { open: tr("Open module") })} className="px-4 py-2.5 flex gap-3 items-center">
                     <div className="w-7 h-7 rounded-full bg-navy-700 flex items-center justify-center flex-shrink-0">
                       <Phone size={12} className="text-indigo-400" />
                     </div>

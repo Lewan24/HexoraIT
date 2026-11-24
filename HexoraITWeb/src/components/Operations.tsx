@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { ArrowLeft, FileText, Plus, Search } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ArrowLeft, FileText, Plus, Search, X } from "lucide-react"
 import { tr, useLocale, locale } from "../i18n"
 import { useApp } from "../context/useApp"
 import { useAuth } from "../context/useAuth"
@@ -11,12 +11,15 @@ import {
   type OperationTemplate,
   type OperationSettings,
   type OperationMember,
+  type OperationResourceView,
 } from "../api/operations"
 import {
   validateOperationForm,
   type OperationSchema,
   type OperationValues,
   operationDefaults,
+  compatibleOperationValues,
+  type OperationTemplateOption,
 } from "../lib/operationForm"
 import OperationForm, {
   operationButtonClass as button,
@@ -26,6 +29,9 @@ import OperationPolicyEditor, {
   OperationTemplateLibrary,
 } from "./OperationAdministration"
 
+import OperationTemplatePicker from "./OperationTemplatePicker"
+import { contextItem } from "./ui/contextItems"
+
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : tr("Unable to load records.")
 }
@@ -33,16 +39,20 @@ function displayDate(date: string) {
   return new Date(date).toLocaleString(locale())
 }
 
-export default function Operations({ assetId }: { assetId?: string }) {
+type ContextDraft = { organizationId: string; resources: OperationResourceView[]; request: number }
+
+export default function Operations({ assetId, draft }: { assetId?: string; draft?: ContextDraft }) {
   useLocale()
   const { currentOrg, canRead } = useApp()
   if (!currentOrg || !canRead("operations"))
     return <p className="p-6 text-ink-muted">{tr("Access forbidden")}</p>
+  const requested = draft?.organizationId === currentOrg.id ? draft : undefined
   return (
     <OperationWorkspace
-      key={`${currentOrg.id}:${assetId ?? ""}`}
+      key={`${currentOrg.id}:${assetId ?? ""}:${requested?.request ?? ""}`}
       organizationId={currentOrg.id}
       assetId={assetId}
+      draft={requested}
     />
   )
 }
@@ -50,21 +60,26 @@ export default function Operations({ assetId }: { assetId?: string }) {
 function OperationWorkspace({
   organizationId: org,
   assetId,
+  draft,
 }: {
   organizationId: string
   assetId?: string
+  draft?: ContextDraft
 }) {
-  const { i18n } = useLocale()
+  useLocale()
   const { canWrite } = useApp()
   const { user } = useAuth()
   const [selected, setSelected] = useState<string>()
-  const [creating, setCreating] = useState<OperationTemplate>()
+  const [draftResources, setDraftResources] = useState(draft?.resources)
+  const [creating, setCreating] = useState<OperationTemplate | true | undefined>(draft ? true : undefined)
   const [templates, setTemplates] = useState<OperationTemplate[]>([])
   const [settings, setSettings] = useState<OperationSettings>()
-  const latestTemplates = templates.filter(
-    (t, i, all) =>
-      t.active !== false && all.findIndex((v) => v.key === t.key) === i,
-  )
+  const choices = useMemo(() => templates.filter((template, index, all) =>
+    template.active !== false && all.findIndex(other => other.key === template.key) === index)
+    .map(template => ({ template, schema: JSON.parse(template.schemaJson) as OperationSchema })),
+  [templates])
+  const basicTemplate = choices.find(option => option.template.key === "BASIC")?.template
+  const newTemplate = creating === true ? basicTemplate : creating
   const [list, setList] = useState<OperationList>()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("")
@@ -141,21 +156,25 @@ function OperationWorkspace({
     refresh,
   ])
   const back = () => {
+    setDraftResources(undefined)
     setSelected(undefined)
     setCreating(undefined)
     setRefresh((n) => n + 1)
   }
-  if (selected || creating)
+  if (selected || (newTemplate && canWrite("operations")))
     return (
       <OperationEditor
-        key={selected ?? creating?.id}
+        key={selected ?? newTemplate?.id}
         org={org}
         id={selected}
-        template={creating}
+        template={newTemplate}
+        choices={choices}
+        related={selected ? undefined : draftResources}
         assetId={assetId}
         onBack={back}
         onCreated={(id) => {
           setCreating(undefined)
+          setDraftResources(undefined)
           setSelected(id)
         }}
       />
@@ -172,41 +191,15 @@ function OperationWorkspace({
           </p>
         </div>
         {canWrite("operations") && (
-          <div className="flex max-w-full min-w-0 flex-wrap items-center gap-3">
-            <button
-              className={button}
-              disabled={!latestTemplates.some((t) => t.key === "BASIC")}
-              onClick={() => setCreating(latestTemplates.find((t) => t.key === "BASIC"))}
-            >
-              {tr("Basic document")}
-            </button>
-          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-ink-secondary">
-            <Plus size={16} aria-hidden="true" />
-            {tr("Advanced template")}
-            <select
-              className={input}
-              value=""
-              onChange={(e) =>
-                setCreating(templates.find((t) => t.id === e.target.value))
-              }
-            >
-              <option value="">{tr("Select template")}</option>
-              {latestTemplates.filter((t) => t.key !== "BASIC").map((t) => {
-                const s = JSON.parse(t.schemaJson) as OperationSchema
-                return (
-                  <option key={t.id} value={t.id}>
-                    {t.key} · {i18n.language === "en" ? s.name.en : s.name.pl}
-                  </option>
-                )
-              })}
-            </select>
-          </label>
-          </div>
+          <button type="button" disabled={!basicTemplate} onClick={() => { setDraftResources(undefined); setCreating(true) }}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-400 disabled:opacity-50">
+            <Plus size={16} aria-hidden="true" />{tr("Add document")}
+          </button>
         )}
       </div>
       <nav
         aria-label={tr("IT Operations & Changes")}
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-2 rounded-xl border border-edge-subtle bg-navy-800 p-2"
       >
         {([
           ["register", "Change Register"],
@@ -253,7 +246,7 @@ function OperationWorkspace({
           templates={templates}
           canManage={settings?.canManage ?? false}
           onChanged={() => setRefresh((n) => n + 1)}
-          onCreate={canWrite("operations") ? setCreating : undefined}
+          onCreate={canWrite("operations") ? template => { setDraftResources(undefined); setCreating(template) } : undefined}
         />
       ) : section === "policy" && settings?.canManage ? (
         <OperationPolicyEditor
@@ -385,11 +378,12 @@ function OperationWorkspace({
               </thead>
               <tbody className="divide-y divide-edge-subtle">
                 {list?.items.map((r) => (
-                  <tr key={r.id} className="text-ink-secondary">
+                  <tr key={r.id} {...contextItem("operations", r.id, r.title)} className="text-ink-secondary">
                     <td className="px-4 py-3 font-mono text-xs">{r.number}</td>
                     <td className="px-4 py-3">
                       <button
                         className="text-left text-blue-400 underline-offset-4 hover:underline focus-visible:underline"
+                        data-context-action={tr("Open document")}
                         onClick={() => setSelected(r.id)}
                       >
                         {r.title}
@@ -444,6 +438,8 @@ function OperationEditor({
   org,
   id,
   template,
+  choices,
+  related,
   assetId,
   onBack,
   onCreated,
@@ -451,12 +447,16 @@ function OperationEditor({
   org: string
   id?: string
   template?: OperationTemplate
+  choices: OperationTemplateOption<OperationTemplate>[]
+  related?: OperationResourceView[]
   assetId?: string
   onBack: () => void
   onCreated: (id: string) => void
 }) {
   const { i18n } = useLocale()
   const { assets, canWrite } = useApp()
+  const [resources, setResources] = useState(related ?? [])
+  const templateValues = useRef(new Map<string, OperationValues>())
   const [detail, setDetail] = useState<OperationDetail>()
   const [schema, setSchema] = useState<OperationSchema | undefined>(() =>
     template ? JSON.parse(template.schemaJson) as OperationSchema : undefined,
@@ -469,7 +469,8 @@ function OperationEditor({
     risk: "Medium",
     priority: "Medium",
     changeType: "Normal",
-    assetId: assetId ?? null,
+    assetId: assetId ?? related?.find(resource => resource.resource === "assets")?.id ?? null,
+    relatedResources: related?.map(({ resource, id }) => ({ resource, id })),
     plannedStart: null,
     plannedEnd: null,
   }))
@@ -506,7 +507,10 @@ function OperationEditor({
         if (!active) return
         setDetail(d)
         setSchema(d.schema)
-        setForm({ ...d.record, values: d.values })
+        setResources(d.relatedResources ?? [])
+        templateValues.current.clear()
+        setForm({ ...d.record, values: d.values,
+          relatedResources: d.relatedResources?.map(({ resource, id }) => ({ resource, id })) })
         setDirty(false)
         setError("")
         setTarget("")
@@ -536,6 +540,35 @@ function OperationEditor({
     setForm((f) => ({ ...f, ...patch }))
     setDirty(true)
     setErrors({})
+  }
+  const changeTemplate = ({ template: next, schema: nextSchema }: OperationTemplateOption<OperationTemplate>) => {
+    if (!schema || next.id === form.templateVersionId) return true
+    const values = templateValues.current.get(next.id) ?? compatibleOperationValues(schema, nextSchema, form.values)
+    let description = form.description
+    if (schema.key === "BASIC" && nextSchema.key !== "BASIC") {
+      const fragments = [form.values.content, form.values.evidence === values.evidence ? undefined : form.values.evidence]
+      for (const fragment of fragments) {
+        if (typeof fragment === "string" && fragment.trim() && !description.includes(fragment))
+          description = [description, fragment].filter(Boolean).join("\n\n")
+      }
+    }
+    if (description.length > 10000) {
+      setError(tr("The basic content and description exceed 10,000 characters together. Shorten the description before changing the template."))
+      return false
+    }
+    templateValues.current.set(form.templateVersionId, form.values)
+    setSchema(nextSchema)
+    setError("")
+    update({ templateVersionId: next.id, description, values })
+    return true
+  }
+  const removeResource = (resource: OperationResourceView) => {
+    const remaining = resources.filter(item => item.resource !== resource.resource || item.id !== resource.id)
+    setResources(remaining)
+    update({
+      relatedResources: remaining.map(({ resource, id }) => ({ resource, id })),
+      ...(resource.resource === "assets" && resource.id === form.assetId ? { assetId: null } : {}),
+    })
   }
   async function save() {
     if (!schema) return
@@ -633,6 +666,11 @@ function OperationEditor({
           .toISOString()
           .slice(0, 16)
       : ""
+  const originalTemplate = detail?.template ?? template
+  const templateChoices = originalTemplate && !choices.some(option => option.template.id === originalTemplate.id)
+    ? [{ template: originalTemplate, schema: JSON.parse(originalTemplate.schemaJson) as OperationSchema }, ...choices]
+    : choices
+  const version = templateChoices.find(option => option.template.id === form.templateVersionId)?.template.version ?? originalTemplate?.version
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6" aria-busy={busy}>
       <button
@@ -649,7 +687,7 @@ function OperationEditor({
         <div>
           <p className="font-mono text-xs text-ink-muted">
             {detail?.record.number ?? tr("New record")} · {schema.key} · v
-            {detail?.template.version ?? template?.version}
+            {version}
           </p>
           <h1 className="mt-1 text-xl font-semibold text-ink-primary">
             {i18n.language === "en" ? schema.name.en : schema.name.pl}
@@ -667,6 +705,22 @@ function OperationEditor({
       <p className="text-sm text-ink-secondary">
         {i18n.language === "en" ? schema.description.en : schema.description.pl}
       </p>
+      {editable && (!id || detail?.template.key === "BASIC") && (
+        <OperationTemplatePicker options={templateChoices} current={form.templateVersionId} disabled={busy} onSelect={changeTemplate} />
+      )}
+      {resources.length > 0 && (
+        <section className="rounded-xl border border-edge-subtle bg-navy-800 p-4">
+          <h2 className="mb-2 text-xs font-medium text-ink-secondary">{tr("Related items")}</h2>
+          <ul className="flex flex-wrap gap-2">
+            {resources.map(resource => <li key={`${resource.resource}/${resource.id}`}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-edge-default bg-navy-700 px-2 py-1 text-xs text-ink-primary">
+              <span className="break-words">{resource.name || resource.id}</span>
+              {editable && <button type="button" disabled={busy} onClick={() => removeResource(resource)} className="text-ink-muted hover:text-red-400"
+                aria-label={tr("Remove link to {{name}}", { name: resource.name || resource.id })}><X size={12} /></button>}
+            </li>)}
+          </ul>
+        </section>
+      )}
       <p className="text-xs text-ink-muted">
         {tr(
           "Do not enter secrets. Store them in Passwords and reference the record.",

@@ -42,7 +42,7 @@ public sealed class SecurityPipelineTests
     [Theory]
     [InlineData("/api/projects", 5)]
     [InlineData("/api/tasks", 6)]
-    [InlineData("/api/subnets", 9)]
+    [InlineData("/api/subnets", 10)]
     public void ProjectTaskAndSubnetMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
     {
         using var factory = new SecurityWebApplicationFactory();
@@ -197,7 +197,7 @@ public sealed class SecurityPipelineTests
                 !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
                 !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
             .ToList();
-        endpoints.Should().HaveCount(27);
+        endpoints.Should().HaveCount(30);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 

@@ -229,7 +229,8 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 var ipsByNetwork = ips.ToLookup(ip => ip.SubnetId);
                 foreach (var x in networks)
                 {
-                    var record = Text(R(x, x.Id, x.Name, F("CIDR", x.Cidr), F("VLAN", x.Vlan), F("Type", x.Type), F("Gateway", x.Gateway), F("DNS", x.Dns)), "Description", x.Description);
+                    var record = Text(R(x, x.Id, x.Name, F("CIDR", x.Cidr), F("VLAN", x.Vlan), F("Type", x.Type), F("Gateway", x.Gateway), F("DNS", x.Dns),
+                        F("DHCP range", x.DhcpStart is not null && x.DhcpEnd is not null ? $"{x.DhcpStart} – {x.DhcpEnd}" : null)), "Description", x.Description);
                     foreach (var ip in ipsByNetwork[x.Id])
                     {
                         record.Fields.Add(F("IP entry", $"{ip.Ip} — {ip.Label} ({ip.Status})"));

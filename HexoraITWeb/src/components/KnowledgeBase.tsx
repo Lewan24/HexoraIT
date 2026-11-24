@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
@@ -170,10 +172,10 @@ function ArticleModal({ initial, onClose, onSave, onDelete }: {
 
 // ─── Article List Item ────────────────────────────────────────────────────────
 
-function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle; selected: boolean; onClick: () => void }) {
+function ArticleItem({ article, selected, onClick, commands }: { article: KnowledgeArticle; selected: boolean; onClick: () => void; commands?: React.ReactNode }) {
   useLocale()
   return (
-    <button onClick={onClick}
+    <button {...contextItem('knowledge', article.id, article.title, { open: tr('Open details') })} onClick={onClick}
       className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-navy-700/50 ${selected ? 'bg-navy-700/70 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent'}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
@@ -183,6 +185,7 @@ function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle
         <span className={`inline-block text-[9px] font-mono px-1.5 py-0.5 rounded border ${catCls(article.category)} mb-1`}>{article.category}</span>
         <p className="text-[10px] text-ink-muted font-mono">{article.updatedAt}</p>
       </div>
+      {commands}
     </button>
   )
 }
@@ -191,7 +194,7 @@ function ArticleItem({ article, selected, onClick }: { article: KnowledgeArticle
 
 export default function KnowledgeBase() {
   useLocale()
-  const { knowledgeArticles, isLoading, addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge } = useApp()
+  const { knowledgeArticles, isLoading, addKnowledge, updateKnowledge, deleteKnowledge, toggleStarKnowledge, canWrite } = useApp()
   const [query, setQuery] = useState('')
   const [catFilter, setCatFilter] = useState<string>('All')
   const [starOnly, setStarOnly] = useState(false)
@@ -305,7 +308,12 @@ export default function KnowledgeBase() {
               </div>
             ) : (
               filtered.map(a => (
-                <ArticleItem key={a.id} article={a} selected={selectedId === a.id} onClick={() => selectArticle(a)} />
+                <ArticleItem key={a.id} article={a} selected={selectedId === a.id} onClick={() => selectArticle(a)}
+                  commands={canWrite('knowledge', a.id) && <>
+                    <ContextCommand label={tr("Edit")} run={() => setModal({ open: true, initial: a })} />
+                    <ContextDelete name={a.title} run={() => handleDelete(a.id)} />
+                    <ContextCommand label={tr(a.starred ? "Unstar" : "Star")} run={() => { void toggleStarKnowledge(a.id).catch(() => {}) }} />
+                  </>} />
               ))
             )}
           </div>

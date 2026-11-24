@@ -1,3 +1,5 @@
+import { useContextActions } from './ui/useContextActions'
+import type { ContextAction } from './ui/contextItems'
 import { tr, useLocale } from '../i18n'
 import '@xyflow/react/dist/style.css'
 
@@ -884,7 +886,8 @@ function assetTypeToDeviceType(assetType: string): DiagramDeviceType {
 
 function NetworkDiagramInner() {
   useLocale()
-  const { diagramNodes, diagramEdges, saveDiagram, assets, toast } = useApp()
+  const { diagramNodes, diagramEdges, saveDiagram, assets, toast, canWrite } = useApp()
+  const openContext = useContextActions()
 
   // Convert context → RF format (safe: component only mounts after data has loaded)
   const initialNodes = useMemo(() => diagramNodes.map(rfNodeFromDiagram), []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1090,6 +1093,36 @@ function NetworkDiagramInner() {
     setSelectedEdgeId(null)
   }, [selectedEdgeId, setEdges, nodes, triggerSave])
 
+  const diagramContext = (event: React.MouseEvent, target: Node | Edge, kind: 'node' | 'edge') => {
+    const selectedNodes = target.selected ? nodes.filter(node => node.selected) : kind === 'node' ? [target as Node] : []
+    const selectedEdges = target.selected ? edges.filter(edge => edge.selected) : kind === 'edge' ? [target as Edge] : []
+    const resources = [
+      ...selectedNodes.map(node => ({ resource: 'diagram-nodes', id: node.id, name: String(node.data.label ?? '') })),
+      ...selectedEdges.map(edge => ({ resource: 'diagram-edges', id: edge.id, name: String(edge.data?.label ?? edge.label ?? '') })),
+    ]
+    const actions: ContextAction[] = []
+    if (resources.length === 1) {
+      if (selectedNodes.length && canWrite('diagram')) actions.push({ label: tr('Edit'), run: () => setEditNode(selectedNodes[0]!) })
+      if (selectedEdges.length) actions.push({ label: tr('Open details'), run: () => setSelectedEdgeId(selectedEdges[0]!.id) })
+    }
+    if (resources.length && canWrite('diagram')) actions.push({
+      label: tr(resources.length === 1 ? 'Delete' : 'Delete selected'),
+      danger: true,
+      run: () => {
+        if (!window.confirm(tr('Delete {{count}} selected items?', { count: resources.length }))) return
+        const nodeIds = new Set(selectedNodes.map(node => node.id))
+        const edgeIds = new Set(selectedEdges.map(edge => edge.id))
+        const remainingNodes = nodes.filter(node => !nodeIds.has(node.id))
+        const remainingEdges = edges.filter(edge => !edgeIds.has(edge.id) && !nodeIds.has(edge.source) && !nodeIds.has(edge.target))
+        setNodes(remainingNodes)
+        setEdges(remainingEdges)
+        setSelectedEdgeId(null)
+        triggerSave(remainingNodes, remainingEdges)
+      },
+    })
+    openContext(event, actions, resources)
+  }
+
   // Keyboard delete
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1199,6 +1232,8 @@ function NetworkDiagramInner() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
+          onNodeContextMenu={(event, node) => diagramContext(event, node, 'node')}
+          onEdgeContextMenu={(event, edge) => diagramContext(event, edge, 'edge')}
           onEdgeClick={onEdgeClick}
           onPaneClick={() => setSelectedEdgeId(null)}
           nodeTypes={nodeTypes}

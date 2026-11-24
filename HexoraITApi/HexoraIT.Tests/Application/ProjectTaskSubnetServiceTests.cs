@@ -63,6 +63,31 @@ public sealed class ProjectTaskSubnetServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DhcpRangeIsValidatedPreservedAndCanBeCleared()
+    {
+        var (_, organization) = _fixture.SeedUserWithOrg();
+        var service = new SubnetService(_fixture.Db, _fixture.Mapper, _fixture.UserContext);
+        var input = Subnet("Office") with { DhcpStart = "10.0.0.20", DhcpEnd = "10.0.0.40" };
+        (await service.CreateAsync(organization.Id, input with { DhcpStart = "10.0.0.0" })).StatusCode.Should().Be(400);
+        (await service.CreateAsync(organization.Id, input with { DhcpEnd = "10.0.1.40" })).StatusCode.Should().Be(400);
+        (await service.CreateAsync(organization.Id, input with { DhcpEnd = "10.0.0.10" })).StatusCode.Should().Be(400);
+        (await service.CreateAsync(organization.Id, input with { DhcpEnd = null })).StatusCode.Should().Be(400);
+        var created = (await service.CreateAsync(organization.Id, input)).Value.Should().BeOfType<SubnetDto>().Subject;
+        created.DhcpStart.Should().Be(input.DhcpStart);
+        created.DhcpEnd.Should().Be(input.DhcpEnd);
+        _fixture.Db.IPEntries.Should().BeEmpty();
+        var update = new UpdateSubnetDto("Office", input.Cidr, null, SubnetType.LAN, "", "", "");
+        (await service.UpdateAsync(created.Id, update with { Cidr = "10.0.1.0/24" })).StatusCode.Should().Be(400);
+        (await service.UpdateAsync(created.Id, update with { Name = "Renamed" })).StatusCode.Should().Be(204);
+        var retained = (await service.GetByIdAsync(created.Id)).Value.Should().BeOfType<SubnetDto>().Subject;
+        retained.DhcpStart.Should().Be(input.DhcpStart);
+        (await service.UpdateAsync(created.Id, update with { DhcpStart = "", DhcpEnd = "" })).StatusCode.Should().Be(204);
+        var cleared = (await service.GetByIdAsync(created.Id)).Value.Should().BeOfType<SubnetDto>().Subject;
+        cleared.DhcpStart.Should().BeNull();
+        cleared.DhcpEnd.Should().BeNull();
+    }
+
+    [Fact]
     public async Task WorkTaskService_RejectsProjectFromAnotherOrganization()
     {
         var (_, organization) = _fixture.SeedUserWithOrg();

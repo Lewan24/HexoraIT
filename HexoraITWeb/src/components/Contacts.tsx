@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
@@ -188,10 +190,10 @@ function DeleteConfirm({ name, onClose, onConfirm }: { name: string; onClose: ()
 
 // ─── Contact List Item ────────────────────────────────────────────────────────
 
-function ContactItem({ contact, selected, onClick }: { contact: Contact; selected: boolean; onClick: () => void }) {
+function ContactItem({ contact, selected, onClick, commands }: { contact: Contact; selected: boolean; onClick: () => void; commands?: React.ReactNode }) {
   useLocale()
   return (
-    <button onClick={onClick}
+    <button {...contextItem('contacts', contact.id, contact.name, { open: tr('Open details') })} onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-navy-700/50 ${selected ? 'bg-navy-700/70 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent'}`}>
       <AvatarCircle name={contact.name} size="md" />
       <div className="flex-1 min-w-0">
@@ -202,6 +204,7 @@ function ContactItem({ contact, selected, onClick }: { contact: Contact; selecte
         <p className="text-[11px] text-ink-muted truncate">{contact.company}{contact.role && contact.company ? ' · ' : ''}{contact.role}</p>
         {contact.phone && <p className="text-[10px] text-ink-muted font-mono truncate">{contact.phone}</p>}
       </div>
+      {commands}
     </button>
   )
 }
@@ -310,7 +313,7 @@ function ContactDetail({ contact, onEdit, onDelete, onToggleStar }: {
 
 export default function Contacts() {
   useLocale()
-  const { contacts, isLoading, addContact, updateContact, deleteContact, toggleStarContact } = useApp()
+  const { contacts, isLoading, addContact, updateContact, deleteContact, toggleStarContact, canWrite } = useApp()
   const [query, setQuery] = useState('')
   const [starOnly, setStarOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -403,7 +406,11 @@ export default function Contacts() {
               </div>
             ) : (
               filtered.map(c => (
-                <ContactItem key={c.id} contact={c} selected={effectiveSelectedId === c.id} onClick={() => selectContact(c)} />
+                <ContactItem key={c.id} contact={c} selected={effectiveSelectedId === c.id} onClick={() => selectContact(c)}
+                  commands={canWrite('contacts', c.id) && <>
+                    <ContextCommand label={tr("Edit")} run={() => setModal({ open: true, initial: c })} />
+                    <ContextCommand label={tr("Delete")} run={() => setDeleteTarget(c)} danger />
+                  </>} />
               ))
             )}
           </div>

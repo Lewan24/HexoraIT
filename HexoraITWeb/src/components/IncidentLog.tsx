@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState } from 'react'
@@ -272,7 +274,7 @@ function IncidentDetailModal({ incident, onClose, onEdit }: {
 
 export default function IncidentLog() {
   useLocale()
-  const { incidents, isLoading, addIncident, updateIncident, deleteIncident } = useApp()
+  const { incidents, isLoading, addIncident, updateIncident, deleteIncident, canWrite } = useApp()
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'all'>('all')
   const [sevFilter, setSevFilter] = useState<IncidentSeverity | 'all'>('all')
   const [editModal, setEditModal] = useState<{ open: boolean; initial?: Incident }>({ open: false })
@@ -379,8 +381,12 @@ export default function IncidentLog() {
             const sc = SEV_CONFIG[incident.severity]
             const stc = STATUS_CONFIG[incident.status]
             return (
-              <button key={incident.id} onClick={() => setDetailIncident(incident)}
+              <button key={incident.id} {...contextItem('incidents', incident.id, incident.title, { open: tr('Open details') })} onClick={() => setDetailIncident(incident)}
                 className="w-full text-left bg-navy-800 border border-edge-subtle rounded-xl px-4 py-3.5 hover:border-edge-default hover:bg-navy-750 transition-all group">
+                {canWrite('incidents', incident.id) && <>
+                  <ContextCommand label={tr("Edit")} run={() => setEditModal({ open: true, initial: incident })} />
+                  <ContextDelete name={incident.title} run={() => handleDelete(incident.id)} />
+                </>}
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-1">
                     <div className={`w-2.5 h-2.5 rounded-full ${sc.dot} ${sc.pulse ? 'animate-pulse' : ''}`} />

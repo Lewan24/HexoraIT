@@ -21,7 +21,7 @@ export default function OrganizationArchiveButton({ org, onChanged }: { org: Org
     finally { setBusy(false) }
   }
   return <>
-    <button type="button" disabled={busy} onClick={() => org.isArchived ? void update() : setConfirming(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-ink-muted hover:bg-navy-700 hover:text-ink-primary disabled:opacity-50">
+    <button type="button" data-context-action={tr(org.isArchived ? "Unarchive" : "Archive")} disabled={busy} onClick={() => org.isArchived ? void update() : setConfirming(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-ink-muted hover:bg-navy-700 hover:text-ink-primary disabled:opacity-50">
       {busy ? <Loader2 size={13} className="animate-spin" /> : org.isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}{tr(org.isArchived ? 'Reactivate' : 'Archive')}
     </button>
     {error && !confirming && <p role="alert" className="text-xs text-red-400">{error}</p>}

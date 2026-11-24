@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import LanguageSwitcher from "./LanguageSwitcher"
 
 import { tr, useLocale } from "../i18n"
@@ -26,6 +27,7 @@ import {
   CheckCircle2,
   Loader2,
   ExternalLink,
+  History,
 } from "lucide-react"
 
 import { useApp } from "../context/useApp"
@@ -55,10 +57,11 @@ import OrganizationArchiveButton from "./OrganizationArchiveButton"
 import OrganizationCustomization from "./OrganizationCustomization"
 import OrganizationRoles from "./OrganizationRoles"
 import OrganizationDataTransfer from "./OrganizationDataTransfer"
+import OrganizationActivity from "./OrganizationActivity"
 import { config } from "../../config"
 import { resetDemoData } from "../demo"
 
-type Section = "data-transfer" | "customization" | "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
+type Section = "activity" | "data-transfer" | "customization" | "profile" | "organizations" | "roles" | "appearance" | "security" | "notifications" | "about"
 
 const SECTIONS: {
   id: Section
@@ -66,6 +69,7 @@ const SECTIONS: {
   icon: React.ReactNode
   desc: string
 }[] = [
+  { id: "activity", label: "Organization activity", icon: <History size={16} />, desc: "Activity history and retention" },
   { id: "data-transfer", label: "Export and import data", icon: <Building2 size={16} />, desc: "Organization archives and recovery" },
   { id: "customization", label: "Customize organization", icon: <Building2 size={16} />, desc: "Choose modules for the whole organization" },
   {
@@ -610,6 +614,7 @@ function MembersModal({
               return (
                 <div
                   key={m.userId}
+                  {...contextItem("members", m.userId, m.displayName || m.email, { link: false })}
                   className="flex items-center gap-3 px-5 py-3"
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center text-xs font-semibold flex-shrink-0">
@@ -629,6 +634,7 @@ function MembersModal({
                   </span>
                   {showRemove && (
                     <button
+                      data-context-action={tr(isSelf ? "Leave organization" : "Remove member")} data-context-danger="true"
                       onClick={() => handleRemove(m.userId)}
                       disabled={removingId === m.userId}
                       className="p-1.5 rounded-md text-ink-muted hover:text-red-400 hover:bg-navy-700 transition-colors disabled:opacity-40 flex-shrink-0"
@@ -940,6 +946,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
             return (
               <div
                 key={org.id}
+                {...contextItem("organizations", org.id, org.name, { link: false })}
                 className={`flex items-center gap-3 px-5 py-4 flex-wrap ${
                   currentOrg?.id === org.id ? "bg-blue-500/5" : ""
                 }`}
@@ -974,9 +981,10 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                 </div>
                 <div className="flex gap-1 flex-shrink-0 flex-wrap">
                   <OrganizationArchiveButton org={org} onChanged={() => { if (currentOrg?.id === org.id && !org.isArchived) navigate('home') }} />
-                  {canManage && !org.isArchived && <button onClick={() => { switchOrg(org.id); navigate('organization-customization') }} className="rounded-lg border border-blue-500/20 px-2.5 py-1.5 text-xs text-blue-400">{tr('Customize organization')}</button>}
+                  {canManage && !org.isArchived && <button data-context-action={tr('Customize organization')} onClick={() => { switchOrg(org.id); navigate('organization-customization') }} className="rounded-lg border border-blue-500/20 px-2.5 py-1.5 text-xs text-blue-400">{tr('Customize organization')}</button>}
                   {!org.isArchived && currentOrg?.id !== org.id && (
                     <button
+                      data-context-action={tr("Switch")}
                       onClick={() => {
                         switchOrg(org.id)
                         navigate("dashboard")
@@ -992,6 +1000,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                   )}
                   {canManage && (
                     <button
+                      data-context-action={tr("Members")}
                       onClick={() => setMembersTarget(org)}
                       className="px-2.5 py-1.5 rounded-lg bg-navy-700 text-ink-secondary text-xs border border-edge-default hover:bg-navy-600 transition-colors"
                     >
@@ -1000,6 +1009,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                   )}
                   {canManage && (
                     <button
+                      data-context-action={tr("Edit")}
                       onClick={() => setEditTarget(org)}
                       className="p-1.5 rounded-md text-ink-muted hover:text-ink-primary hover:bg-navy-700 transition-colors"
                     >
@@ -1008,6 +1018,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                   )}
                   {isOwner ? (
                     <button
+                      data-context-action={tr("Delete organization")} data-context-danger="true"
                       onClick={() => setDeleteTarget(org)}
                       disabled={busy}
                       title={tr("Delete organization")}
@@ -1017,6 +1028,7 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
                     </button>
                   ) : (
                     <button
+                      data-context-action={tr("Leave")} data-context-danger="true"
                       onClick={() => setLeaveTarget(org)}
                       disabled={busy}
                       className="px-2.5 py-1.5 rounded-lg text-red-400 text-xs border border-red-500/25 hover:bg-red-500/10 transition-colors disabled:opacity-40"
@@ -1061,10 +1073,12 @@ function OrganizationsSection({ navigate }: { navigate: (v: View) => void }) {
             {deletedOrgs.map((org) => (
               <div
                 key={org.id}
+                {...contextItem("deleted-organizations", org.id, org.name, { link: false })}
                 className="flex items-center justify-between gap-3 px-5 py-3"
               >
                 <p className="text-sm text-ink-primary">{org.name}</p>
                 <button
+                  data-context-action={tr("Restore")}
                   onClick={() => handleRestore(org.id)}
                   disabled={restoringId === org.id}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition-all disabled:opacity-50"
@@ -1354,11 +1368,6 @@ function SecuritySection() {
             {tr("Coming soon")}
           </span>
         </Row>
-        <Row label={tr("Activity audit log")} sub={tr("Not yet supported")}>
-          <span className="text-[10px] font-mono text-ink-muted px-2 py-1 rounded bg-navy-700 border border-edge-subtle">
-            {tr("Coming soon")}
-          </span>
-        </Row>
         <Row label={tr("IP allowlist")} sub={tr("Not yet supported")}>
           <span className="text-[10px] font-mono text-ink-muted px-2 py-1 rounded bg-navy-700 border border-edge-subtle">
             {tr("Coming soon")}
@@ -1540,8 +1549,9 @@ export default function Settings({
   const { user } = useAuth()
 
   const isClient = user?.systemRole === "Client"
-  const { currentOrg, canRead } = useApp()
+  const { currentOrg, canRead, access } = useApp()
   const canTransfer = !!currentOrg && !currentOrg.isArchived && !isClient && canRead("data-transfer")
+  const canViewActivity = !!currentOrg && !isClient && !!access?.canManageRoles
   const canCustomize = !!currentOrg && !currentOrg.isArchived && ["Owner", "Admin"].includes(currentOrg.role)
 
   const [active, setActive] = useState<Section>("profile")
@@ -1552,12 +1562,15 @@ export default function Settings({
 
   const content = () => {
     switch (
-      (active === "data-transfer" && !canTransfer) || (isClient && ["roles", "organizations"].includes(active)) || ((!currentOrg || currentOrg.isArchived) && ["roles", "customization", "notifications"].includes(active))
+      (active === "activity" && !canViewActivity) || (active === "data-transfer" && !canTransfer) || (isClient && ["roles", "organizations"].includes(active)) || ((!currentOrg || currentOrg.isArchived) && ["roles", "customization", "notifications"].includes(active))
         ? "profile"
         : active
     ) {
       case "profile":
         return <ProfileSection />
+
+      case "activity":
+        return currentOrg && <OrganizationActivity key={currentOrg.id} organizationId={currentOrg.id} name={currentOrg.name} />
 
       case "data-transfer":
         return <OrganizationDataTransfer />
@@ -1604,7 +1617,7 @@ export default function Settings({
         >
           <div className="bg-navy-800 border border-edge-subtle rounded-xl overflow-hidden">
             {SECTIONS.filter(
-              (s) => (s.id !== "data-transfer" || canTransfer) && (s.id !== "customization" || canCustomize) && (!["roles", "notifications"].includes(s.id) || (!!currentOrg && !currentOrg.isArchived)) && (!isClient || !["roles", "organizations"].includes(s.id)),
+              (s) => (s.id !== "activity" || canViewActivity) && (s.id !== "data-transfer" || canTransfer) && (s.id !== "customization" || canCustomize) && (!["roles", "notifications"].includes(s.id) || (!!currentOrg && !currentOrg.isArchived)) && (!isClient || !["roles", "organizations"].includes(s.id)),
             ).map((s) => (
               <button
                 key={s.id}

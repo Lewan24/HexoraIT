@@ -66,9 +66,12 @@ export interface PasswordEntry extends OrderedRecord {
 
 export interface IPEntry extends OrderedRecord { isAutoManaged?: boolean; id: string; ip: string; label: string; status: IPEntryStatus; assetId?: string; plainText?: string; notes: string }
 
+export interface IpReservationTarget { ip: string; entryId?: string }
+
 export interface Subnet extends OrderedRecord {
   id: string; name: string; cidr: string; vlan?: number; type: SubnetType
   gateway: string; dns: string; description: string; ips: IPEntry[]
+  dhcpStart?: string | null; dhcpEnd?: string | null
 }
 
 export interface License extends OrderedRecord {

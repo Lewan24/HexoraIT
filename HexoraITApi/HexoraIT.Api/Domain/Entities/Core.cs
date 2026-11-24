@@ -33,6 +33,8 @@ public class Subnet : BaseEntity
     public long SyncRevision { get; set; }
     public string Name { get; set; } = "";
     public string Cidr { get; set; } = "";
+    public string? DhcpStart { get; set; }
+    public string? DhcpEnd { get; set; }
     public int? Vlan { get; set; }
     public SubnetType Type { get; set; }
     public string Gateway { get; set; } = "";

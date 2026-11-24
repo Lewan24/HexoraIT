@@ -260,3 +260,9 @@ html[data-theme="light"] {
 .sidebar-nav.is-compact .sidebar-link, .sidebar-link.is-compact { justify-content: center; padding: 10px; }
 .sidebar-nav.is-compact .sidebar-link[aria-current="page"]::after { display: none; }
 .sidebar-nav :focus-visible { outline-offset: -2px; }
+
+[data-context-selected] {
+  outline: 1px solid var(--color-blue-500);
+  outline-offset: -1px;
+  background-color: color-mix(in srgb, var(--color-blue-500) 10%, transparent);
+}

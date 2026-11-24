@@ -136,11 +136,15 @@ public sealed class ArchivePackage : IAsyncDisposable
             {
                 if (item is null || item.Id == Guid.Empty || !seen.Add(item.Id) || item.Data is null) Invalid("Invalid or duplicate record identifier.");
                 var fields = schema.Fields.Concat(schema.Type == typeof(PasswordEntry) ? ["Password"] : Array.Empty<string>()).ToHashSet(StringComparer.Ordinal);
-                if (!fields.SetEquals(item!.Data.Keys)) Invalid("Unexpected or missing record fields.");
+                var keys = item!.Data.Keys.ToHashSet(StringComparer.Ordinal);
+                if (schema.Type == typeof(Subnet) && !keys.Contains(nameof(Subnet.DhcpStart)) && !keys.Contains(nameof(Subnet.DhcpEnd)))
+                    fields.ExceptWith([nameof(Subnet.DhcpStart), nameof(Subnet.DhcpEnd)]);
+                if (!fields.SetEquals(keys)) Invalid("Unexpected or missing record fields.");
                 var entity = Activator.CreateInstance(schema.Type)!;
                 schema.Property("Id").SetValue(entity, item.Id);
                 foreach (var field in schema.Fields)
                 {
+                    if (!fields.Contains(field)) continue;
                     var property = schema.Property(field);
                     var value = item.Data[field].Deserialize(property.PropertyType, ArchiveSchema.Json);
                     var metadata = db.Model.FindEntityType(schema.Type)!.FindProperty(field)!;
@@ -156,6 +160,13 @@ public sealed class ArchivePackage : IAsyncDisposable
                 }
                 if (schema.Type == typeof(PasswordEntry) && (item.Data["Password"].ValueKind != JsonValueKind.String || item.Data["Password"].GetString()!.Length > 100_000))
                     Invalid("Invalid credential value.");
+                if (entity is Subnet subnet)
+                {
+                    if (!IpSubnetRange.TryDhcpRange(subnet.Cidr, subnet.DhcpStart, subnet.DhcpEnd, out var first, out var last))
+                        Invalid("Invalid DHCP range.");
+                    subnet.DhcpStart = first;
+                    subnet.DhcpEnd = last;
+                }
                 var record = new ImportedRecord(schema, item.Id, entity);
                 Records.Add(record);
                 Index.Add((schema.Kind, item.Id), record);

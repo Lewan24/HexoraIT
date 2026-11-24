@@ -35,7 +35,7 @@ public static class ArchiveSchema
     public static readonly ArchiveEntity[] Entities =
     [
         Entity<Asset>("assets", "SortIndex Name Type Status Location Owner Ip UpdatedAt Starred Tags Notes Serial"),
-        Entity<Subnet>("networks", "SortIndex Name Cidr Vlan Type Gateway Dns Description"),
+        Entity<Subnet>("networks", "SortIndex Name Cidr Vlan Type Gateway Dns Description DhcpStart DhcpEnd"),
         Entity<IPEntry>("ip-entries", "SortIndex SubnetId Ip Label Status AssetId PlainText Notes IsAutoManaged"),
         Entity<PasswordEntry>("passwords", "SortIndex Name Username Category Tags UpdatedAt Strength Starred Notes"),
         Entity<License>("licenses", "SortIndex Name Vendor Category Type Seats SeatsUsed PurchaseDate ExpiryDate Cost Currency LicenseKey Notes Starred Status"),

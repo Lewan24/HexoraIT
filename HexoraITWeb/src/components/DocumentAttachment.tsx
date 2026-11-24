@@ -1,3 +1,4 @@
+import { contextItem } from './ui/contextItems'
 import { tr, useLocale } from '../i18n'
 import { useState, useRef } from 'react'
 import { Paperclip, FileText, Eye, AlertTriangle, Loader2 } from 'lucide-react'
@@ -81,7 +82,7 @@ export default function DocumentAttachment({
           <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className="text-xs text-blue-400">{tr("Replace")}</button>
         </div>
       ) : doc ? (
-        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
+        <div {...contextItem("attachment", `${entityId ?? "new"}/${doc.name}`, doc.name, { link: false })} className="flex items-center gap-2 p-2.5 rounded-lg bg-navy-700 border border-edge-default">
           <div className="w-7 h-7 rounded-md bg-navy-600 border border-edge-subtle flex items-center justify-center flex-shrink-0">
             <FileText size={13} className={isPdf ? 'text-red-400' : 'text-blue-400'} />
           </div>
@@ -93,11 +94,11 @@ export default function DocumentAttachment({
             </div>
           </div>
           {entityId && (
-            <button onClick={() => setPreviewOpen(true)} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("View")}>
+            <button data-context-action={tr("View")} onClick={() => setPreviewOpen(true)} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("View")}>
               <Eye size={12} />
             </button>
           )}
-          <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("Replace")}><Paperclip size={12} /></button>
+          <button type="button" data-context-action={tr("Replace")} disabled={disabled} onClick={() => fileRef.current?.click()} className="p-1.5 rounded-md bg-navy-600 border border-edge-subtle text-ink-muted hover:text-blue-400 transition-colors" title={tr("Replace")}><Paperclip size={12} /></button>
         </div>
       ) : (
         <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()}

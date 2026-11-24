@@ -48,6 +48,9 @@ export interface OperationRevision {
   createdAt: string
   revisionToken: string
 }
+export interface OperationResourceReference { resource: string; id: string }
+export interface OperationResourceView extends OperationResourceReference { name: string }
+
 export interface OperationDetail {
   record: OperationRecord
   template: OperationTemplate
@@ -58,6 +61,7 @@ export interface OperationDetail {
   allowedTransitions: string[]
   canEdit: boolean
   canPolicyException?: boolean
+  relatedResources?: OperationResourceView[]
 }
 export interface OperationList {
   items: OperationRecord[]
@@ -81,6 +85,7 @@ export interface OperationInput {
   ownerId?: string
   actualStart?: string | null
   actualEnd?: string | null
+  relatedResources?: OperationResourceReference[]
 }
 const base = (org: string) => `/operations/${encodeURIComponent(org)}`
 export interface OperationPolicy {

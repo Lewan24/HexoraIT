@@ -3,6 +3,7 @@ import test from 'node:test'
 import fs from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { contextItem } from '../src/components/ui/contextItems.ts'
 
 function harness(file, component, app, slice = false) {
   let source = fs.readFileSync(new URL(`../src/components/${file}`, import.meta.url), 'utf8')
@@ -14,7 +15,7 @@ function harness(file, component, app, slice = false) {
   let slot = 0
   const context = {
     React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
-    useLocale() {}, tr: value => value, locale: () => 'pl',
+    contextItem, useLocale() {}, tr: value => value, locale: () => 'pl',
     useState(initial) {
       const index = slot++
       if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial
@@ -72,6 +73,7 @@ test('dashboard caps a hundred contacts at the personal card limit', () => {
   const all = nodes(h.render({ navigate() {} }))
   assert.equal(all.filter(n => n.type === 'p' && /^Contact \d+$/.test(String(n.props.children[0]))).length, 3)
   assert.ok(all.some(n => n.props?.title === 'Important Contacts'))
+  assert.equal(all.filter(n => n.props?.['data-context-resource'] === 'contacts').length, 3)
 })
 
 test('hidden modules disappear from cards, quick actions, attention and statistics', () => {

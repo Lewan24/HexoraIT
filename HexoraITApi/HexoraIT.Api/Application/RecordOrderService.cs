@@ -62,7 +62,7 @@ public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user
                 case "warranty": await ApplyAsync(db.WarrantyItems.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "files": await ApplyAsync(db.StoredFiles.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "folders": await ApplyAsync(db.FileFolders.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
-                case "ip-entries": await ApplyAsync(db.IPEntries.Where(x => x.Subnet.OrganizationId == org && db.Subnets.Any(subnet => subnet.Id == x.SubnetId)), changes, x => x.Id, token); break;
+                case "ip-entries": await ApplyAsync(db.IPEntries.Include(x => x.Subnet).Where(x => x.Subnet.OrganizationId == org && db.Subnets.Any(subnet => subnet.Id == x.SubnetId)), changes, x => x.Id, token); break;
                 case "diagram": await ApplyAsync(db.DiagramNodes.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "private-notes": await ApplyAsync(db.PrivateNotes.Where(x => x.OrganizationId == org && x.UserId == user.UserId), changes, x => x.Id, token); break;
             }

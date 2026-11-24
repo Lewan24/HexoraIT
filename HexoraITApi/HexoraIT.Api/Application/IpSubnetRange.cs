@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 
@@ -18,6 +19,16 @@ public sealed record IpSubnetRange(byte[] Network, int PrefixLength)
         }
         return true;
     }
+    public bool ContainsHost(IPAddress address)
+    {
+        if (!Contains(address)) return false;
+        if (Network.Length != 4 || PrefixLength >= 31) return true;
+        var network = BinaryPrimitives.ReadUInt32BigEndian(Network);
+        var value = BinaryPrimitives.ReadUInt32BigEndian(Normalize(address).GetAddressBytes());
+        var broadcast = network | (uint.MaxValue >> PrefixLength);
+        return value > network && value < broadcast;
+    }
+
     public static IPAddress Normalize(IPAddress address) => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
     public static bool TryAddress(string? value, out IPAddress address)
     {
@@ -31,6 +42,20 @@ public sealed record IpSubnetRange(byte[] Network, int PrefixLength)
         address = Normalize(parsed);
         return true;
     }
+    public static bool TryDhcpRange(string cidr, string? start, string? end, out string? first, out string? last)
+    {
+        first = last = null;
+        if (string.IsNullOrWhiteSpace(start) && string.IsNullOrWhiteSpace(end)) return true;
+        if (!TryParse(cidr, out var range) || !TryAddress(start, out var startAddress) || !TryAddress(end, out var endAddress) ||
+            !range.ContainsHost(startAddress) || !range.ContainsHost(endAddress)) return false;
+        var startBytes = startAddress.GetAddressBytes();
+        var endBytes = endAddress.GetAddressBytes();
+        if (startBytes.AsSpan().SequenceCompareTo(endBytes) > 0) return false;
+        first = startAddress.ToString();
+        last = endAddress.ToString();
+        return true;
+    }
+
     public static bool TryParse(string cidr, out IpSubnetRange range)
     {
         range = null!;

@@ -1,3 +1,5 @@
+import { contextItem } from './ui/contextItems'
+import ContextCommand, { ContextDelete } from './ui/ContextCommand'
 import RecordIndex from './RecordIndex'
 import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
@@ -357,7 +359,7 @@ function GroupDetail({ group, onBack, onEdit, onDelete }: {
 
 export default function Groups() {
   useLocale()
-  const { groups, isLoading, addGroup, updateGroup, deleteGroup, toast } = useApp()
+  const { groups, isLoading, addGroup, updateGroup, deleteGroup, toast, canWrite } = useApp()
 
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('All')
@@ -384,14 +386,14 @@ export default function Groups() {
     setMobileDetailOpen(true)
   }
 
-  const handleDelete = async () => {
-    if (!selected) 
-      return
-
-    await deleteGroup(selected.id)
+  const handleDelete = async (id = selected?.id) => {
+    if (!id) return
+    await deleteGroup(id)
     toast(tr("Group deleted"))
-    setMobileDetailOpen(false)
-    setSelectedId(filtered.find(g => g.id !== selected.id)?.id ?? null)
+    if (selected?.id === id) {
+      setMobileDetailOpen(false)
+      setSelectedId(filtered.find(g => g.id !== id)?.id ?? null)
+    }
   }
 
   if (isLoading) {
@@ -442,11 +444,15 @@ export default function Groups() {
             </div>
           )}
           {filtered.map(g => (
-            <button key={g.id} onClick={() => selectGroup(g.id)}
+            <button key={g.id} {...contextItem('groups', g.id, g.name, { open: tr('Open details') })} onClick={() => selectGroup(g.id)}
               className={`w-full px-4 py-3 text-left transition-all hover:bg-navy-800/80 ${selectedId === g.id ? 'bg-navy-800 md:border-r-2 md:border-blue-500' : ''}`}>
               <div className="flex items-center gap-2 mb-1">
                 <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 ${TYPE_COLORS[g.type]}`}>{tr(g.type)}</span>
               </div>
+              {canWrite('groups', g.id) && <>
+                <ContextCommand label={tr("Edit")} run={() => setEditGroup(g)} />
+                <ContextDelete name={g.name} run={() => handleDelete(g.id)} />
+              </>}
               <p className="text-xs font-medium text-ink-primary truncate mb-0.5"><RecordIndex index={g.sortIndex} />{g.name}</p>
               <div className="flex items-center justify-between gap-1">
                 <p className="text-[10px] text-ink-muted truncate">{g.description || g.purpose}</p>
