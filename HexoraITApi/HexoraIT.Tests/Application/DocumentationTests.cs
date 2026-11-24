@@ -5,6 +5,8 @@ using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using PdfSharp.Pdf.IO;
+using System.Text.Json;
+using HexoraITApi.Application.Operations;
 
 namespace HexoraIT.Tests.Application;
 
@@ -13,6 +15,66 @@ public sealed class DocumentationTests : IDisposable
     private readonly TestFixture fixture = new();
     private readonly CaptureRenderer renderer = new();
     private DocumentationService Service() => new(fixture.Db, fixture.UserContext, fixture.Cipher, renderer);
+
+    [Fact]
+    public async Task BasicAndAdvancedSavedDocumentsAreSelectableAndIncludedWithCurrentValuesInOrganizationPdf()
+    {
+        var (_, org) = fixture.SeedUserWithOrg();
+        await OperationCatalog.SeedAsync(fixture.Db);
+        var service = new OperationService(fixture.Db, fixture.UserContext);
+        var basic = await fixture.Db.OperationTemplates.SingleAsync(t => t.Key == "BASIC");
+        var advanced = await fixture.Db.OperationTemplates.SingleAsync(t => t.Key == "A02");
+        var input = new OperationInput(basic.Id, "Synthetic procedure Łódź", "Basic summary", JsonSerializer.SerializeToElement(new { content = "Initial content" }));
+        (await service.Create(org.Id, input, default)).StatusCode.Should().Be(201);
+        var saved = await fixture.Db.OperationRecords.SingleAsync();
+        (await service.Update(org.Id, saved.Id, input with { Values = JsonSerializer.SerializeToElement(new { content = "Current saved content — zażółć gęślą jaźń" }), RevisionToken = saved.RevisionToken }, default)).StatusCode.Should().Be(200);
+        var reopened = (OperationDetail)(await service.Detail(org.Id, saved.Id, default)).Value!;
+        reopened.Values.GetProperty("content").GetString().Should().StartWith("Current saved");
+        (await service.Create(org.Id, new(advanced.Id, "Synthetic GPO", "Advanced summary", OperationTests.Values(OperationCatalog.All.Single(s => s.Key == "A02"))), default)).StatusCode.Should().Be(201);
+        var options = (DocumentationOptionsDto)(await Service().GetOptionsAsync(org.Id)).Value!;
+        options.Sections.Single(s => s.Key == "operations").Should().Be(new DocumentationSectionOptionDto("operations", 2, true));
+        var picker = (List<ResourceOptionDto>)(await Service().GetItemsAsync(org.Id, "operations", new(), search: "procedure")).Value!;
+        picker.Should().ContainSingle(r => r.Id == saved.Id && r.Name.Contains(saved.Number));
+        (await Service().GenerateAsync(org.Id, new([new("operations")], Language: "pl"))).StatusCode.Should().Be(200);
+        var records = renderer.Snapshot!.Sections.Single().Records;
+        records.Should().HaveCount(2);
+        var basicPdf = records.Single(r => r.Id == saved.Id);
+        basicPdf.Fields.Should().Contain(f => f.Label == "Status" && f.Value == "Draft");
+        basicPdf.Fields.Should().NotContain(f => f.Label == "Risk" || f.Label == "Priority");
+        basicPdf.Texts.Should().Contain(t => t.Content.Contains("Current saved content"));
+        basicPdf.Texts.Should().NotContain(t => t.Content == "Initial content");
+        records.Single(r => r.Id != saved.Id).Texts.Count(t => t.Label.StartsWith("Zmiany konfiguracji")).Should().Be(2);
+        var combined = renderer.Snapshot;
+        (await Service().GenerateAsync(org.Id, new([new("operations", [saved.Id])]))).StatusCode.Should().Be(200);
+        renderer.Snapshot!.Sections.Single().Records.Should().ContainSingle(r => r.Id == saved.Id);
+        var pdf = await new DocumentationPdfRenderer().RenderAsync(combined!);
+        pdf.Take(5).Should().Equal("%PDF-"u8.ToArray());
+        var artifact = Environment.GetEnvironmentVariable("HEXORA_BASIC_DOCUMENTATION_PDF");
+        if (!string.IsNullOrWhiteSpace(artifact)) await File.WriteAllBytesAsync(artifact, pdf);
+        (await service.Transition(org.Id, saved.Id, new(saved.RevisionToken, "Submitted"), default)).StatusCode.Should().Be(200);
+        (await service.Transition(org.Id, saved.Id, new(saved.RevisionToken, "Closed", "Synthetic procedure reviewed"), default)).StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task OperationsPdfRejectsForeignSelectionAndNeverEmitsSecretOrConditionallyHiddenFields()
+    {
+        var (actor, org) = fixture.SeedUserWithOrg();
+        var other = new Organization { Name = "Foreign organization" };
+        var schema = OperationCatalog.Basic with { Key = "ORG_TEST", Fields = [
+            new("public", new("Visible", "Widoczne"), "text"),
+            new("credential", new("Credential reference only", "Tylko odnośnik"), "text", Sensitivity: "Secret"),
+            new("hidden", new("Hidden", "Ukryte"), "text", VisibleWhen: new("AND", [new("public", "equals", JsonSerializer.SerializeToElement("show"))]))] };
+        var template = new OperationTemplateVersion { Key = schema.Key, Version = 1, OrganizationId = org.Id, SchemaJson = OperationSchemas.Serialize(schema) };
+        var local = new OperationRecord { OrganizationId = org.Id, TemplateVersionId = template.Id, Number = "OPS-2026-0001", Title = "Local", RequesterId = actor.Id, ImplementerId = actor.Id, OwnerId = actor.Id, ModifiedBy = actor.Id,
+            ValuesJson = "{\"public\":\"Visible content\",\"credential\":\"LEGACY_SECRET\",\"hidden\":\"HIDDEN_CONTENT\"}" };
+        var foreign = new OperationRecord { OrganizationId = other.Id, TemplateVersionId = template.Id, Number = "OPS-2026-0001", Title = "FOREIGN_RECORD", RequesterId = actor.Id, ImplementerId = actor.Id, OwnerId = actor.Id, ModifiedBy = actor.Id };
+        fixture.Db.AddRange(other, new UserOrganization { UserId = actor.Id, OrganizationId = other.Id, Role = OrgRole.Admin }, template, local, foreign); await fixture.Db.SaveChangesAsync();
+        (await Service().GenerateAsync(org.Id, new([new("operations")]))).StatusCode.Should().Be(200);
+        var json = JsonSerializer.Serialize(renderer.Snapshot);
+        json.Should().Contain("Visible content").And.NotContain("LEGACY_SECRET").And.NotContain("HIDDEN_CONTENT").And.NotContain("FOREIGN_RECORD");
+        (await Service().GetItemsAsync(org.Id, "operations", new(), search: "FOREIGN")).Value.Should().BeOfType<List<ResourceOptionDto>>().Which.Should().BeEmpty();
+        (await Service().GenerateAsync(org.Id, new([new("operations", [foreign.Id])]))).StatusCode.Should().Be(400);
+    }
 
     [Theory]
     [InlineData(OrgRole.Owner, 200)]

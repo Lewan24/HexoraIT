@@ -31,7 +31,7 @@ public sealed class ExpiryNotificationService(IServiceScopeFactory scopeFactory,
         {
             var lastDate = today.AddDays(preference.ExpiryWarningDays);
             if (preference.LicenseExpiring)
-                foreach (var item in (await db.Licenses.IgnoreQueryFilters().AsNoTracking().Where(x => x.OrganizationId == preference.OrganizationId).ToListAsync(token)).Where(x => x.ExpiryDate >= today && x.ExpiryDate <= lastDate))
+                foreach (var item in (await db.Licenses.IgnoreQueryFilters().AsNoTracking().Where(x => x.OrganizationId == preference.OrganizationId && x.Type != LicenseType.Perpetual).ToListAsync(token)).Where(x => x.ExpiryDate >= today && x.ExpiryDate <= lastDate))
                     await SendOnceAsync(db, notifications, item.OrganizationId, "license_expiring", item.Id, item.ExpiryDate, $"License expiring: {item.Name}", $"The license '{item.Name}' expires on {item.ExpiryDate:yyyy-MM-dd}.", token);
             if (preference.ContractExpiring)
                 foreach (var item in (await db.Contracts.IgnoreQueryFilters().AsNoTracking().Where(x => x.OrganizationId == preference.OrganizationId).ToListAsync(token)).Where(x => x.EndDate >= today && x.EndDate <= lastDate))

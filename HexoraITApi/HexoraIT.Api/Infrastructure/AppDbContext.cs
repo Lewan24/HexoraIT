@@ -51,6 +51,34 @@ public interface ICurrentOrgAccessor
 
 public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserIdProvider currentUser) : DbContext(options)
 {
+    public DbSet<OperationTemplateVersion> OperationTemplates => Set<OperationTemplateVersion>();
+    public DbSet<OperationRecord> OperationRecords => Set<OperationRecord>();
+    public DbSet<OperationRevision> OperationRevisions => Set<OperationRevision>();
+    public DbSet<OperationActivity> OperationActivities => Set<OperationActivity>();
+    public DbSet<OperationTemplateSetting> OperationTemplateSettings => Set<OperationTemplateSetting>();
+    public DbSet<OperationPolicy> OperationPolicies => Set<OperationPolicy>();
+    public DbSet<OperationPolicyRevision> OperationPolicyRevisions => Set<OperationPolicyRevision>();
+
+    private void ProtectOperationHistory()
+    {
+        if (ChangeTracker.Entries().Any(e => e.Entity is OperationTemplateVersion or OperationRevision or OperationActivity or OperationPolicyRevision &&
+            e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Published templates, revisions and operation history are append-only.");
+        if (ChangeTracker.Entries<OperationRecord>().Any(e => e.State == EntityState.Deleted))
+            throw new InvalidOperationException("Operation records may only be archived.");
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ProtectOperationHistory();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ProtectOperationHistory();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     private Guid? CurrentUserId => currentUser.UserId;
     public DbSet<ClientPermission> ClientPermissions => Set<ClientPermission>();
@@ -88,6 +116,72 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<OperationTemplateVersion>(e =>
+        {
+            e.Property(t => t.Key).HasMaxLength(40);
+            e.HasOne<Organization>().WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(t => t.ContentHash).HasMaxLength(64);
+            e.Property(t => t.SchemaJson).HasColumnType("jsonb");
+            e.HasIndex(t => new { t.Key, t.Version }).IsUnique();
+            e.HasIndex(t => new { t.Key, t.ContentHash }).IsUnique();
+        });
+        b.Entity<OperationTemplateSetting>(e =>
+        {
+            e.HasKey(t => new { t.OrganizationId, t.TemplateKey });
+            e.Property(t => t.TemplateKey).HasMaxLength(40);
+            e.Property(t => t.RevisionToken).IsConcurrencyToken();
+            e.HasOne<Organization>().WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationPolicy>(e =>
+        {
+            e.HasKey(p => p.OrganizationId);
+            e.Property(p => p.RevisionToken).IsConcurrencyToken();
+            e.Property(p => p.ReportingRulesJson).HasColumnType("jsonb");
+            e.HasOne<Organization>().WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationPolicyRevision>(e =>
+        {
+            e.Property(p => p.SnapshotJson).HasColumnType("jsonb");
+            e.HasIndex(p => new { p.OrganizationId, p.CreatedAt });
+            e.HasOne<Organization>().WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationRecord>(e =>
+        {
+            e.HasAlternateKey(r => new { r.Id, r.OrganizationId });
+            e.Property(r => r.Title).HasMaxLength(200);
+            e.Property(r => r.Description).HasMaxLength(10000);
+            e.Property(r => r.Number).HasMaxLength(40);
+            e.Property(r => r.Status).HasMaxLength(40);
+            e.Property(r => r.ChangeType).HasMaxLength(20);
+            e.Property(r => r.Priority).HasMaxLength(20);
+            e.Property(r => r.Risk).HasMaxLength(20);
+            e.Property(r => r.Category).HasMaxLength(10);
+            e.Property(r => r.ValuesJson).HasColumnType("jsonb");
+            e.Property(r => r.RevisionToken).IsConcurrencyToken();
+            e.HasIndex(r => new { r.OrganizationId, r.Year, r.Sequence }).IsUnique();
+            e.HasIndex(r => new { r.OrganizationId, r.Number }).IsUnique();
+            e.HasIndex(r => new { r.OrganizationId, r.Status, r.ModifiedAt });
+            e.HasIndex(r => new { r.OrganizationId, r.AssetId });
+            e.HasIndex(r => new { r.OrganizationId, r.RequesterId });
+            e.HasOne<OperationTemplateVersion>().WithMany().HasForeignKey(r => r.TemplateVersionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<UserOrganization>().WithMany().HasForeignKey(r => new { r.RequesterId, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<UserOrganization>().WithMany().HasForeignKey(r => new { r.ImplementerId, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<UserOrganization>().WithMany().HasForeignKey(r => new { r.OwnerId, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OperationRevision>(e =>
+        {
+            e.Property(r => r.SnapshotJson).HasColumnType("jsonb");
+            e.HasOne<OperationRecord>().WithMany().HasForeignKey(r => new { r.RecordId, r.OrganizationId }).HasPrincipalKey(r => new { r.Id, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(r => new { r.RecordId, r.RevisionToken }).IsUnique();
+        });
+        b.Entity<OperationActivity>(e =>
+        {
+            e.Property(a => a.EventType).HasMaxLength(60);
+            e.Property(a => a.FromStatus).HasMaxLength(40);
+            e.Property(a => a.ToStatus).HasMaxLength(40);
+            e.HasOne<OperationRecord>().WithMany().HasForeignKey(a => new { a.RecordId, a.OrganizationId }).HasPrincipalKey(r => new { r.Id, r.OrganizationId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(a => new { a.OrganizationId, a.RecordId, a.OccurredAt });
+        });
         b.Entity<AuditEvent>(e =>
         {
             e.HasKey(a => a.Id);
