@@ -192,9 +192,9 @@ export const filesApi = {
     http.getAllPages<StoredFile>(`/files${qs({ organizationId, folderId })}`),
   upload: (organizationId: string, file: File, folderId?: string) =>
     http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId })}`, file),
-  replace: (id: string, file: File) => http.upload<StoredFile>(`/files/${id}/replace`, file),
+  replace: (id: string, file: File, revision?: string) => http.upload<StoredFile>(`/files/${id}/replace${qs({ revision })}`, file),
   deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
-  getContentBlob: (id: string) => http.getBlob(`/files/${id}/content`),
+  getContent: (id: string) => http.getVersionedBlob(`/files/${id}/content`),
   downloadFile: (id: string) => http.getBlob(`/files/${id}/download`),
   renameFolder: (id: string, name: string) => http.patch<void>(`/files/folders/${id}`, { name }),
   moveFolder: (id: string, newParentFolderId?: string) => http.patch<void>(`/files/folders/${id}/move`, { newParentFolderId }),

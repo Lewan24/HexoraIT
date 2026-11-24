@@ -125,6 +125,22 @@ public sealed class SecurityPipelineTests
         var download = await client.GetAsync(module == "files" ? $"/api/files/{id}/download" : $"/api/{module}/{id}/document");
         download.StatusCode.Should().Be(HttpStatusCode.OK);
         (await download.Content.ReadAsByteArrayAsync()).Should().Equal(bytes);
+        if (module == "files")
+        {
+            using var preview = await client.GetAsync($"/api/files/{id}/content");
+            preview.StatusCode.Should().Be(HttpStatusCode.OK);
+            preview.Headers.CacheControl!.NoStore.Should().BeTrue();
+            var version = preview.Headers.ETag!.Tag.Trim('"');
+            using var edit = new MultipartFormDataContent();
+            edit.Add(new ByteArrayContent("%PDF-1.7\nedited"u8.ToArray()), "file", "document.pdf");
+            using var save = await client.PostAsync($"/api/files/{id}/replace?revision={version}", edit);
+            save.StatusCode.Should().Be(HttpStatusCode.OK);
+            using var stale = await client.PostAsync($"/api/files/{id}/replace?revision={version}", edit);
+            stale.StatusCode.Should().Be(HttpStatusCode.Conflict);
+            using var saved = await client.GetAsync($"/api/files/{id}/content");
+            saved.Headers.ETag.Should().NotBe(preview.Headers.ETag);
+            (await saved.Content.ReadAsStringAsync()).Should().Be("%PDF-1.7\nedited");
+        }
         (await client.GetAsync($"/api/{module}?organizationId={organization.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await client.DeleteAsync($"/api/{module}/{id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
     }

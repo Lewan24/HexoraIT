@@ -409,7 +409,13 @@ function FileExplorerContent() {
         />
       )}
 
-      {previewFile && <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
+      {previewFile && <FilePreviewModal key={previewFile.id} file={previewFile} canEdit={canWrite('files', previewFile.id)}
+        onClose={() => setPreviewFile(null)}
+        onSaved={updated => {
+          setFiles(items => items.map(item => item.id === updated.id ? updated : item))
+          setPreviewFile(updated)
+          toast(tr('File updated'))
+        }} />}
     </div>
   )
 }

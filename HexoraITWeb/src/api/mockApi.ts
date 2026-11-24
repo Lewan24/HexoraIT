@@ -1187,6 +1187,20 @@ async function request<T>(
   )
 }
 
+function fileRevision(file: Entity) {
+  return JSON.stringify([file.name, file.contentRevision ?? null])
+}
+
+function fileSnapshot(path: string) {
+  const fileId = path.split('/')[2]
+  const state = readState()
+  const user = actor(state)
+  const file = state.resources.files.find(item => item.id === fileId)
+  if (!file || !demoPermission(state, user, String(file.organizationId), 'files', false, file.id))
+    throw new ApiError(404, "File not found.")
+  return { blob: dataUrlBlob(state.fileContents[file.id]), revision: fileRevision(file) }
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const url = new URL(path, "https://demo.local")
   const state = readState()
@@ -1208,12 +1222,20 @@ async function upload<T>(path: string, file: File): Promise<T> {
   }
   const replacement = url.pathname.match(/^\/files\/([^/]+)\/replace$/)
   if (replacement) {
-    const item = state.resources.files.find(value => value.id === replacement[1])
-    if (!item) throw new ApiError(404, "File not found.")
     const content = await dataUrl(file)
-    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size })
-    state.fileContents[item.id] = content
-    writeState(state)
+    const latest = readState()
+    const user = actor(latest)
+    const item = latest.resources.files.find(value => value.id === replacement[1])
+    if (!item || !demoPermission(latest, user, String(item.organizationId), 'files', false, item.id))
+      throw new ApiError(404, "File not found.")
+    if (!demoPermission(latest, user, String(item.organizationId), 'files', true, item.id))
+      throw new ApiError(403, "Access forbidden.")
+    const revision = url.searchParams.get("revision")
+    if (revision !== null && (revision !== fileRevision(item) || file.name !== item.name))
+      throw new ApiError(409, "This file changed. Reopen it before editing again.")
+    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, contentRevision: id() })
+    latest.fileContents[item.id] = content
+    writeState(latest)
     return item as T
   }
   const document = url.pathname.match(
@@ -1239,4 +1261,4 @@ async function upload<T>(path: string, file: File): Promise<T> {
   )
 }
 
-export const mockApi = { request, upload }
+export const mockApi = { request, upload, fileSnapshot }

@@ -169,6 +169,51 @@ public sealed class FileExplorerServiceTests : IDisposable
         ((FakeFileStorage)_fixture.Storage).Paths.Should().Equal(winningPath);
     }
 
+    [Fact]
+    public async Task Edit_EmptyTextPersistsAndOldEditorCannotOverwriteIt()
+    {
+        var (_, org) = _fixture.SeedUserWithOrg();
+        var service = Service();
+        using var original = new MemoryStream("original"u8.ToArray());
+        var stored = (StoredFileDto)(await service.UploadAsync(org.Id, null, File(original, "note.txt", "text/plain"))).Value!;
+        var snapshot = (DocumentDownload)(await service.GetContentAsync(stored.Id, false)).Value!;
+        await snapshot.Content.DisposeAsync();
+
+        using var empty = new MemoryStream();
+        var saved = await service.ReplaceAsync(stored.Id, File(empty, stored.Name, "text/plain"), revision: snapshot.Revision);
+        var updated = saved.Value.Should().BeOfType<StoredFileDto>().Subject;
+        updated.Id.Should().Be(stored.Id);
+        updated.Name.Should().Be(stored.Name);
+        updated.Size.Should().Be(0);
+        updated.MimeType.Should().Be("text/plain");
+
+        using var stale = new MemoryStream("stale"u8.ToArray());
+        (await service.ReplaceAsync(stored.Id, File(stale, stored.Name, "text/plain"), revision: snapshot.Revision))
+            .StatusCode.Should().Be(409);
+        var current = (DocumentDownload)(await service.GetContentAsync(stored.Id, false)).Value!;
+        current.Revision.Should().NotBe(snapshot.Revision);
+        await using var content = current.Content;
+        content.ReadByte().Should().Be(-1);
+        ((FakeFileStorage)_fixture.Storage).Paths.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Edit_RenamedFileRejectsEditsFromAnOldPreview()
+    {
+        var (_, org) = _fixture.SeedUserWithOrg();
+        var service = Service();
+        using var original = new MemoryStream("original"u8.ToArray());
+        var stored = (StoredFileDto)(await service.UploadAsync(org.Id, null, File(original, "note.txt", "text/plain"))).Value!;
+        var snapshot = (DocumentDownload)(await service.GetContentAsync(stored.Id, false)).Value!;
+        await snapshot.Content.DisposeAsync();
+
+        (await service.RenameFileAsync(stored.Id, new("renamed.txt"))).StatusCode.Should().Be(204);
+        using var changed = new MemoryStream("changed"u8.ToArray());
+        (await service.ReplaceAsync(stored.Id, File(changed, stored.Name, "text/plain"), revision: snapshot.Revision))
+            .StatusCode.Should().Be(409);
+        (await _fixture.Db.StoredFiles.SingleAsync()).Name.Should().Be("renamed.txt");
+    }
+
     private sealed class ConcurrentStorage(IFileStorage inner, Func<Task> concurrentUpdate) : IFileStorage
     {
         public async Task<string> SaveAsync(Stream content, string fileName, string contentType)

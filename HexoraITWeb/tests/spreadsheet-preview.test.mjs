@@ -28,6 +28,9 @@ test('merged cells render once with spans and preserve basic styling', () => {
   assert.equal(cell.style.fontWeight, 700); assert.equal(cell.style.backgroundColor, '#EECCAA')
   assert.equal(preview.rows[2].cells[3].hidden, true)
   assert.equal(cell.text, '<img src=x onerror=alert(1)>')
+  sheet.getRow(2).hidden = true
+  const clipped = buildSpreadsheetPreview(sheet, 'en-US')
+  assert.equal(clipped.rows[1].cells[1].address, 'B2')
 })
 
 test('cached formulas, percentages and dates display readable values without evaluation', () => {
@@ -37,7 +40,7 @@ test('cached formulas, percentages and dates display readable values without eva
   sheet.getCell('A3').value = { formula: '1+1' }
   assert.equal(cellText(sheet.getCell('A1'), 'en-US'), '25.0%')
   assert.equal(cellText(sheet.getCell('A2'), 'en-US'), '9/28/2026')
-  assert.equal(cellText(sheet.getCell('A3'), 'en-US'), '')
+  assert.equal(cellText(sheet.getCell('A3'), 'en-US'), '=1+1')
 })
 
 test('preview clips dimensions, reports truncation and skips hidden data', () => {

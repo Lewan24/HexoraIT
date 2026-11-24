@@ -235,7 +235,7 @@ builder.Services.AddCors(opt =>
         .WithOrigins(appSettings.AllowOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .WithExposedHeaders("X-Total-Count", "X-Page", "X-Page-Size", "X-Result-Capped")
+        .WithExposedHeaders("X-Total-Count", "X-Page", "X-Page-Size", "X-Result-Capped", "ETag")
         .AllowCredentials());
 });
 

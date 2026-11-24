@@ -16,7 +16,7 @@ public static class FileExplorerEndpoints
         group.MapDelete("/folders/{id:guid}", DeleteFolderAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
         group.MapGet("", GetFilesAsync).AddEndpointFilter<DataAnnotationsValidationFilter<PaginationParameters>>().Produces<List<StoredFileDto>>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden);
         group.MapPost("/upload", UploadAsync).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(FileUploadSecurity.MaxRequestBytes)).Produces<StoredFileDto>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden);
-        group.MapPost("/{id:guid}/replace", ReplaceAsync).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(FileUploadSecurity.MaxRequestBytes)).Produces<StoredFileDto>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
+        group.MapPost("/{id:guid}/replace", ReplaceAsync).DisableAntiforgery().WithMetadata(new RequestSizeLimitAttribute(FileUploadSecurity.MaxRequestBytes)).Produces<StoredFileDto>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status409Conflict);
         group.MapGet("/{id:guid}/content", GetContentAsync).Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
         group.MapGet("/{id:guid}/download", DownloadAsync).Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
         group.MapDelete("/{id:guid}", DeleteFileAsync).Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound);
@@ -31,7 +31,7 @@ public static class FileExplorerEndpoints
     private static async Task<IResult> DeleteFolderAsync(Guid id, IFileExplorerService service, CancellationToken token) => (await service.DeleteFolderAsync(id, token)).ToHttpResult();
     private static async Task<IResult> GetFilesAsync(Guid organizationId, Guid? folderId, [AsParameters] PaginationParameters pagination, IFileExplorerService service, HttpResponse response, CancellationToken token) => (await service.GetFilesAsync(organizationId, folderId, pagination, token)).ToHttpResult(response);
     private static async Task<IResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, IFileExplorerService service, CancellationToken token) => (await service.UploadAsync(organizationId, folderId, file, token)).ToHttpResult();
-    private static async Task<IResult> ReplaceAsync(Guid id, IFormFile file, IFileExplorerService service, CancellationToken token) => (await service.ReplaceAsync(id, file, token)).ToHttpResult();
+    private static async Task<IResult> ReplaceAsync(Guid id, IFormFile file, string? revision, IFileExplorerService service, CancellationToken token) => (await service.ReplaceAsync(id, file, token, revision)).ToHttpResult();
     private static async Task<IResult> GetContentAsync(Guid id, IFileExplorerService service, HttpResponse response, CancellationToken token) => await FileResultAsync(id, false, service, response, token);
     private static async Task<IResult> DownloadAsync(Guid id, IFileExplorerService service, HttpResponse response, CancellationToken token) => await FileResultAsync(id, true, service, response, token);
     private static async Task<IResult> FileResultAsync(Guid id, bool download, IFileExplorerService service, HttpResponse response, CancellationToken token)
@@ -39,6 +39,11 @@ public static class FileExplorerEndpoints
         var result = await service.GetContentAsync(id, download, token);
         if (result.Value is not DocumentDownload file) return result.ToHttpResult();
         response.Headers[HeaderNames.ContentDisposition] = new ContentDispositionHeaderValue(file.Inline ? "inline" : "attachment") { FileName = file.FileName }.ToString();
+        if (!download)
+        {
+            response.Headers.ETag = $"\"{file.Revision}\"";
+            response.Headers.CacheControl = "no-store";
+        }
         return Results.File(file.Content, file.ContentType);
     }
     private static async Task<IResult> DeleteFileAsync(Guid id, IFileExplorerService service, CancellationToken token) => (await service.DeleteFileAsync(id, token)).ToHttpResult();

@@ -5,12 +5,13 @@ export const MAX_PREVIEW_ROWS = 1_000
 export const MAX_PREVIEW_COLUMNS = 100
 // Shared budget across worksheets avoids multiplying the cap by every sheet.
 export const MAX_PREVIEW_CELLS = 100_000
-export interface PreviewCell { text: string; rowSpan: number; colSpan: number; hidden: boolean; style: CSSProperties }
+export interface PreviewCell { address: string; text: string; rowSpan: number; colSpan: number; hidden: boolean; style: CSSProperties }
 export interface SpreadsheetPreview {
   name: string
   rows: { number: number; height: number; cells: PreviewCell[] }[]
   columns: { number: number; label: string; width: number }[]
   truncated: boolean
+  empty: boolean
 }
 
 export function columnLabel(number: number): string {
@@ -24,7 +25,10 @@ function color(value?: Partial<Color>): string | undefined {
 }
 export function cellText(cell: Cell, language: string): string {
   let value = cell.value
-  if (value && typeof value === 'object' && 'formula' in value) value = value.result ?? ''
+  if (value && typeof value === 'object' && 'formula' in value) {
+    if (value.result == null) return '=' + value.formula
+    value = value.result
+  }
   if (value && typeof value === 'object' && 'sharedFormula' in value) value = value.result ?? ''
   if (value instanceof Date) return new Intl.DateTimeFormat(language, { timeZone: 'UTC' }).format(value)
   if (typeof value === 'number') {
@@ -80,6 +84,7 @@ export function buildSpreadsheetPreview(worksheet: Worksheet, language: string, 
   }
   return {
     name: worksheet.name,
+    empty: worksheet.rowCount === 0,
     truncated: worksheet.rowCount > rowCount || worksheet.columnCount > columnCount,
     columns: columns.map(n => ({ number: n, label: columnLabel(n), width: Math.max(48, Math.min(400, (worksheet.getColumn(n).width ?? 12) * 7 + 5)) })),
     rows: rows.map(r => ({ number: r, height: Math.max(24, Math.min(300, (worksheet.getRow(r).height ?? 18) * 4 / 3)),
@@ -88,7 +93,7 @@ export function buildSpreadsheetPreview(worksheet: Worksheet, language: string, 
         const master = cell.isMerged ? cell.master : cell
         const span = masters.get(master.address)
         return {
-          text: cellText(master, language).slice(0, 10_000), style: cellStyle(master),
+          address: master.address, text: cellText(master, language).slice(0, 10_000), style: cellStyle(master),
           hidden: !!span && (r !== span.row || c !== span.column),
           rowSpan: span ? (rowPositions.get(span.rowEnd)! - rowPositions.get(span.row)! + 1) : 1,
           colSpan: span ? (columnPositions.get(span.columnEnd)! - columnPositions.get(span.column)! + 1) : 1,
