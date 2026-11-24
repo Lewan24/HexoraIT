@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Net;
 using HexoraITApi.Api.Interfaces;
 using HexoraITApi.Domain.Dtos;
 using HexoraITApi.Domain.Entities;
@@ -57,9 +58,14 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
             if (selection.ItemIds is not null && records.Select(item => item.Id).Distinct().Count() != selection.ItemIds.Distinct().Count())
                 return new(400, "Some selected records are unavailable in this organization. Refresh the selection.");
             count += records.Count;
-            characters += records.Sum(record => (long)record.Title.Length + record.Fields.Sum(field => (long)field.Value.Length) + record.Texts.Sum(text => (long)text.Content.Length));
+            characters += records.Sum(record => (long)record.Title.Length + record.Fields.Sum(field => (long)field.Value.Length) + record.Texts.Sum(text => (long)text.Content.Length) +
+                (record.Addresses?.Sum(ip => (long)ip.Ip.Length + ip.Label.Length + ip.Status.Length + ip.Notes.Length + ip.Details.Length) ?? 0));
             if (count > DocumentationCatalog.MaxRecords || characters > DocumentationCatalog.MaxCharacters)
                 return new(413, "The selected documentation is too large for one PDF. Select fewer records or sections.");
+            if (selection.Key != "operations")
+                records = records.OrderBy(record => record.SortIndex ?? int.MaxValue)
+                    .ThenBy(record => record.Title, StringComparer.Create(CultureInfo.GetCultureInfo(options.Language), true))
+                    .ThenBy(record => record.Id).ToList();
             sections.Add(new(selection.Key, records));
         }
         var preparedBy = await db.Users.Where(u => u.Id == user.UserId).Select(u => u.DisplayName).SingleAsync(token);
@@ -124,7 +130,7 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
         DateTime date => date == DateTime.MinValue ? "" : date.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'"),
         bool flag => flag ? "Yes" : "No", IFormattable number => number.ToString(null, CultureInfo.InvariantCulture), _ => value.ToString() ?? ""
     }, value is bool or Enum);
-    private static DocumentationRecord R(IOrderedRecord source, Guid id, string title, params DocumentationField[] fields) => new(id, title, fields.Where(field => field.Value.Length > 0).ToList(), [], source.SortIndex);
+    private static DocumentationRecord R(IOrderedRecord source, Guid id, string title, params DocumentationField[] fields) => new(id, title, fields.Where(field => !string.IsNullOrWhiteSpace(field.Value)).ToList(), [], source.SortIndex);
     private static DocumentationRecord Text(DocumentationRecord record, string label, string? value, bool include = true)
     {
         if (include && !string.IsNullOrWhiteSpace(value)) record.Texts.Add(new(label, value));
@@ -139,12 +145,12 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 return await ReadOperationsAsync(org, selection, options, token);
             case "assets":
                 foreach (var x in await ReadAsync(db.Assets.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
-                    records.Add(Text(R(x, x.Id, x.Name, F("Type", x.Type), F("Status", x.Status), F("Location", x.Location), F("Owner", x.Owner), F("IP address", x.Ip), F("Serial number", x.Serial), F("Tags", string.Join(", ", x.Tags)), F("Updated", x.UpdatedAt)), "Notes", x.Notes, options.IncludeNotes));
+                    records.Add(Text(R(x, x.Id, x.Name, F("Type", x.Type), F("IP address", x.Ip), F("Location", x.Location), F("Owner", x.Owner), F("Serial number", x.Serial)), "Notes", x.Notes, options.IncludeNotes));
                 break;
             case "passwords":
                 foreach (var x in await ReadAsync(db.Passwords.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
                 {
-                    var record = Text(R(x, x.Id, x.Name, F("Username", x.Username), F("Category", x.Category), F("Updated", x.UpdatedAt)), "Notes", x.Notes, options.IncludeNotes);
+                    var record = Text(R(x, x.Id, x.Name, F("Username", x.Username), F("Category", x.Category)), "Notes", x.Notes, options.IncludeNotes);
                     if (options.IncludeSecrets) record.Fields.Add(F("Password", cipher.Decrypt(x.EncryptedPassword)));
                     records.Add(record);
                 }
@@ -152,8 +158,9 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
             case "licenses":
                 foreach (var x in await ReadAsync(db.Licenses.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
                 {
-                    var record = Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("Category", x.Category), F("Type", x.Type), F("Status", x.Status), F("Seats", x.Seats), F("Seats used", x.SeatsUsed), F("Purchase date", x.PurchaseDate), F("Expiry date", x.ExpiryDate)), "Notes", x.Notes, options.IncludeNotes);
-                    if (options.IncludeSecrets) record.Fields.Add(F("License key", x.LicenseKey));
+                    var record = Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("License model", x.Type), F("Seats used / total", x.Seats > 0 || x.SeatsUsed > 0 ? $"{x.SeatsUsed} / {x.Seats}" : null), F("Expiry date", x.ExpiryDate),
+                        F("Status", x.Status == LicenseStatus.Inactive ? x.Status : null)), "Notes", x.Notes, options.IncludeNotes);
+                    if (options.IncludeSecrets && !string.IsNullOrWhiteSpace(x.LicenseKey)) record.Fields.Add(F("License key", x.LicenseKey));
                     if (options.IncludeFinancials) record.Fields.Add(F("Cost", $"{x.Cost} {x.Currency}"));
                     records.Add(record);
                 }
@@ -165,18 +172,18 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
             case "contracts":
                 foreach (var x in await ReadAsync(db.Contracts.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
                 {
-                    var record = Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("Category", x.Category), F("Status", x.Status), F("Start date", x.StartDate), F("End date", x.EndDate), F("Auto-renewal", x.AutoRenew), F("Attachment", x.DocumentName)), "Notes", x.Notes, options.IncludeNotes);
+                    var record = Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("Category", x.Category), F("Status", x.Status == ContractStatus.Draft ? x.Status : null), F("Start date", x.StartDate), F("End date", x.EndDate), F("Auto-renewal", x.AutoRenew), F("Attachment", x.DocumentName)), "Notes", x.Notes, options.IncludeNotes);
                     if (options.IncludeFinancials) record.Fields.Add(F("Value", $"{x.Value} {x.Currency}"));
                     records.Add(record);
                 }
                 break;
             case "knowledge":
                 foreach (var x in await ReadAsync(db.KnowledgeArticles.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
-                    records.Add(Text(R(x, x.Id, x.Title, F("Category", x.Category), F("Tags", string.Join(", ", x.Tags)), F("Updated", x.UpdatedAt)), "Content", x.Content, options.IncludeKnowledgeContent));
+                    records.Add(Text(R(x, x.Id, x.Title, F("Category", x.Category)), "Content", x.Content, options.IncludeKnowledgeContent));
                 break;
             case "warranty":
                 foreach (var x in await ReadAsync(db.WarrantyItems.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
-                    records.Add(Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("Serial number", x.SerialNumber), F("Type", x.WarrantyType), F("Status", x.Status), F("Purchase date", x.PurchaseDate), F("Warranty end", x.WarrantyEndDate), F("Contact", x.ContactName), F("Phone", x.ContactPhone), F("Email", x.ContactEmail), F("Attachment", x.DocumentName)), "Notes", x.Notes, options.IncludeNotes));
+                    records.Add(Text(R(x, x.Id, x.Name, F("Vendor", x.Vendor), F("Serial number", x.SerialNumber), F("Type", x.WarrantyType), F("Warranty end", x.WarrantyEndDate), F("Contact", x.ContactName), F("Phone", x.ContactPhone), F("Email", x.ContactEmail), F("Attachment", x.DocumentName)), "Notes", x.Notes, options.IncludeNotes));
                 break;
             case "tasks":
                 foreach (var x in await ReadAsync(db.Tasks.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
@@ -202,7 +209,7 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 break;
             case "projects":
                 foreach (var x in await ReadAsync(db.Projects.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
-                    records.Add(Text(R(x, x.Id, x.Name, F("Created", x.CreatedAt)), "Description", x.Description));
+                    records.Add(Text(R(x, x.Id, x.Name), "Description", x.Description));
                 break;
             case "groups":
                 foreach (var x in await ReadAsync(db.Groups.Where(x => x.OrganizationId == org), selection, x => x.Id, token))
@@ -210,7 +217,7 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 break;
             case "private-notes":
                 foreach (var x in await ReadAsync(db.PrivateNotes.Where(x => x.OrganizationId == org && x.UserId == user.UserId), selection, x => x.Id, token))
-                    records.Add(Text(R(x, x.Id, x.Title, F("Updated", x.UpdatedAt)), "Content", x.Content));
+                    records.Add(Text(R(x, x.Id, x.Title), "Content", x.Content));
                 break;
             case "files":
                 var folders = await db.FileFolders.Where(x => x.OrganizationId == org).AsNoTracking().ToDictionaryAsync(x => x.Id, token);
@@ -218,26 +225,34 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 {
                     var path = new List<string>(); var visited = new HashSet<Guid>(); var parent = x.FolderId;
                     while (parent is { } folderId && folders.TryGetValue(folderId, out var folder) && visited.Add(folderId)) { path.Insert(0, folder.Name); parent = folder.ParentFolderId; }
-                    records.Add(R(x, x.Id, x.Name, F("Folder", string.Join(" / ", path)), F("File type", x.MimeType), F("Size (bytes)", x.Size), F("Uploaded", x.UploadedAt)));
+                    records.Add(R(x, x.Id, x.Name, F("Folder", string.Join(" / ", path))));
                 }
                 break;
             case "networks":
                 var networks = await ReadAsync(db.Subnets.Where(x => x.OrganizationId == org), selection, x => x.Id, token);
                 var networkIds = networks.Select(x => x.Id).ToList();
-                var ips = await db.IPEntries.AsNoTracking().Where(x => networkIds.Contains(x.SubnetId) && x.Subnet.OrganizationId == org).OrderBy(x => x.SortIndex ?? int.MaxValue).ThenBy(x => x.Id).Take(DocumentationCatalog.MaxRecords + 1).ToListAsync(token);
+                var ips = await db.IPEntries.AsNoTracking().Where(ip => networkIds.Contains(ip.SubnetId) && ip.Subnet.OrganizationId == org &&
+                    (ip.Status != IPEntryStatus.Free || ip.AssetId != null || ip.Label.Trim() != "" ||
+                        (options.IncludeNotes && (ip.Notes.Trim() != "" || (ip.PlainText != null && ip.PlainText.Trim() != "")))))
+                    .Take(DocumentationCatalog.MaxRecords + 1).ToListAsync(token);
                 if (ips.Count > DocumentationCatalog.MaxRecords) throw new DocumentationTooLargeException();
                 var ipsByNetwork = ips.ToLookup(ip => ip.SubnetId);
+                var unlabeledAssetIds = ips.Where(ip => ip.AssetId.HasValue && string.IsNullOrWhiteSpace(ip.Label))
+                    .Select(ip => ip.AssetId!.Value).Distinct().ToArray();
+                var assetNames = await db.Assets.AsNoTracking().Where(asset => asset.OrganizationId == org && unlabeledAssetIds.Contains(asset.Id))
+                    .ToDictionaryAsync(asset => asset.Id, asset => asset.Name, token);
                 foreach (var x in networks)
                 {
                     var record = Text(R(x, x.Id, x.Name, F("CIDR", x.Cidr), F("VLAN", x.Vlan), F("Type", x.Type), F("Gateway", x.Gateway), F("DNS", x.Dns),
                         F("DHCP range", x.DhcpStart is not null && x.DhcpEnd is not null ? $"{x.DhcpStart} – {x.DhcpEnd}" : null)), "Description", x.Description);
-                    foreach (var ip in ipsByNetwork[x.Id])
-                    {
-                        record.Fields.Add(F("IP entry", $"{ip.Ip} — {ip.Label} ({ip.Status})"));
-                        if (options.IncludeNotes) Text(record, "IP notes", ip.Notes);
-                        if (options.IncludeNotes) Text(record, "IP details", ip.PlainText);
-                    }
-                    records.Add(record);
+                    var addresses = ipsByNetwork[x.Id].OrderBy(ip => ip.SortIndex ?? int.MaxValue)
+                        .ThenBy(ip => IpSubnetRange.TryAddress(ip.Ip, out var address) ? address : null, NetworkAddressComparer.Instance)
+                        .ThenBy(ip => ip.Ip, StringComparer.Ordinal).ThenBy(ip => ip.Id)
+                        .Select(ip => new DocumentationAddress(ip.Ip,
+                            string.IsNullOrWhiteSpace(ip.Label) && ip.AssetId is { } assetId ? assetNames.GetValueOrDefault(assetId, "") : ip.Label,
+                            ip.Status.ToString(),
+                            options.IncludeNotes ? ip.Notes : "", options.IncludeNotes ? ip.PlainText ?? "" : "")).ToList();
+                    records.Add(record with { Addresses = addresses });
                 }
                 break;
             case "diagram":
@@ -250,11 +265,30 @@ public sealed partial class DocumentationService(AppDbContext db, ICurrentUserCo
                 foreach (var x in nodes)
                 {
                     var record = R(x, x.Id, x.Label, F("Device type", x.DeviceType), F("IP address", x.Ip));
-                    foreach (var edge in edgesBySource[x.Id]) record.Fields.Add(F("Connection", $"{nodesById[edge.TargetNodeId].Label} — {edge.ConnectionType} {edge.Label}"));
+                    foreach (var edge in edgesBySource[x.Id].OrderBy(edge => nodesById[edge.TargetNodeId].Label, StringComparer.OrdinalIgnoreCase).ThenBy(edge => edge.Id))
+                    {
+                        var connectionType = DocumentationLabels.Get(edge.ConnectionType.ToString(), options.Language == "pl");
+                        var connection = $"{nodesById[edge.TargetNodeId].Label} · {connectionType}";
+                        if (!string.IsNullOrWhiteSpace(edge.Label)) connection += $" · {edge.Label}";
+                        record.Fields.Add(F("Connection", connection));
+                    }
                     records.Add(record);
                 }
                 break;
         }
         return records;
+    }
+
+    private sealed class NetworkAddressComparer : IComparer<IPAddress?>
+    {
+        public static readonly NetworkAddressComparer Instance = new();
+        public int Compare(IPAddress? left, IPAddress? right)
+        {
+            if (left is null) return right is null ? 0 : 1;
+            if (right is null) return -1;
+            var first = left.GetAddressBytes();
+            var second = right.GetAddressBytes();
+            return first.Length != second.Length ? first.Length.CompareTo(second.Length) : first.AsSpan().SequenceCompareTo(second);
+        }
     }
 }

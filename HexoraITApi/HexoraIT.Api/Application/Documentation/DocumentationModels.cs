@@ -4,7 +4,9 @@ namespace HexoraITApi.Application.Documentation;
 
 public sealed record DocumentationField(string Label, string Value, bool Translate = false);
 public sealed record DocumentationText(string Label, string Content);
-public sealed record DocumentationRecord(Guid Id, string Title, List<DocumentationField> Fields, List<DocumentationText> Texts, int? SortIndex = null);
+public sealed record DocumentationAddress(string Ip, string Label, string Status, string Notes, string Details);
+public sealed record DocumentationRecord(Guid Id, string Title, List<DocumentationField> Fields, List<DocumentationText> Texts,
+    int? SortIndex = null, IReadOnlyList<DocumentationAddress>? Addresses = null);
 public sealed record DocumentationSection(string Key, List<DocumentationRecord> Records);
 public sealed record DocumentationSnapshot(string OrganizationName, string Description, string PreparedBy, DateTime GeneratedAt,
     DocumentationRequestDto Options, List<DocumentationSection> Sections);

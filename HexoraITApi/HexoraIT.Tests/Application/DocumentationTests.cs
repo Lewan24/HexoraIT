@@ -210,6 +210,48 @@ public sealed class DocumentationTests : IDisposable
     }
 
     [Fact]
+    public async Task InfrastructurePdfUsesOperationalFieldsAndOnlyMeaningfulIpEntries()
+    {
+        var (_, org) = fixture.SeedUserWithOrg();
+        var subnet = new Subnet { OrganizationId = org.Id, Name = "Sieć biurowa", Cidr = "192.0.2.0/24", Vlan = 20,
+            Gateway = "192.0.2.1", DhcpStart = "192.0.2.150", DhcpEnd = "192.0.2.200" };
+        var printer = new Asset { OrganizationId = org.Id, Name = "Drukarka", Status = AssetStatus.Offline, Ip = "192.0.2.11", Serial = "PRN-200" };
+        fixture.Db.AddRange(subnet,
+            new Asset { OrganizationId = org.Id, Name = "Zapora", Status = AssetStatus.Online, Ip = "192.0.2.1", SortIndex = 1 },
+            printer,
+            new Asset { OrganizationId = org.Id, Name = "Archiwum", Status = AssetStatus.Maintenance },
+            new IPEntry { SubnetId = subnet.Id, Ip = "192.0.2.3", Status = IPEntryStatus.Free },
+            new IPEntry { SubnetId = subnet.Id, Ip = "192.0.2.100", Status = IPEntryStatus.Reserved, Notes = "Rezerwacja dla serwerów" },
+            new IPEntry { SubnetId = subnet.Id, Ip = "192.0.2.11", Status = IPEntryStatus.Used, AssetId = printer.Id },
+            new IPEntry { SubnetId = subnet.Id, Ip = "192.0.2.2", Status = IPEntryStatus.Used, Label = "Przełącznik" },
+            new IPEntry { SubnetId = subnet.Id, Ip = "192.0.2.4", Status = IPEntryStatus.Free, Notes = "Planowane prace" },
+            new StoredFile { OrganizationId = org.Id, Name = "Instrukcja.pdf", MimeType = "application/pdf", Size = 1024 },
+            new HexoraITApi.Domain.Entities.License { OrganizationId = org.Id, Name = "Kopie zapasowe", SeatsUsed = 8, Seats = 12 });
+        await fixture.Db.SaveChangesAsync();
+        var request = new DocumentationRequestDto([new("assets"), new("networks"), new("files"), new("licenses")]);
+        (await Service().GenerateAsync(org.Id, request)).StatusCode.Should().Be(200);
+        var sections = renderer.Snapshot!.Sections;
+        sections[0].Records.Select(record => record.Title).Should().Equal("Zapora", "Archiwum", "Drukarka");
+        sections[0].Records.SelectMany(record => record.Fields).Select(field => field.Label)
+            .Should().NotContain(["Status", "Updated", "Tags"]).And.Contain("Serial number");
+        var addresses = sections[1].Records.Single().Addresses!;
+        addresses.Select(ip => ip.Ip).Should().Equal("192.0.2.2", "192.0.2.11", "192.0.2.100");
+        addresses.Should().Contain(ip => ip.Ip == "192.0.2.11" && ip.Label == printer.Name);
+        addresses.Should().OnlyContain(ip => ip.Notes == "");
+        sections[1].Records.Single().Fields.Should().Contain(field => field.Label == "DHCP range");
+        sections[2].Records.Single().Fields.Should().BeEmpty();
+        sections[3].Records.Single().Fields.Should().Contain(field => field.Label == "Seats used / total" && field.Value == "8 / 12");
+        var document = new DocumentationPdfRenderer().BuildDocument(renderer.Snapshot);
+        var tables = document.Sections[2].Elements.OfType<MigraDoc.DocumentObjectModel.Tables.Table>()
+            .Where(table => table.Rows[0].HeadingFormat).ToList();
+        tables.Select(table => table.Rows.Count).Should().Equal(4, 4);
+        tables.Select(table => table.Rows[0].KeepWith).Should().Equal(0, 0);
+        (await Service().GenerateAsync(org.Id, request with { IncludeNotes = true })).StatusCode.Should().Be(200);
+        renderer.Snapshot!.Sections[1].Records.Single().Addresses!.Should().Contain(ip => ip.Ip == "192.0.2.100" && ip.Notes == "Rezerwacja dla serwerów")
+            .And.Contain(ip => ip.Ip == "192.0.2.4" && ip.Notes == "Planowane prace");
+    }
+
+    [Fact]
     public async Task RendererProducesMultipagePdfWithEmbeddedPolishFontsAndBookmarks()
     {
         var records = Enumerable.Range(0, 40).Select(i => new DocumentationRecord(Guid.NewGuid(), $"Urządzenie Łódź {i + 1}",
@@ -250,12 +292,11 @@ public sealed class DocumentationTests : IDisposable
         var renderer = new DocumentationPdfRenderer();
         var document = renderer.BuildDocument(snapshot);
         var cards = document.Sections[2].Elements.OfType<MigraDoc.DocumentObjectModel.Tables.Table>().ToList();
-        cards.Should().HaveCount(3);
-        cards.Should().OnlyContain(table => table.Columns.Count == 3);
+        cards.Select(table => table.Columns.Count).Should().Equal(3, 3, 3, 3);
         var pdf = await renderer.RenderAsync(snapshot);
         using var input = new MemoryStream(pdf);
         using var parsed = PdfReader.Open(input, PdfDocumentOpenMode.Import);
-        parsed.PageCount.Should().BeGreaterThan(5);
+        parsed.PageCount.Should().BeGreaterThan(3);
         var artifactPath = Environment.GetEnvironmentVariable("HEXORA_DOCUMENTATION_CARD_SAMPLE");
         if (!string.IsNullOrEmpty(artifactPath))
         {

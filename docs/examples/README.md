@@ -4,6 +4,7 @@ Plik `organization-documentation-example.pdf` pokazuje raport wygenerowany
 przez aplikację na syntetycznych danych z izolowanej bazy testowej.
 Nie zawiera dokumentacji prawdziwego klienta.
 
-Przykład obejmuje zasoby, metadane licencji, jeden wybrany kontakt oraz
-artykuł bazy wiedzy. Notatki, zadania, finanse i klucze licencji zostały
-wyłączone w konfiguratorze. Opis funkcji: [Eksport PDF](../documentation-pdf.md).
+Przykład obejmuje ewidencję zasobów, konfigurację sieci i rezerwacje IP,
+licencje, kontakty oraz procedurę z bazy wiedzy. Raport pokazuje zakres DHCP,
+wykorzystanie stanowisk i terminy ważności licencji. Eksport notatek, finansów
+i kluczy licencji jest wyłączony. [Opis eksportu PDF](../documentation-pdf.md)

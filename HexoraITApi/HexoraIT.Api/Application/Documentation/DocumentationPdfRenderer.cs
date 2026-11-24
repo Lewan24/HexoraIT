@@ -46,7 +46,7 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
         document.Info.Subject = Clean(snapshot.OrganizationName);
         var normal = document.Styles[StyleNames.Normal]!;
         normal.Font.Name = "Documentation Sans";
-        normal.Font.Size = 9.5;
+        normal.Font.Size = 10;
         normal.Font.Color = Color.FromRgb(35, 48, 68);
         normal.ParagraphFormat.SpaceAfter = Unit.FromPoint(5);
         normal.ParagraphFormat.LineSpacingRule = LineSpacingRule.Multiple;
@@ -59,7 +59,7 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
             style.Font.Bold = true;
             style.Font.Color = Color.FromRgb(37, 77, 145);
             style.ParagraphFormat.KeepWithNext = true;
-            style.ParagraphFormat.SpaceBefore = Unit.FromPoint(name == StyleNames.Heading1 ? 0 : 12);
+            style.ParagraphFormat.SpaceBefore = Unit.FromPoint(name == StyleNames.Heading1 ? 18 : 12);
             style.ParagraphFormat.SpaceAfter = Unit.FromPoint(8);
         }
         var muted = document.AddStyle("Muted", StyleNames.Normal);
@@ -85,54 +85,63 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
         company.Format.SpaceAfter = Unit.FromCentimeter(1.2);
         foreach (var (label, value) in new[] {
             ("Generated", snapshot.GeneratedAt.ToString("yyyy-MM-dd HH:mm 'UTC'")),
-            ("Prepared by", snapshot.PreparedBy), ("Recipient", snapshot.Options.Recipient),
-            ("Sections", snapshot.Sections.Count.ToString()), ("Records", snapshot.Sections.Sum(section => section.Records.Count).ToString()) })
+            ("Prepared by", snapshot.PreparedBy), ("Recipient", snapshot.Options.Recipient) })
         {
             if (string.IsNullOrWhiteSpace(value)) continue;
             var row = cover.AddParagraph(); row.AddFormattedText(T(label) + ": ", TextFormat.Bold); row.AddText(Clean(value));
         }
         if (snapshot.Description.Length > 0) AddContent(cover, snapshot.Description);
-        var scope = cover.AddParagraph(T("This document contains only the selected sections and fields. File attachments are listed, not embedded."));
-        scope.Style = "Muted"; scope.Format.SpaceBefore = Unit.FromCentimeter(1);
         if (snapshot.Options.IncludeSecrets) cover.AddParagraph(T("Sensitive data: this report includes passwords or license keys."), "Muted");
         if (snapshot.Sections.Any(section => section.Key == "private-notes")) cover.AddParagraph(T("Personal notes: only notes belonging to the report author are included."), "Muted");
         var contents = Page(document, snapshot);
-        contents.AddParagraph(T("Contents"), StyleNames.Heading1);
+        contents.AddParagraph(T("Contents"), StyleNames.Heading1).Format.SpaceBefore = Unit.Zero;
         for (var i = 0; i < snapshot.Sections.Count; i++)
         {
-            var section = snapshot.Sections[i];
+            var entry = snapshot.Sections[i];
             var row = contents.AddParagraph();
             row.Format.SpaceAfter = Unit.FromPoint(10);
             row.Format.TabStops.AddTabStop(Unit.FromCentimeter(16.4), TabAlignment.Right, TabLeader.Dots);
-            row.AddText($"{i + 1:00}  {T(section.Key)} ({section.Records.Count})\t");
+            row.AddHyperlink($"section-{i}", HyperlinkType.Bookmark).AddText($"{i + 1:00}  {T(entry.Key)} ({entry.Records.Count})");
+            row.AddTab();
             row.AddPageRefField($"section-{i}");
         }
+        var section = Page(document, snapshot);
         for (var i = 0; i < snapshot.Sections.Count; i++)
         {
             var source = snapshot.Sections[i];
-            var section = Page(document, snapshot);
             var heading = section.AddParagraph($"{i + 1:00}  {T(source.Key)}", StyleNames.Heading1);
             heading.AddBookmark($"section-{i}");
-            section.AddParagraph(DocumentationLabels.SectionDescription(source.Key, pl), "Muted");
-            var count = section.AddParagraph($"{T("Records")}: {source.Records.Count}", "Muted");
-            count.Format.SpaceAfter = Unit.FromPoint(18);
+            if (i == 0) heading.Format.SpaceBefore = Unit.Zero;
+            if (source.Key is "files" or "networks")
+            {
+                var description = section.AddParagraph(DocumentationLabels.SectionDescription(source.Key, pl), "Muted");
+                description.Format.KeepWithNext = true;
+            }
             if (source.Records.Count == 0) section.AddParagraph(T("No records in the selected scope."));
             for (var recordIndex = 0; recordIndex < source.Records.Count; recordIndex++)
             {
                 var record = source.Records[recordIndex];
-                var number = $"{i + 1}.{recordIndex + 1}";
-                if (FitsCompactCard(record))
+                var columns = InventoryColumns.GetValueOrDefault(source.Key);
+                var last = recordIndex;
+                while (columns is not null && last < source.Records.Count && FitsInventory(source.Records[last], columns)) last++;
+                if (last - recordIndex >= 2)
                 {
-                    var cards = CardTable(section, true);
+                    AddInventory(section, source.Records.GetRange(recordIndex, last - recordIndex), columns!, pl);
+                    recordIndex = last - 1;
+                }
+                else if (FitsCompactCard(record))
+                {
+                    var cards = CardTable(section);
                     var row = cards.AddRow();
-                    AddCompactCard(row[0], record, number, pl);
-                    if (recordIndex + 1 < source.Records.Count && FitsCompactCard(source.Records[recordIndex + 1]))
+                    AddCompactCard(row[0], record, pl);
+                    if (recordIndex + 1 < source.Records.Count && FitsCompactCard(source.Records[recordIndex + 1]) &&
+                        (columns is null || !FitsInventory(source.Records[recordIndex + 1], columns)))
                     {
                         recordIndex++;
-                        AddCompactCard(row[2], source.Records[recordIndex], $"{i + 1}.{recordIndex + 1}", pl);
+                        AddCompactCard(row[2], source.Records[recordIndex], pl);
                     }
                 }
-                else AddExpandedCard(section, record, number, pl);
+                else AddExpandedRecord(section, record, pl);
                 var gap = section.AddParagraph();
                 gap.Format.Font.Size = 1;
                 gap.Format.SpaceAfter = Unit.FromPoint(10);
@@ -146,13 +155,13 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
 
     // Table rows cannot split across pages. Only bounded, short records use paired cards.
     private static bool FitsCompactCard(DocumentationRecord record) =>
-        record.Title.Length <= 90 && record.Fields.Count <= 7 &&
+        record.Addresses is null && record.Title.Length <= 90 && record.Fields.Count <= 7 &&
         record.Title.Length + record.Fields.Sum(field => field.Label.Length + field.Value.Length) +
         record.Texts.Sum(text => text.Label.Length + text.Content.Length) <= 480 &&
         record.Fields.All(field => !field.Value.Contains('\n') && field.Value.Length <= 110) &&
         record.Texts.All(text => text.Content.Length <= 120 && !text.Content.Contains('\n'));
 
-    private static Table CardTable(Section section, bool paired)
+    private static Table CardTable(Section section)
     {
         var table = section.AddTable();
         table.Format.KeepWithNext = false;
@@ -161,14 +170,10 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
         table.RightPadding = Unit.FromPoint(12);
         table.TopPadding = Unit.FromPoint(10);
         table.BottomPadding = Unit.FromPoint(10);
-        if (paired)
-        {
-            table.AddColumn(Unit.FromCentimeter(8));
-            var gutter = table.AddColumn(Unit.FromCentimeter(0.6));
-            gutter.LeftPadding = gutter.RightPadding = Unit.Zero;
-            table.AddColumn(Unit.FromCentimeter(8));
-        }
-        else table.AddColumn(Unit.FromCentimeter(16.6));
+        table.AddColumn(Unit.FromCentimeter(8));
+        var gutter = table.AddColumn(Unit.FromCentimeter(0.6));
+        gutter.LeftPadding = gutter.RightPadding = Unit.Zero;
+        table.AddColumn(Unit.FromCentimeter(8));
         return table;
     }
 
@@ -180,79 +185,127 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
         cell.VerticalAlignment = VerticalAlignment.Top;
     }
 
-    private static void CardTitle(Cell cell, DocumentationRecord record, string number)
+    private static readonly Dictionary<string, (string Label, double Weight)[]> InventoryColumns = new()
+    {
+        ["assets"] = [("Name", 3.5), ("Type", 3), ("IP address", 2.8), ("Location", 2.9), ("Owner", 3.2), ("Serial number", 2.6)],
+        ["contacts"] = [("Name", 2.5), ("Company", 2.5), ("Role", 2.8), ("Phone", 2.6), ("Email", 4.6)],
+        ["licenses"] = [("Name", 4), ("Vendor", 3), ("License model", 3), ("Seats used / total", 2.5), ("Expiry date", 2.5)],
+        ["files"] = [("Name", 7), ("Folder", 5)],
+        ["contracts"] = [("Name", 4), ("Vendor", 3), ("Category", 2.5), ("Start date", 2.5), ("End date", 2.5), ("Auto-renewal", 2.5)],
+        ["warranty"] = [("Name", 4), ("Vendor", 3), ("Serial number", 3), ("Type", 3), ("Warranty end", 3)]
+    };
+
+    private static bool FitsInventory(DocumentationRecord record, (string Label, double Weight)[] columns) =>
+        record.Title.Length <= 200 && !record.Title.Contains('\n') && record.Texts.Count == 0 &&
+        record.Fields.All(field => field.Value.Length <= 200 && !field.Value.Contains('\n') && columns.Any(column => column.Label == field.Label));
+
+    private static void AddInventory(Section section, List<DocumentationRecord> records, (string Label, double Weight)[] columns, bool pl)
+    {
+        var populated = records.SelectMany(record => record.Fields).Select(field => field.Label).ToHashSet();
+        var visible = columns.Where(column => column.Label == "Name" || populated.Contains(column.Label)).ToArray();
+        if (visible.Length == 1)
+        {
+            foreach (var record in records)
+            {
+                var item = section.AddParagraph();
+                AddWrappedText(item, "• " + Clean(record.Title));
+            }
+            return;
+        }
+        var table = DataTable(section, visible, pl);
+        foreach (var record in records)
+            AddDataRow(table, visible.Select(column => column.Label == "Name" ? record.Title :
+                record.Fields.FirstOrDefault(field => field.Label == column.Label) is { } value ? FieldValue(value, pl) : "").ToArray());
+    }
+
+    private static Table DataTable(Section section, (string Label, double Weight)[] columns, bool pl)
+    {
+        var table = section.AddTable();
+        table.TopPadding = table.BottomPadding = Unit.FromPoint(5);
+        table.LeftPadding = table.RightPadding = Unit.FromPoint(5);
+        var total = columns.Sum(column => column.Weight);
+        foreach (var column in columns) table.AddColumn(Unit.FromCentimeter(16.6 * column.Weight / total));
+        var header = AddDataRow(table, columns.Select(column => DocumentationLabels.Get(column.Label, pl)).ToArray(), true);
+        header.HeadingFormat = true;
+        return table;
+    }
+
+    private static Row AddDataRow(Table table, string[] values, bool header = false)
+    {
+        var row = table.AddRow();
+        for (var i = 0; i < values.Length; i++)
+        {
+            var cell = row[i];
+            cell.Shading.Color = header ? Color.FromRgb(37, 77, 145) : row.Index % 2 == 0 ? CardBackground : Colors.White;
+            cell.Borders.Bottom.Color = CardBorder;
+            cell.Borders.Bottom.Width = Unit.FromPoint(0.5);
+            var paragraph = cell.AddParagraph();
+            paragraph.Format.SpaceAfter = Unit.Zero;
+            paragraph.Format.Font.Size = 9;
+            paragraph.Format.Font.Bold = header || i == 0;
+            if (header) paragraph.Format.Font.Color = Colors.White;
+            AddWrappedText(paragraph, Clean(values[i].Length == 0 ? "—" : values[i]), table.Columns[i].Width.Point - 11, header || i == 0, 9);
+        }
+        return row;
+    }
+
+    private static string FieldValue(DocumentationField field, bool pl) =>
+        field.Translate ? DocumentationLabels.Get(field.Value, pl) : field.Value;
+
+    private static void AddCompactCard(Cell cell, DocumentationRecord record, bool pl)
     {
         Decorate(cell);
-        var index = cell.AddParagraph(number + (record.SortIndex is { } sort ? $"  /  #{sort}" : ""));
-        index.Style = "Muted";
-        index.Format.Font.Size = 8;
-        index.Format.SpaceAfter = Unit.FromPoint(5);
-        var title = cell.AddParagraph(Clean(record.Title));
+        var title = cell.AddParagraph();
         title.Format.Font.Size = 12;
         title.Format.Font.Bold = true;
-        title.Format.Font.Color = Color.FromRgb(32, 49, 80);
-        title.Format.SpaceAfter = Unit.FromPoint(9);
-    }
-
-    private static void AddField(Cell cell, DocumentationField field, bool pl, bool compact = false)
-    {
-        var label = cell.AddParagraph(DocumentationLabels.Get(field.Label, pl));
-        label.Style = "Muted";
-        label.Format.Font.Size = 8;
-        label.Format.SpaceAfter = Unit.FromPoint(2);
-        var value = cell.AddParagraph();
-        value.Format.SpaceAfter = Unit.FromPoint(8);
-        // Credentials remain literal text: no markup or artificial whitespace in secrets.
-        if (field.Label is "Password" or "License key")
-        {
-            value.Format.Font.Bold = true;
-            value.Format.Shading.Color = Color.FromRgb(229, 234, 247);
-        }
-        AddWrappedText(value, Clean(field.Translate ? DocumentationLabels.Get(field.Value, pl) : field.Value),
-            compact ? 200 : 446, field.Label is "Password" or "License key");
-    }
-
-    private static void AddCompactCard(Cell cell, DocumentationRecord record, string number, bool pl)
-    {
-        CardTitle(cell, record, number);
-        foreach (var field in record.Fields) AddField(cell, field, pl, compact: true);
+        title.Format.SpaceAfter = Unit.FromPoint(8);
+        AddWrappedText(title, Clean(record.Title), 165, true);
+        foreach (var field in record.Fields) AddField(() => cell.AddParagraph(), field, pl, 200);
         foreach (var text in record.Texts)
         {
-            var label = cell.AddParagraph(DocumentationLabels.Get(text.Label, pl));
-            label.Style = "Muted";
-            label.Format.SpaceBefore = Unit.FromPoint(4);
+            cell.AddParagraph(DocumentationLabels.Get(text.Label, pl)).Style = "Muted";
             AddContent(() => cell.AddParagraph(), text.Content, width: 200);
         }
     }
 
-    private static void AddExpandedCard(Section section, DocumentationRecord record, string number, bool pl)
+    private static void AddField(Func<Paragraph> addParagraph, DocumentationField field, bool pl, double width)
     {
-        Table? table = CardTable(section, false);
-        var header = table.AddRow();
-        CardTitle(header[0], record, number);
-        header.KeepWith = record.Fields.Count > 0 && record.Fields[0].Value.Length <= 500 && !record.Fields[0].Value.Contains('\n') ? 1 : 0;
-        foreach (var field in record.Fields)
-        {
-            // Large values flow as normal paragraphs; a table cell taller than a page would clip.
-            if (field.Value.Length > 500 || field.Value.Count(c => c == '\n') > 4)
-            {
-                var label = section.AddParagraph(DocumentationLabels.Get(field.Label, pl), StyleNames.Heading3);
-                label.Format.SpaceBefore = Unit.FromPoint(8);
-                AddContent(section, field.Translate ? DocumentationLabels.Get(field.Value, pl) : field.Value, literal: true);
-                table = null;
-                continue;
-            }
-            table ??= CardTable(section, false);
-            var row = table.AddRow();
-            row.TopPadding = Unit.FromPoint(5);
-            row.BottomPadding = Unit.FromPoint(3);
-            Decorate(row[0]);
-            AddField(row[0], field, pl);
-        }
+        var paragraph = addParagraph();
+        paragraph.Format.SpaceAfter = Unit.FromPoint(4);
+        paragraph.AddFormattedText(DocumentationLabels.Get(field.Label, pl) + ": ", TextFormat.Bold);
+        var secret = field.Label is "Password" or "License key";
+        if (secret) paragraph.Format.Shading.Color = Color.FromRgb(229, 234, 247);
+        AddWrappedText(paragraph, Clean(FieldValue(field, pl)), width);
+    }
+
+    private static void AddExpandedRecord(Section section, DocumentationRecord record, bool pl)
+    {
+        var title = section.AddParagraph("", StyleNames.Heading2);
+        AddWrappedText(title, Clean(record.Title), 360, true);
+        foreach (var field in record.Fields) AddField(() => section.AddParagraph(), field, pl, 415);
         foreach (var text in record.Texts)
         {
             section.AddParagraph(DocumentationLabels.Get(text.Label, pl), StyleNames.Heading3);
             AddContent(section, text.Content);
+        }
+        if (record.Addresses is not { Count: > 0 } addresses) return;
+        section.AddParagraph(DocumentationLabels.Get("Address assignments", pl), StyleNames.Heading3);
+        var columns = new List<(string Label, double Weight)> { ("IP address", 3.5) };
+        var hasLabels = addresses.Any(address => !string.IsNullOrWhiteSpace(address.Label));
+        if (hasLabels) columns.Add(("Assignment", 5.5));
+        columns.Add(("Status", 2.6));
+        var table = DataTable(section, columns.ToArray(), pl);
+        foreach (var address in addresses)
+        {
+            var status = DocumentationLabels.Get(address.Status, pl);
+            AddDataRow(table, hasLabels ? [address.Ip, address.Label, status] : [address.Ip, status]);
+        }
+        foreach (var address in addresses)
+        {
+            if (string.IsNullOrWhiteSpace(address.Notes) && string.IsNullOrWhiteSpace(address.Details)) continue;
+            section.AddParagraph($"{DocumentationLabels.Get("IP notes", pl)} · {address.Ip}", StyleNames.Heading3);
+            if (!string.IsNullOrWhiteSpace(address.Notes)) AddContent(section, address.Notes);
+            if (!string.IsNullOrWhiteSpace(address.Details)) AddContent(section, address.Details, literal: true);
         }
     }
 
@@ -312,21 +365,22 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
             AddWrappedText(paragraph, line[offset..], width);
         }
     }
-    private static void AddWrappedText(Paragraph paragraph, string value, double width = 446, bool bold = false)
+    private static void AddWrappedText(Paragraph paragraph, string value, double width = 446, bool bold = false, double fontSize = 10)
     {
-        foreach (var part in WrapTokens(value, width, bold))
+        foreach (var part in WrapTokens(value, width, bold, fontSize))
             if (part is null) paragraph.AddLineBreak(); else paragraph.AddText(part);
     }
 
     // Break only overlong tokens, measuring the embedded font rather than guessing by character count.
     // Line breaks are layout elements; the original value is neither shortened nor decorated with hyphens.
-    private static IEnumerable<string?> WrapTokens(string value, double width, bool bold)
+    private static IEnumerable<string?> WrapTokens(string value, double width, bool bold, double fontSize = 10)
     {
-        if (!LongToken().IsMatch(value)) { yield return value; yield break; }
+        var tokens = width < 100 ? NarrowToken() : LongToken();
+        if (!tokens.IsMatch(value)) { yield return value; yield break; }
         using var graphics = XGraphics.CreateMeasureContext(new XSize(1000, 1000), XGraphicsUnit.Point, XPageDirection.Downwards);
-        var font = new XFont("Documentation Sans", 9.5, bold ? XFontStyleEx.Bold : XFontStyleEx.Regular);
+        var font = new XFont("Documentation Sans", fontSize, bold ? XFontStyleEx.Bold : XFontStyleEx.Regular);
         var offset = 0;
-        foreach (Match match in LongToken().Matches(value))
+        foreach (Match match in tokens.Matches(value))
         {
             yield return value[offset..match.Index];
             var token = match.Value;
@@ -351,6 +405,7 @@ public sealed partial class DocumentationPdfRenderer : IDocumentationPdfRenderer
         }
         yield return value[offset..];
     }
+    [GeneratedRegex(@"\S{8,}", RegexOptions.CultureInvariant)] private static partial Regex NarrowToken();
     [GeneratedRegex(@"\S{25,}", RegexOptions.CultureInvariant)] private static partial Regex LongToken();
     private static string Clean(string value) => new(value.Where(c => !char.IsControl(c) || c is '\n' or '\r' or '\t').ToArray());
     [GeneratedRegex(@"\*\*(.+?)\*\*", RegexOptions.CultureInvariant)] private static partial Regex BoldMarkup();
