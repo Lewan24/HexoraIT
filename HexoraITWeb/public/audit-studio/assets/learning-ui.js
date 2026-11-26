@@ -317,7 +317,7 @@
         <p><b>Firma:</b> ${text(state.config.org)} · <b>Audytor:</b> ${text(state.config.lead)} · <b>Data:</b> ${text(state.auditDate)}</p>
         <h2>1. Podsumowanie dla kierownictwa</h2><p>${text(state.report.summary,'Nie dodano podsumowania.')}</p>
         <p><b>Zakres:</b> ${text(state.config.scope)}</p><p><b>Zgoda:</b> ${text(state.learning.consent)}</p><p><b>Ograniczenia:</b> ${text(state.report.limits)}${state.config.exclusions?' · '+text(state.config.exclusions):''}</p>
-        ${data?`<h3>Ocena według obszarów</h3><p><b>${h(visibleScore(data.total))}</b> · ${h(coverage(data.total))}</p>${chart(data.areas)}<p class="pdf-small">${h(scoreMethod)}</p>`:'<p>Do projektu nie wybrano listy pytań. Brak wyniku orientacyjnego.</p>'}
+        ${data?`<h3>Ocena według obszarów</h3><p>Szablon: ${h(program.template.name)} · wersja ${h(program.template.version)}</p><p><b>${h(visibleScore(data.total))}</b> · ${h(coverage(data.total))}</p>${chart(data.areas)}<p class="pdf-small">${h(scoreMethod)}</p>`:'<p>Do projektu nie wybrano listy pytań. Brak wyniku orientacyjnego.</p>'}
       </section>`;
       if(preview)return heading;
       const issues=`<section class="pdf-section short-page"><h2>2. Pilne działania i ustalenia</h2>

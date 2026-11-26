@@ -87,3 +87,95 @@ test('odrzuca zły schemat i uszkodzone sekcje, ignoruje klucze spoza katalogu',
   assert.deepEqual(Object.keys(value.config.manual), []);
   assert.equal({}.intrusion, undefined);
 });
+
+const {
+  indicators, findingFromQuestion, newProject, migrateProject, normalizeV3, normalizeWorkspace, learningProgram
+} = sandbox.window.AUDIT_PROJECT_DATA;
+sandbox.structuredClone = structuredClone;
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/templates-data.js'), 'utf8'), sandbox);
+const starter = sandbox.window.AUDIT_TEMPLATES.templates[0];
+
+test('migracja 2 → 3 zachowuje konfigurację, plan, macierz, rejestry, treść raportu i licznik', () => {
+  const raw = {
+    schema:2, config:{name:'Wersja 2',scope:'Konta i poczta',criterionManual:{'C-01':{mode:'exclude',reason:'Inna spółka'}}},
+    tasks:{P01:{status:'done',assessment:'partial',notes:'Jedno konto',checks:[true,false,true]}},
+    requirements:{'C-01':{status:'nonconform',applicability:'yes',evidence:'E-011'}},
+    evidence:[{id:'E-011',title:'Wynik przeglądu',date:'2026-11-25'}],
+    findings:[{id:'U-011',evidence:'E-011',owner:'Opiekun',due:'2026-12-05'}],
+    report:{summary:'Wynik audytu',appendix:false}, changesSinceExport:19
+  };
+  const original=JSON.stringify(raw);
+  const migrated=migrateProject(raw,normalize,'projekt-1');
+  const migratedPayload=Object.fromEntries(Object.keys(normalize(raw)).map(key=>[key,migrated[key]]));
+  assert.deepEqual(migratedPayload,{...normalize(raw),schema:3});
+  assert.equal(migrated.mode,'auditor');
+  assert.equal(migrated.learning.selected,null);
+  assert.equal(JSON.stringify(raw),original);
+});
+
+test('odczyt schematu 3 zachowuje migawkę szablonu, powiązania i wskazany projekt', () => {
+  const first=newProject(defaults(),'projekt-1');
+  const second=newProject(defaults(),'projekt-2','auditor');
+  first.learning.selected='BAZ-1';
+  first.learning.programs['BAZ-1']=learningProgram(starter);
+  first.learning.consent='ZG-01';
+  first.auditDate='2026-11-26';
+  first.learning.step=4;
+  const question=first.learning.programs['BAZ-1'].template.questions[0];
+  question.question='Własna migawka starszej treści';
+  assert.notEqual(starter.questions[0].question,question.question);
+  const answer={status:'partial',evidence:'E-221',note:'Brakuje dwóch pozycji.'};
+  first.learning.programs['BAZ-1'].answers[question.id]=answer;
+  first.findings=[findingFromQuestion(question,answer,'U-011')];
+  const raw=JSON.parse(JSON.stringify({schema:3,revision:12,activeId:second.id,projects:[first,second]}));
+  const reloaded=normalizeWorkspace(raw,normalize);
+  assert.equal(reloaded.revision,12);
+  assert.equal(reloaded.activeId,second.id);
+  assert.equal(reloaded.projects[0].learning.programs['BAZ-1'].template.questions[0].question,question.question);
+  assert.deepEqual({...reloaded.projects[0].learning.programs['BAZ-1'].answers[question.id]},answer);
+  assert.equal(reloaded.projects[0].findings[0].questionId,question.id);
+  assert.equal(reloaded.projects[0].learning.consent,'ZG-01');
+  assert.equal(reloaded.projects[0].auditDate,'2026-11-26');
+  assert.equal(reloaded.projects[0].learning.step,4);
+});
+
+test('odczyt schematu 3 odrzuca niespójny indeks i szablon bez uprawnienia odczytu', () => {
+  const project=newProject(defaults(),'projekt-1');
+  assert.throws(()=>normalizeWorkspace({schema:3,revision:0,activeId:'brak',projects:[project]},normalize));
+  assert.throws(()=>normalizeWorkspace({schema:3,revision:0,activeId:project.id,projects:[project,project]},normalize));
+  project.learning.selected='BAZ-1';
+  const program=learningProgram(starter);
+  project.learning.programs['BAZ-1']=program;
+  program.template.questions[0].permission='write';
+  assert.throws(()=>normalizeV3(project,normalize),/Nieprawidłowe pytanie/);
+  program.template.questions[0].permission='read';
+  const id=program.template.questions[0].id;
+  program.answers[id]={status:'notapp',note:'',evidence:'E-001'};
+  assert.equal(normalizeV3(project,normalize).learning.programs['BAZ-1'].answers[id].status,'unassessed');
+});
+
+test('wynik zachowuje pytania nieocenione w mianowniku i pomija N/D', () => {
+  const values=['conform','partial','nonconform','unassessed','notapp'];
+  assert.deepEqual({...indicators(values)},{
+    eligible:4,assessed:3,excluded:1,unassessed:1,points:1.5,percent:38
+  });
+  assert.equal(indicators(['conform',...Array(9).fill('unassessed')]).percent,10);
+  assert.equal(indicators(['nonconform','notapp']).percent,0);
+  for(const unanswered of [[],['notapp'],['unassessed','notapp']]){
+    assert.equal(indicators(unanswered).percent,null);
+  }
+});
+
+test('ustalenie używa oceny, dowodu, rekomendacji i wagi pytania', () => {
+  const question=starter.questions.find(item=>item.risk==='wysokie');
+  const answer={status:'partial',note:'W próbie brak potwierdzenia.',evidence:'E-008'};
+  const finding=findingFromQuestion(question,answer,'U-007');
+  assert.equal(finding.id,'U-007');
+  assert.equal(finding.questionId,question.id);
+  assert.equal(finding.observation,'Częściowo — W próbie brak potwierdzenia.');
+  assert.equal(finding.evidence,'E-008');
+  assert.equal(finding.action,question.recommendation);
+  assert.equal(finding.likelihood*finding.impact,16);
+  assert.equal(findingFromQuestion(question,{...answer,status:'conform'},'U-008'),null);
+  assert.equal(findingFromQuestion(question,{...answer,status:'unassessed'},'U-008'),null);
+});

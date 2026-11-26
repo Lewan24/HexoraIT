@@ -91,7 +91,7 @@
   let workspaceState=emptyWorkspace(),state=newProject(initial(),makeId());
   let savedSnapshot=null,contentSnapshot='',recovery=null,replacement=null;
   let storageAvailable=true,saveTimer,dirty=false,transitioning=false;
-  let projectFormPreset=null,projectFormTemplate=null,projectFormMode='learning';
+  let projectFormPreset=null,projectFormTemplate=null,projectFormMode='learning',editingProjectId=null;
   let lastSaved='Projekt nie był jeszcze zapisywany.';
   let availableCopy=null;
   const taskIds=new Set(ALL.map(task=>task.id));
@@ -354,13 +354,18 @@
       topics:[...preset.topics],tech:{...preset.tech},manual:{},criterionManual:{},targets:''};
   }
 
-  function startProject({preset=null,template=null}={}){
+  function startProject({preset=null,template=null,edit=false}={}){
+    editingProjectId=edit&&hasProject()?state.id:null;
     projectFormPreset=preset;
     projectFormTemplate=template;
     projectFormMode=preset?'auditor':template?'learning':state.mode;
     const form=v('project-form');
     form.reset();
-    form.elements.auditDate.value=dateNow();
+    if(editingProjectId){
+      for(const key of ['name','org','lead','scope'])form.elements[key].value=state.config[key];
+      form.elements.auditDate.value=state.auditDate||dateNow();
+    }else form.elements.auditDate.value=dateNow();
+    v('project-dialog-heading').textContent=editingProjectId?'Edytuj dane projektu':'Nowy projekt';
     v('project-form-message').textContent='';
     v('project-dialog').showModal();
   }
@@ -381,6 +386,8 @@
 
   function chooseProfile(id){
     if(!hasProject()){startProject({preset:id});return;}
+    if((Object.keys(state.config.manual).length||Object.keys(state.config.criterionManual).length)&&
+       !confirm('Nowy profil zastąpi ręczne zmiany zakresu zadań i wymagań. Zastosować profil?'))return;
     applyPreset(id);
     if(id==='full'){
       v('show-all-tasks').checked=true;
@@ -420,7 +427,7 @@
   }
 
   async function openDemo(){
-    const existing=workspaceState.projects.find(project=>project.demo);
+    const existing=state.demo?state:workspaceState.projects.find(project=>project.demo);
     if(existing){
       await transition(current=>({...current,activeId:existing.id}),'audit');
       return;
@@ -447,6 +454,7 @@
       renderReport();
       route(true);
     });
+    v('edit-project').addEventListener('click',()=>startProject({edit:true}));
     v('project-cancel').addEventListener('click',()=>v('project-dialog').close());
     v('project-form').addEventListener('submit',async event=>{
       event.preventDefault();
@@ -456,6 +464,15 @@
       const auditDate=dateOnly(data.get('auditDate'));
       if(!auditDate||Object.values(values).some(value=>!value)){
         v('project-form-message').textContent='Uzupełnij nazwę, firmę, audytora, zakres i datę.';
+        return;
+      }
+      if(editingProjectId){
+        const id=editingProjectId;
+        const committed=await transition(current=>({...current,projects:current.projects.map(project=>project.id===id
+          ?{...project,config:{...project.config,...values},auditDate,updated:new Date().toISOString(),
+            changesSinceExport:Math.min(Number.MAX_SAFE_INTEGER,project.changesSinceExport+1)}:project)}),'audit/zgoda');
+        if(committed){v('project-dialog').close();v('learning-consent').focus();}
+        else v('project-form-message').textContent=lastSaved;
         return;
       }
       const project=newProject(initial(),makeId(),projectFormMode);
@@ -498,7 +515,7 @@
     });
     v('open-demo').addEventListener('click',()=>void openDemo());
     v('delete-demo').addEventListener('click',()=>{
-      const project=workspaceState.projects.find(item=>item.demo);
+      const project=state.demo?state:workspaceState.projects.find(item=>item.demo);
       if(project)deleteProject(project);
     });
 
@@ -684,8 +701,14 @@
     do{id='U-'+String(number++).padStart(3,'0');}while(ids.has(id.toLowerCase()));
     return id;
   }
+  function riskOptions(value){
+    return [1,2,3,4,5].map(number=>`<option value="${h(number)}"${number===value?' selected':''}>${h(number)}</option>`).join('');
+  }
   function renderFindings(){v('findings-count').textContent=state.findings.length+' ustaleń';
-    v('findings-list').innerHTML=state.findings.length?state.findings.map((f,i)=>{const risk=riskGrade(f);return `<article class="finding" data-finding="${i}"><div class="finding-top"><div><span class="task-id">${h(f.id)}</span><h3>${h(f.title)}</h3><p class="muted">${h(f.criterion)} • ${h(f.task)}</p></div><span class="risk-score ${risk.cls}">${risk.value}/25 · ${risk.name}</span></div><p><b>Wpływ:</b> ${h(f.impactText||'Nie opisano')}</p><div class="finding-edit-grid"><div class="field field-wide"><label for="finding-${h(i)}-observation">Opis ustalenia</label><textarea id="finding-${h(i)}-observation" data-finding-field="observation" rows="2">${h(f.observation)}</textarea></div><div class="field"><label for="finding-${h(i)}-evidence">Identyfikatory dowodów</label><input id="finding-${h(i)}-evidence" data-finding-field="evidence" value="${h(f.evidence)}"></div><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div><div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ponownego sprawdzenia</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div><div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div><div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Stanowisko kierownictwa / formalna akceptacja</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div></div><div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button><span class="status-tag warn" data-closure-warning ${f.status==='closed'&&!f.retestEvidence.trim()?'':'hidden'}>Zamknięte bez dowodu ponownego sprawdzenia</span></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
+    v('findings-list').innerHTML=state.findings.length?state.findings.map((f,i)=>{const risk=riskGrade(f);return `<article class="finding" data-finding="${i}"><div class="finding-top"><div><span class="task-id">${h(f.id)}</span><h3>${h(f.title)}</h3><p class="muted">${h(f.criterion)} • ${h(f.task)}</p></div><span class="risk-score ${risk.cls}" data-risk-score>${risk.value}/25 · ${risk.name}</span></div><p><b>Wpływ:</b> ${h(f.impactText||'Nie opisano')}</p><div class="finding-edit-grid">
+    <div class="field"><label for="finding-${h(i)}-likelihood">Prawdopodobieństwo (1–5)</label><select id="finding-${h(i)}-likelihood" data-finding-field="likelihood">${riskOptions(f.likelihood)}</select></div>
+    <div class="field"><label for="finding-${h(i)}-impact">Skutek (1–5)</label><select id="finding-${h(i)}-impact" data-finding-field="impact">${riskOptions(f.impact)}</select></div>
+    <div class="field field-wide"><label for="finding-${h(i)}-observation">Opis ustalenia</label><textarea id="finding-${h(i)}-observation" data-finding-field="observation" rows="2">${h(f.observation)}</textarea></div><div class="field"><label for="finding-${h(i)}-evidence">Identyfikatory dowodów</label><input id="finding-${h(i)}-evidence" data-finding-field="evidence" value="${h(f.evidence)}"></div><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div><div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ponownego sprawdzenia</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div><div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div><div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Stanowisko kierownictwa / formalna akceptacja</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div></div><div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button><span class="status-tag warn" data-closure-warning ${f.status==='closed'&&!f.retestEvidence.trim()?'':'hidden'}>Zamknięte bez dowodu ponownego sprawdzenia</span></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
   }
   function renderLibrary(){v('docs-grid').innerHTML=DOCS.map(([id,title,desc])=>`<article class="doc-card"><div class="doc-icon">PDF</div><div><b>${h(title)}</b><p>${h(desc)}</p><small>PDF z polami + edytowalny Markdown</small></div><div class="doc-links"><button class="btn btn-light btn-sm" data-pdf="dodatki/formularze_pdf/${id}.pdf" data-title="${h(title)}" type="button">Podgląd</button><a class="btn btn-light btn-sm" href="dodatki/formularze_pdf/${id}.pdf" download>Pobierz PDF</a><a href="dodatki/szablony_edytowalne/${id}.md" download>Wzór MD ↓</a></div></article>`).join('');}
   function renderHelp(){const rows=[
@@ -883,7 +906,15 @@
     v('finding-form').addEventListener('submit',ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.currentTarget).entries());const id=nextFindingId();state.findings.push({...f,id,due:dateOnly(f.due),likelihood:risk(f.likelihood),impact:risk(f.impact),status:'open',managementResponse:'',retestEvidence:''});save();ev.currentTarget.reset();renderFindings();renderDashboard();renderReport();});
     const fList=v('findings-list');
     fList.addEventListener('click',ev=>{const b=ev.target.closest('[data-delete-finding]');if(!b)return;const i=n(b.dataset.deleteFinding,-1);if(i<0||!state.findings[i])return;if(confirm('Usunąć wskazane ustalenie?')){state.findings.splice(i,1);save();renderFindings();renderDashboard();renderReport();}});
-    function updateFinding(ev){const box=ev.target.closest('.finding');if(!box)return;const i=n(box.dataset.finding,-1),el=ev.target;if(!state.findings[i]||!el.matches('[data-finding-field]'))return;const finding=state.findings[i];finding[el.dataset.findingField]=el.type==='date'?dateOnly(el.value):el.value;save();
+    function updateFinding(ev){const box=ev.target.closest('.finding');if(!box)return;const i=n(box.dataset.finding,-1),el=ev.target;if(!state.findings[i]||!el.matches('[data-finding-field]'))return;const finding=state.findings[i],field=el.dataset.findingField;
+      const riskField=field==='likelihood'||field==='impact';
+      finding[field]=riskField?risk(el.value):el.type==='date'?dateOnly(el.value):el.value;
+      if(riskField){
+        const score=riskGrade(finding),badge=$('[data-risk-score]',box);
+        badge.className='risk-score '+score.cls;
+        badge.textContent=score.value+'/25 · '+score.name;
+      }
+      save();
       $('[data-closure-warning]',box).hidden=finding.status!=='closed'||Boolean(finding.retestEvidence.trim());
       if(ev.type==='change'){renderDashboard();renderReport();}}
     fList.addEventListener('input',ev=>{if(ev.target.matches('input,textarea'))updateFinding(ev);});fList.addEventListener('change',updateFinding);
