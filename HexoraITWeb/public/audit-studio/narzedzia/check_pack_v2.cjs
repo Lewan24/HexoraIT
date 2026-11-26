@@ -37,12 +37,12 @@ for(const [topic,ids] of Object.entries(G.topics||{}))for(const id of ids)assert
 for(const r of R){assert(r.frame && r.title && r.reference && r.question,`Kryterium ${r.id} niekompletne`);for(const id of r.tasks||[])assert(taskIds.has(id),`Kryterium ${r.id} wskazuje nieistniejące zadanie ${id}`);}
 for(const s of A.sources)assert(/^https:\/\//.test(s.url),`Niepoprawny URL źródła ${s.id}`);
 for(const file of ['index.html','assets/style.css','assets/app-v2.js','README.md',
-  'formularze_pdf/01_mandat_i_roe.pdf','formularze_pdf/07_raport_koncowy.pdf',
-  'przyklady_v2/raport_przykladowy_demo.pdf'])assert(fs.existsSync(path.join(root,file)),`Nie odnaleziono ${file}`);
+  'dodatki/formularze_pdf/01_mandat_i_roe.pdf','dodatki/formularze_pdf/07_raport_koncowy.pdf',
+  'dodatki/przyklady_raportow/raport_przykladowy_demo.pdf'])assert(fs.existsSync(path.join(root,file)),`Nie odnaleziono ${file}`);
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 for(const filename of ['audit-data.js','playbook-data.js','requirements-data.js','app-v2.js'])assert(html.includes(`assets/${filename}`),`index.html nie dołącza ${filename}`);
 for(const filename of ['01_mandat_i_roe','02_kontekst_i_zakres','03_inwentarz_sieci','04_rejestr_dowodow','05_rejestr_ryzyka','06_raport_wstepny','07_raport_koncowy','08_plan_capa','09_karta_incydentu','10_zamkniecie_i_retest']){
- for(const [folder,ext] of [['formularze_pdf','pdf'],['szablony_edytowalne','md']])assert(fs.existsSync(path.join(root,folder,filename+'.'+ext)),`Nie odnaleziono ${filename}.${ext}`);
+ for(const [folder,ext] of [['dodatki/formularze_pdf','pdf'],['dodatki/szablony_edytowalne','md']])assert(fs.existsSync(path.join(root,folder,filename+'.'+ext)),`Nie odnaleziono ${filename}.${ext}`);
 }
 console.log(`Zadania: ${tasks.length} | Podpunkty: ${Object.values(G.steps).reduce((n,a)=>n+a.length,0)} | Kryteria: ${R.length} | Źródła: ${A.sources.length}`);
 if(problems.length){console.error('NIEZGODNOŚCI:');for(const p of problems)console.error('- '+p);process.exitCode=1;}

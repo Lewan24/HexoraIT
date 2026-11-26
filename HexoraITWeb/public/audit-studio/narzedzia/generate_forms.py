@@ -15,8 +15,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.utils import simpleSplit
 
 ROOT=Path(__file__).resolve().parent.parent
-OUTPDF=ROOT/'formularze_pdf'
-OUTMD=ROOT/'szablony_edytowalne'
+OUTPDF=ROOT/'dodatki'/'formularze_pdf'
+OUTMD=ROOT/'dodatki'/'szablony_edytowalne'
 OUTPDF.mkdir(parents=True,exist_ok=True)
 OUTMD.mkdir(parents=True,exist_ok=True)
 FONT='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'

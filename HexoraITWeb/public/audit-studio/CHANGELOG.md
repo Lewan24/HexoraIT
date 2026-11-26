@@ -1,5 +1,14 @@
 # Historia zmian
 
+## CyberAudit Studio 2.1
+
+- Domyślny tryb Nauka z przewodnikiem, słowniczkiem, zestawem 149 pytań do pasywnego przeglądu i fikcyjnym ćwiczeniem. Dotychczasowe 93 zadania i macierz wymagań są w trybie Audytor.
+- Lista projektów z kopiowaniem, usuwaniem po potwierdzeniu oraz eksportem i importem JSON. Schemat 3 przenosi projekty schematu 2 z zachowaniem wcześniejszego zapisu.
+- Wskaźnik oceny ogółem i według obszarów. Z pytania można utworzyć ustalenie i dołączyć identyfikator dowodu.
+- Krótki raport A4 z wykresem i planem działań oraz dotychczasowy raport z aneksem w trybie Audytor.
+- Kopie przed usunięciem, odzyskiwanie, licznik zmian i szacunkowy wskaźnik pamięci.
+- Formularze i przykładowe raporty przeniesiono do dodatków, materiały historyczne do archiwów. Dodano lokalny generator sum SHA-256.
+
 ## Integracja z HexoraIT
 
 - Dodano osobny lokalny szkic dla pary konto–organizacja i ochronę przed przypadkowym nadpisaniem projektu w innej karcie.
