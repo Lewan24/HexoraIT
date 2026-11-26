@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 const fixtures = JSON.parse(fs.readFileSync(new URL('../../output/operations-fixtures.json', import.meta.url), 'utf8'))
 const lines = ['# Built-in operations template catalog', '',
-  'The 72 detailed catalog definitions and the additional BASIC document below use the shared dynamic form, storage, workflow and export engine. BASIC provides a quick note/procedure with content and optional evidence references; advanced templates retain their detailed validation. There are no empty/schema-only placeholders. Automated testing creates, submits and closes every definition; PDF generation is additionally checked for all 21 required MVP templates. Module-wide remaining features are listed in [the continuation report](it-operations-continuation-report.md).', '',
+  'Katalog obejmuje 72 szablony zaawansowane i szablon BASIC. Dokument podstawowy służy do zapisu krótkiej notatki lub procedury. Szablony zaawansowane mają pola i etap zatwierdzania zależne od rodzaju operacji. [Przewodnik użytkownika](user-guide.md#operacje-it-i-dokumentacja-pdf)', '',
   '| Key | English name | Polska nazwa | Lifecycle | Status |', '|---|---|---|---|---|']
 for (const {schema} of fixtures) {
   const lifecycle = schema.kind === 'Record' || schema.key === 'D02' ? (schema.requiresApproval ? 'Document with approval' : 'Operational record') : 'Change workflow / organization policy'
