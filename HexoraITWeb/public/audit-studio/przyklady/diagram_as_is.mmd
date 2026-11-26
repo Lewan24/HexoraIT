@@ -1,0 +1,14 @@
+%% FIKCYJNY SZKIELET DIAGRAMU. Zmień zgodnie ze stanem AS-IS.
+%% Można otworzyć w dowolnym edytorze obsługującym Mermaid.
+flowchart LR
+  INTERNET[Internet] --> FW[Firewall / router brzegowy]
+  FW --> DMZ[DMZ / usługi publiczne]
+  FW --> CORE[Switch L3 / sieci firmowe]
+  CORE --> USERS[LAN biurowy / endpointy]
+  CORE --> MGMT[Strefa zarządzania]
+  CORE --> SRV[Serwery i hypervisor]
+  CORE --> GUEST[Wi-Fi gościnne izolowane]
+  FW --> VPN[VPN / ZTNA]
+  FW --> CLOUD[SaaS / Chmura]
+  SRV --> BACKUP[Backup izolowany]
+  OT[OT / IoT: tylko po potwierdzeniu] -.-> CORE
