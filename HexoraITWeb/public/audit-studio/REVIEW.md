@@ -1,4 +1,4 @@
-# Przegląd CyberAudit Studio 2.0 — etap 1
+# CyberAudit Studio 2.0 — przegląd i plan uproszczenia
 
 ## Stan na początku prac
 
@@ -53,7 +53,7 @@ Przegląd wykonano bez internetu. Poniższe twierdzenia i cytowania są zapisami
 
 ## Proponowane dalsze zmiany i wysiłek
 
-Szacunki w dniach roboczych jednej osoby, z przygotowaniem treści i weryfikacją. Szczegółowy plan i decyzje o plikach będą przedmiotem etapu 2.
+Szacunki w dniach roboczych jednej osoby, z przygotowaniem treści i weryfikacją. Propozycje trybów, migracji i archiwizacji opisano w planie etapu 2 poniżej.
 
 | Zmiana do rozważenia | Przybliżony wysiłek |
 | --- | --- |
@@ -64,3 +64,55 @@ Szacunki w dniach roboczych jednej osoby, z przygotowaniem treści i weryfikacj�
 | Przewodnik po pierwszym audycie, słowniczek i ćwiczenie z fikcyjną firmą | 3–5 dni |
 | Krótki raport PDF, wydruki próbne i porządki w paczce | 2–4 dni |
 | Testy przekrojowe i sprawdzenie zgodności wstecznej | 2–3 dni |
+
+## Etap 2 — plan do akceptacji
+
+### Nauka i Audytor
+
+Projekt ma jeden rejestr dowodów i ustaleń oraz dwa widoki pracy. Przełączenie trybu zmienia nawigację i dostępne narzędzia. Zapisane oceny, ustalenia i dowody pozostają dostępne po powrocie do właściwego widoku.
+
+| Tryb | Co pokazuje | Jak zaczyna użytkownik |
+| --- | --- | --- |
+| **Nauka** | Pulpit, Audyt, Dowody, Ustalenia, Raport, Jak audytować?, Słowniczek | To domyślny tryb dla nowych użytkowników. Pulpit oferuje otwarcie istniejącego projektu, pierwszy audyt lub ćwiczenie na fikcyjnej firmie. Widok **Audyt** prowadzi przez pytania o stan firmy. |
+| **Audytor** | Wspólne widoki oraz Konfigurator, pełny plan 93 zadań, Macierz wymagań, Formularze i Źródła prawne | Karty poziomów 3 i 4 prowadzą do istniejących profili. Każda podaje trudność, wymagania wstępne i obszary, do których pasuje. Zmiana trybu jest dostępna w nagłówku projektu. |
+
+Projekt przeniesiony ze schematu 2 otwiera się w trybie **Audytor** z dotychczasowym planem, macierzą i raportem. Przejście do **Nauki** pokazuje wspólne dane i pozwala dodać listę pytań po wyborze szablonu. Zakres tej listy zapisuje się osobno od zakresu planu audytora. Wyniki pytań i statusy zadań mają własne podsumowania.
+
+### Pierwszy audyt i dalsze poziomy
+
+- **Mój pierwszy audyt krok po kroku** ma siedem kroków. Ustal zakres i zgodę, zbierz informacje, przejdź przez listę pytań, opisz dowody, zapisz ustalenia, przygotuj raport, uzgodnij plan naprawczy. Na początku wystarczą nazwa, firma, audytor, zakres i data. Wskazówki przy polach prowadzą do polskiego słowniczka.
+- **Poziom 1** to proponowany start z 40–50 pytaniami „Audyt podstaw IT małej firmy”. **Poziom 2** to pięć modułów po 20–30 pytań o konta, kopie i ciągłość działania, sieć i Wi-Fi, stacje i serwery oraz pocztę i świadomość pracowników. Pytania kierują do rozmowy, dokumentu albo widoku ustawień w trybie odczytu. Przy kopiach zapasowych sprawdza się dokumentację ostatniego odtworzenia. Studio zapisuje identyfikatory i metadane dowodów. Z odpowiedzi „Niezgodne” lub „Częściowo” można utworzyć ustalenie z podpowiedzią ryzyka i zalecenia.
+- **Poziomy 3 i 4** wykorzystują dotychczasowe profile. Na poziomie 3 proponuję Gotowość KSC/NIS2, Przegląd ISO 27001 i Retest. Wymagają odpowiednio ustalenia właściwych kryteriów, dostępu do normy albo wcześniejszych ustaleń do ponownego sprawdzenia. Na poziomie 4 znajdą się Audyt techniczny i Pełny program audytu z katalogiem 93 zadań. Wymagają uzgodnionego zakresu oraz odpowiednich kompetencji. Istniejące rozpoznanie sieci i własna konfiguracja pozostają dostępne w Konfiguratorze. Karty RODO, dostawców i chmury zapowiadają zakres jako **Wkrótce**.
+- **Firma Demo Sp. z o.o.** to oznaczony, osobny projekt ćwiczeniowy dla fikcyjnej firmy zatrudniającej 10 osób. Przycisk otwiera istniejące ćwiczenie albo tworzy je przy pierwszym użyciu. Materiały szkoleniowe są dostępne od początku, a klucz odpowiedzi po świadomym odkryciu. Oddzielny przycisk usuwa wyłącznie projekt demonstracyjny po potwierdzeniu.
+- **Ocena orientacyjna** dzieli punkty przez liczbę pytań mających zastosowanie. „Zgodne” daje 1 punkt, „Częściowo” 0,5, a „Niezgodne” 0. „Nie dotyczy” wyłącza się z obliczenia i wymaga uzasadnienia. „Nie oceniono” pozostaje w mianowniku i jest widoczne jako osobna liczba. Przykładowo 1 wynik zgodny i 9 nieocenionych daje 10% oraz pokrycie oceny 1 z 10. Przy braku ocen albo pytań mających zastosowanie interfejs pokazuje opis zamiast procentu. Krótki raport A4 przedstawia wyniki ogółem i według obszarów, zakres, ograniczenia, pięć pilnych działań, ustalenia według ryzyka, plan naprawczy i listę dowodów. Pełny raport pozostaje dostępny w trybie Audytor.
+
+### Wiele projektów i migracja do schematu 3
+
+**Lista projektów** jest dostępna z Pulpitu i nagłówka. Wiersz pokazuje nazwę, firmę, datę audytu, czas ostatniej zmiany i oznaczenie ćwiczenia. Wybór otwiera projekt. Lista pozwala utworzyć, skopiować, wyeksportować lub usunąć projekt. Kopia otrzymuje osobny identyfikator i zachowuje powiązania między dowodami a ustaleniami. Usunięcie wymaga potwierdzenia z nazwą projektu i oferuje eksport przed zatwierdzeniem. Przełączenie najpierw zapisuje aktywną pracę. W razie błędu można wrócić do edycji lub pobrać aktualny projekt.
+
+**Format zapisu** używa jednego klucza schematu 3 na przestrzeń pracy. Osadzenie w HexoraIT zachowuje rozdział par konto–organizacja, a wersja samodzielna ma osobny klucz. Zapis obejmuje identyfikator aktywnego projektu, listę i zawartość projektów. Jedna operacja na kluczu zatwierdza razem powiązane zmiany, np. kopię i zaznaczenie jej jako aktywnej. Współdzielony limit pamięci i ponowny zapis całości uzasadniają grupowanie szybkich zmian. Przełączenie, kopiowanie i eksport najpierw zapisują dane oczekujące. Studio porównuje ostatnią odczytaną wersję z obecną i reaguje na zdarzenia zmiany pamięci. Gdy przeglądarka oferuje blokadę zapisu między kartami, zapis korzysta z krótkiej blokady. W pozostałych przeglądarkach porównanie zmniejsza ryzyko nadpisania, a jednoczesny zapis pozostaje ograniczeniem.
+
+Każdy projekt zachowuje konfigurację, plan, macierz, dowody, ustalenia i raport. Dochodzą identyfikator projektu, data audytu, informacje o trybie i ćwiczeniu, wersja szablonu oraz odpowiedzi. Odpowiedzi odwołują się do stabilnych identyfikatorów pytań. Dotychczasowe brzmienie użytych pytań pozostaje czytelne po aktualizacji katalogu. Eksport JSON dotyczy jednego projektu, a import dodaje projekt do listy pod własnym identyfikatorem.
+
+**Migracja zapisu lokalnego** odbywa się przy pierwszym uruchomieniu schematu 3 w danej przestrzeni. Studio odczytuje i waliduje dane pod dotychczasowym kluczem schematu 2, tworzy projekt w trybie Audytor, zapisuje go pod nowym kluczem i sprawdza odczyt. Stary zapis i kopie etapu 1 pozostają dostępne do odzyskania. Następne uruchomienie po poprawnej migracji otwiera schemat 3 i zachowuje jeden egzemplarz projektu. Brak miejsca albo uszkodzony zapis otwiera komunikat o odzyskiwaniu z możliwością pobrania oryginału. Zwolnienie miejsca po zabezpieczeniu danych wymaga odrębnej decyzji użytkownika. Import pliku schematu 2 używa tej samej reguły migracji i przedstawia wykryte korekty przed zatwierdzeniem.
+
+### Porządki w paczce w etapie 4
+
+| Obecny element | Proponowane miejsce | Uzasadnienie |
+| --- | --- | --- |
+| przyklady/ | archiwum_v1/przyklady/ | Materiały z wersji 1.x mają wartość historyczną. Główna ścieżka nauki poprowadzi do nowego ćwiczenia. |
+| przyklady_v2/ | Raporty HTML i PDF do dodatki/przyklady_raportow/. Trzy zrzuty do archiwum_v2/zrzuty/. | Raporty ilustrują rozbudowany format. Zrzuty utrwalają dawny układ interfejsu. Materiały nowej fikcyjnej firmy będą miały osobne miejsce. |
+| formularze_pdf/ i szablony_edytowalne/ | Podkatalogi o tych samych nazwach w dodatki/ | Wszystkie dziesięć par pozostaje dostępnych w zakładce Formularze w trybie Audytor, razem z podglądem i pobieraniem. |
+| referencje/ | Dotychczasowa ścieżka | Zestawienia i źródła wspierają audyt zaawansowany. Ścieżki używa istniejący generator. |
+| index.html, assets/, narzedzia/ | Dotychczasowe ścieżki | Punkt wejścia obsługuje otwarcie z dysku i osadzenie w HexoraIT. Przy przeniesieniu dodatków należy zaktualizować odsyłacze, generator formularzy, kontrolę pakietu, README i sumy kontrolne. |
+
+Proponuję zachować zawartość wszystkich powyższych materiałów i ograniczyć porządki do przeniesienia plików oraz aktualizacji powiązań.
+
+### Warunki akceptacji wdrożenia
+
+1. Nowa przestrzeń otwiera Naukę. Projekt schematu 2 trafia do Audytora z dotychczasowym planem, macierzą, dowodami, ustaleniami i pełnym raportem. Zmiana trybu zachowuje pracę w obu widokach.
+2. Testy obejmują ponowną migrację, brak miejsca, przerwany zapis i równoległą edycję w kartach. Import dodaje projekt do listy, a kopiowanie i usuwanie pozostawiają pozostałe projekty dostępne.
+3. Pytania mają komplet danych i wyłącznie uprawnienie odczytu. Testy rozróżniają wynik i pokrycie oceny, sprawdzają utworzenie ustalenia z pytania oraz porównanie z kluczem ćwiczenia.
+4. Oba raporty przechodzą próbę druku A4. Formularze, odsyłacze oraz sumy sprawdza się przy otwarciu z dysku i w wersji osadzonej. Scenariusz przeglądarkowy obejmuje pracę bez sieci.
+
+Do decyzji przed etapem 3 są domyślna Nauka z otwieraniem starszych projektów w Audytorze, jeden lokalny zapis na przestrzeń z zachowaniem starej kopii oraz miejsca archiwizacji z tabeli.
