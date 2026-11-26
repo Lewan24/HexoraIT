@@ -1,6 +1,6 @@
 import { http } from './http'
 
-export type AuditStatus = 'planned' | 'in-progress' | 'completed'
+export type AuditStatus = 'planned' | 'in-progress' | 'completed' | 'archived'
 export interface OrganizationAudit {
   id: string
   title: string
@@ -20,7 +20,8 @@ interface Page<T> { items: T[]; more: boolean }
 
 const path = (orgId: string) => `/organizations/${orgId}/audit-history`
 export const organizationAuditsApi = {
-  list: (orgId: string, page: number) => http.get<Page<OrganizationAudit>>(`${path(orgId)}?page=${page}`),
+  list: (orgId: string, page: number, archived = false) =>
+    http.get<Page<OrganizationAudit>>(`${path(orgId)}?page=${page}&archived=${archived}`),
   updates: (orgId: string, id: string, page: number) => http.get<Page<AuditUpdate>>(`${path(orgId)}/${id}/updates?page=${page}`),
   append: (orgId: string, id: string, updateId: string, form: FormData) =>
     http.postForm<void>(`${path(orgId)}/${id}/updates/${updateId}`, form),

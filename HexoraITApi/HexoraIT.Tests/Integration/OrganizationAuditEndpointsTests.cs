@@ -77,6 +77,41 @@ public sealed class OrganizationAuditEndpointsTests
         (await client.GetAsync($"{otherEndpoint}/{audit}/updates")).StatusCode.Should().Be(HttpStatusCode.NotFound);
         using var denied = Form("planned");
         (await client.PostAsync($"{endpoint}/{audit}/updates/{Guid.NewGuid()}", denied)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        const string archivedFilter = "?archived=true";
+        var archivePath = $"{endpoint}/{audit}/updates/{Guid.NewGuid()}";
+        using (var archive = Form("archived"))
+            (await client.PostAsync(archivePath, archive)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        ActAs(OrgRole.Member);
+        using (var archive = Form("archived"))
+        {
+            archive.Add(new StringContent("Audit called off"), "note");
+            (await client.PostAsync(archivePath, archive)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        ActAs(OrgRole.ReadOnly);
+        (await client.GetFromJsonAsync<JsonElement>(endpoint)).GetProperty("items").GetArrayLength().Should().Be(0);
+        var archived = (await client.GetFromJsonAsync<JsonElement>(endpoint + archivedFilter)).GetProperty("items");
+        archived.GetArrayLength().Should().Be(1);
+        archived[0].GetProperty("id").GetGuid().Should().Be(audit);
+        archived[0].GetProperty("status").GetString().Should().Be("archived");
+        (await client.GetFromJsonAsync<JsonElement>(otherEndpoint + archivedFilter)).GetProperty("items").GetArrayLength().Should().Be(0);
+        var archivedHistory = (await client.GetFromJsonAsync<JsonElement>($"{endpoint}/{audit}/updates")).GetProperty("items");
+        archivedHistory.GetArrayLength().Should().Be(3);
+        archivedHistory[0].GetProperty("note").GetString().Should().Be("Audit called off");
+        (await client.GetStringAsync($"{endpoint}/{audit}/attachments/{attachmentId}")).Should().Be(json);
+
+        ActAs(OrgRole.Member);
+        using (var restore = Form("in-progress"))
+            (await client.PostAsync($"{endpoint}/{audit}/updates/{Guid.NewGuid()}", restore)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await client.GetFromJsonAsync<JsonElement>(endpoint + archivedFilter)).GetProperty("items").GetArrayLength().Should().Be(0);
+        var restored = (await client.GetFromJsonAsync<JsonElement>(endpoint)).GetProperty("items");
+        restored.GetArrayLength().Should().Be(1);
+        restored[0].GetProperty("status").GetString().Should().Be("in-progress");
+        var restoredHistory = (await client.GetFromJsonAsync<JsonElement>($"{endpoint}/{audit}/updates")).GetProperty("items");
+        restoredHistory.GetArrayLength().Should().Be(4);
+        restoredHistory[1].GetProperty("status").GetString().Should().Be("archived");
     }
 
     private static MultipartFormDataContent Form(string status, string? title = null, string? fileName = null, string? content = null)

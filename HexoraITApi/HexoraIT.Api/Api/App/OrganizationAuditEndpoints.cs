@@ -11,6 +11,7 @@ namespace HexoraITApi.Api.App;
 public static class OrganizationAuditEndpoints
 {
     private const string Resource = "audit-history";
+    private const string ArchivedStatus = "archived";
     private const int PageSize = 25;
     private const int MaxFileBytes = 10 * 1024 * 1024;
     private const int MaxFiles = 2;
@@ -34,21 +35,24 @@ public static class OrganizationAuditEndpoints
         return organization is { IsArchived: false } && !organization.HiddenModules.Contains(Resource);
     }
 
-    private static async Task<IResult> ListAsync(Guid organizationId, int? page, ICurrentUserContext user, AppDbContext db, CancellationToken token)
+    private static async Task<IResult> ListAsync(Guid organizationId, int? page, bool? archived,
+        ICurrentUserContext user, AppDbContext db, CancellationToken token)
     {
         if (!await AllowedAsync(organizationId, false, user, db, token)) return Results.Forbid();
         if (page is < 1 or > 10000) return Results.BadRequest("Invalid page.");
 
         var audits = await db.OrganizationAudits.AsNoTracking().Where(a => a.OrganizationId == organizationId)
-            .OrderByDescending(a => a.AuditDate).ThenByDescending(a => a.Id)
-            .Skip(((page ?? 1) - 1) * PageSize).Take(PageSize + 1)
             .Select(a => new
             {
                 a.Id,
                 a.Title,
                 a.AuditDate,
                 Status = a.Updates.OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id).Select(u => u.Status).First()
-            }).ToListAsync(token);
+            })
+            .Where(a => (a.Status == ArchivedStatus) == (archived == true))
+            .OrderByDescending(a => a.AuditDate).ThenByDescending(a => a.Id)
+            .Skip(((page ?? 1) - 1) * PageSize).Take(PageSize + 1)
+            .ToListAsync(token);
         return Results.Ok(new { Items = audits.Take(PageSize), More = audits.Count > PageSize });
     }
 
@@ -89,11 +93,12 @@ public static class OrganizationAuditEndpoints
         var title = form["title"].ToString().Trim();
         var note = form["note"].ToString().Trim();
         var status = form["status"].ToString();
-        if (status is not ("planned" or "in-progress" or "completed") || note.Length > 4000 || form.Files.Count > MaxFiles)
+        if (status is not ("planned" or "in-progress" or "completed" or ArchivedStatus) || note.Length > 4000 || form.Files.Count > MaxFiles)
             return Results.BadRequest("Invalid audit status, note or attachment count.");
 
         if (form.ContainsKey("title"))
         {
+            if (status == ArchivedStatus) return Results.BadRequest("Archive an existing audit.");
             if (title.Length is < 1 or > 160 || !DateOnly.TryParseExact(form["auditDate"], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var auditDate))
                 return Results.BadRequest("Enter a valid audit title and date.");
             if (audit is not null) return Results.Conflict();

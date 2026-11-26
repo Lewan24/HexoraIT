@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Download, History, Plus } from 'lucide-react'
+import { Archive, Download, History, Plus } from 'lucide-react'
 import { v4 as uuid } from 'uuid'
 import { locale, tr, useLocale } from '../i18n'
 import { useApp } from '../context/useApp'
 import { organizationAuditsApi, type AuditAttachment, type AuditStatus, type AuditUpdate, type OrganizationAudit } from '../api/organizationAudits'
 
-const statuses: Record<AuditStatus, string> = { planned: 'Audit planned', 'in-progress': 'Audit in progress', completed: 'Audit completed' }
+const statuses: Record<AuditStatus, string> = {
+  planned: 'Audit planned',
+  'in-progress': 'Audit in progress',
+  completed: 'Audit completed',
+  archived: 'Audit archived',
+}
 const button = 'inline-flex items-center justify-center gap-2 rounded-lg border border-edge-default px-3 py-2 text-sm text-ink-primary hover:bg-navy-700 disabled:opacity-50'
 const input = 'mt-1 block w-full rounded-lg border border-edge-default bg-navy-900 px-3 py-2 text-sm text-ink-primary'
 const card = 'rounded-xl border border-edge-subtle bg-navy-800 p-4'
@@ -19,31 +24,39 @@ export default function OrganizationAuditHistory({ onStudio }: { onStudio: () =>
 
 function AuditHistory({ orgId, orgName, writable, onStudio }: { orgId: string; orgName: string; writable: boolean; onStudio: () => void }) {
   useLocale()
+  const [archived, setArchived] = useState(false)
   const [page, setPage] = useState(1)
   const [revision, setRevision] = useState(0)
-  const [selected, setSelected] = useState<OrganizationAudit>()
+  const [selected, setSelected] = useState<string>()
   const [creating, setCreating] = useState(false)
-  const [result, setResult] = useState<{ page: number; revision: number; items?: OrganizationAudit[]; more?: boolean; error?: string }>()
+  const [notice, setNotice] = useState('')
+  const [result, setResult] = useState<{ page: number; archived: boolean; revision: number; items?: OrganizationAudit[]; more?: boolean; error?: string }>()
   useEffect(() => {
     let active = true
-    organizationAuditsApi.list(orgId, page).then(data => {
-      if (active) setResult({ ...data, page, revision })
+    organizationAuditsApi.list(orgId, page, archived).then(data => {
+      if (active) setResult({ ...data, page, archived, revision })
     }).catch(error => {
-      if (active) setResult({ page, revision, error: errorMessage(error) })
+      if (active) setResult({ page, archived, revision, error: errorMessage(error) })
     })
     return () => { active = false }
-  }, [orgId, page, revision])
+  }, [orgId, page, archived, revision])
 
-  const current = result?.page === page && (result.revision === revision || result.items) ? result : undefined
+  const current = result?.page === page && result.archived === archived && (result.revision === revision || result.items) ? result : undefined
   return <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <History size={24} className="text-blue-400" />
-        <div><h1 className="text-xl font-semibold text-ink-primary">{tr('Audit history')}</h1><p className="text-sm text-ink-muted">{orgName}</p></div>
+        <div><h1 className="text-xl font-semibold text-ink-primary">{tr(archived ? 'Audit archive' : 'Audit history')}</h1><p className="text-sm text-ink-muted">{orgName}</p></div>
       </div>
       <div className="flex flex-wrap gap-2">
         <button className={button} onClick={onStudio}>{tr('Conduct an audit')}</button>
-        {writable && <button className={button} onClick={() => setCreating(true)} disabled={creating}><Plus size={16} />{tr('Add audit')}</button>}
+        <button className={button} disabled={creating} onClick={() => {
+          setArchived(!archived)
+          setPage(1)
+          setSelected(undefined)
+          setNotice('')
+        }}><Archive size={16} />{tr(archived ? 'Back to audit history' : 'Show archived audits')}</button>
+        {writable && !archived && <button className={button} onClick={() => setCreating(true)} disabled={creating}><Plus size={16} />{tr('Add audit')}</button>}
       </div>
     </header>
 
@@ -53,17 +66,27 @@ function AuditHistory({ orgId, orgName, writable, onStudio }: { orgId: string; o
       setSelected(undefined)
       setRevision(value => value + 1)
     }} />}
+    {notice && <p role="status" className="text-sm text-ink-primary">{tr(notice)}</p>}
     {current?.error && <p role="alert" className="text-sm text-red-400">{current.error} <button className={button} onClick={() => setRevision(value => value + 1)}>{tr('Retry')}</button></p>}
     {!current && <p role="status" className="text-sm text-ink-muted">{tr('loading...')}</p>}
-    {current?.items?.length === 0 && <p className={`${card} text-sm text-ink-muted`}>{tr('No audits recorded for this organization.')}</p>}
+    {current?.items?.length === 0 && <p className={`${card} text-sm text-ink-muted`}>{tr(archived ? 'No archived audits.' : 'No active audits in this organization.')}</p>}
     <ul className="space-y-2">
       {current?.items?.map(audit => <li key={audit.id}>
         <button className={`${card} flex w-full flex-wrap items-center justify-between gap-2 text-left hover:border-blue-500/50`}
-          aria-expanded={selected?.id === audit.id} onClick={() => setSelected(selected?.id === audit.id ? undefined : audit)}>
+          aria-expanded={selected === audit.id} onClick={() => setSelected(selected === audit.id ? undefined : audit.id)}>
           <span className="min-w-0 break-words font-medium text-ink-primary">{audit.title}</span>
           <span className="text-sm text-ink-muted"><time dateTime={audit.auditDate}>{new Date(`${audit.auditDate}T00:00:00`).toLocaleDateString(locale())}</time> · {tr(statuses[audit.status])}</span>
         </button>
-        {selected?.id === audit.id && <AuditTimeline orgId={orgId} audit={audit} writable={writable} onSaved={() => setRevision(value => value + 1)} />}
+        {selected === audit.id && <AuditTimeline orgId={orgId} audit={audit} writable={writable} onSaved={status => {
+          const moved = (status === 'archived') !== archived
+          setNotice(moved ? (archived ? 'Audit restored to history.' : 'Audit moved to the archive.') : '')
+          if (moved) {
+            setSelected(undefined)
+            setPage(1)
+            setResult(undefined)
+          }
+          setRevision(value => value + 1)
+        }} />}
       </li>)}
     </ul>
     {current && <Pager page={page} more={current.more} change={value => { setSelected(undefined); setPage(value) }} />}
@@ -78,7 +101,7 @@ function Pager({ page, more, change }: { page: number; more?: boolean; change: (
   </div>
 }
 
-function AuditTimeline({ orgId, audit, writable, onSaved }: { orgId: string; audit: OrganizationAudit; writable: boolean; onSaved: () => void }) {
+function AuditTimeline({ orgId, audit, writable, onSaved }: { orgId: string; audit: OrganizationAudit; writable: boolean; onSaved: (status: AuditStatus) => void }) {
   const [page, setPage] = useState(1)
   const [retry, setRetry] = useState(0)
   const [result, setResult] = useState<{ page: number; retry: number; items?: AuditUpdate[]; more?: boolean; error?: string }>()
@@ -116,11 +139,11 @@ function AuditTimeline({ orgId, audit, writable, onSaved }: { orgId: string; aud
       <h2 className="font-medium text-ink-primary">{tr('Audit updates')}</h2>
       {writable && !editing && <button className={button} onClick={() => setEditing(true)}><Plus size={16} />{tr('Add update')}</button>}
     </div>
-    {writable && editing && <AuditForm orgId={orgId} audit={audit} onCancel={() => setEditing(false)} onSaved={() => {
+    {writable && editing && <AuditForm orgId={orgId} audit={audit} onCancel={() => setEditing(false)} onSaved={status => {
       setEditing(false)
       setPage(1)
       setRetry(value => value + 1)
-      onSaved()
+      onSaved(status)
     }} />}
     {!current && <p role="status" className="text-sm text-ink-muted">{tr('loading...')}</p>}
     {current?.error && <p role="alert" className="text-sm text-red-400">{current.error} <button className={button} onClick={() => setRetry(value => value + 1)}>{tr('Retry')}</button></p>}
@@ -139,7 +162,7 @@ function AuditTimeline({ orgId, audit, writable, onSaved }: { orgId: string; aud
   </section>
 }
 
-function AuditForm({ orgId, audit, onSaved, onCancel }: { orgId: string; audit?: OrganizationAudit; onSaved: () => void; onCancel: () => void }) {
+function AuditForm({ orgId, audit, onSaved, onCancel }: { orgId: string; audit?: OrganizationAudit; onSaved: (status: AuditStatus) => void; onCancel: () => void }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const ids = useRef<{ auditId: string; updateId: string } | null>(null)
@@ -160,7 +183,7 @@ function AuditForm({ orgId, audit, onSaved, onCancel }: { orgId: string; audit?:
     setError('')
     try {
       await organizationAuditsApi.append(orgId, ids.current.auditId, ids.current.updateId, data)
-      onSaved()
+      onSaved(data.get('status') as AuditStatus)
     } catch (error) { setError(errorMessage(error)) }
     finally { setBusy(false) }
   }
@@ -173,8 +196,11 @@ function AuditForm({ orgId, audit, onSaved, onCancel }: { orgId: string; audit?:
         <label className="text-sm text-ink-muted">{tr('Audit date')}<input className={input} name="auditDate" type="date" required /></label>
       </div>}
       <label className="block text-sm text-ink-muted">{tr('Status')}<select className={input} name="status" defaultValue={audit?.status ?? 'planned'}>
-        {Object.entries(statuses).map(([status, label]) => <option key={status} value={status}>{tr(label)}</option>)}
-      </select></label>
+        {Object.entries(statuses).filter(([status]) => audit || status !== 'archived')
+          .map(([status, label]) => <option key={status} value={status}>{tr(label)}</option>)}
+      </select>
+        {audit && <span className="mt-1 block text-xs">{tr(audit.status === 'archived' ? 'Choose a different status to restore this audit to history.' : 'The Archived status moves this audit to the archive.')}</span>}
+      </label>
       <label className="block text-sm text-ink-muted">{tr('Notes')}<textarea className={input} name="note" maxLength={4000} rows={3} /></label>
       <label className="block text-sm text-ink-muted">{tr('Attachments')}<input className={input} name="files" type="file" accept=".json,.pdf" multiple />
         <span className="mt-1 block text-xs">{tr('Attach up to two non-empty JSON or PDF files, up to 10 MB each.')}</span>

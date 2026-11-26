@@ -14,7 +14,7 @@ namespace HexoraIT.Tests.Integration;
 
 public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly SqliteConnection _connection = new($"Data Source=hexora-test-{Guid.NewGuid():N};Mode=Memory;Cache=Shared;Pooling=False");
 
     public SecurityWebApplicationFactory() => _connection.Open();
 
@@ -41,7 +41,7 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
             services.RemoveAll<DbContextOptions>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
-            services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection));
+            services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection.ConnectionString));
             services.RemoveAll<IAppInitializer>();
             services.AddSingleton<IAppInitializer, TestAppInitializer>();
         });

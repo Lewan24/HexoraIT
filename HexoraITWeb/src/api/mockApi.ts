@@ -780,8 +780,11 @@ async function request<T>(
       }
 
       if (method === 'GET' && tail === 'audit-history') {
-        audits.sort((a, b) => b.auditDate.localeCompare(a.auditDate) || b.id.localeCompare(a.id))
-        return paginate(audits.map(({ id, title, auditDate, status }) => ({ id, title, auditDate, status }))) as T
+        const archived = url.searchParams.get('archived')?.toLowerCase() ?? 'false'
+        if (archived !== 'true' && archived !== 'false') throw new ApiError(400, 'Invalid archive filter.')
+        const items = audits.filter(audit => (audit.status === 'archived') === (archived === 'true'))
+          .sort((a, b) => b.auditDate.localeCompare(a.auditDate) || b.id.localeCompare(a.id))
+        return paginate(items.map(({ id, title, auditDate, status }) => ({ id, title, auditDate, status }))) as T
       }
       if (method === 'GET' && collection === 'updates' && audit && !itemId) return paginate(audit.updates) as T
       if (method === 'GET' && collection === 'attachments' && audit?.updates.some(update => update.attachments.some(file => file.id === itemId)))
@@ -794,8 +797,10 @@ async function request<T>(
         const note = String(rawBody.get('note') ?? '').trim()
         const status = rawBody.get('status')
         const files = rawBody.getAll('files')
-        if ((status !== 'planned' && status !== 'in-progress' && status !== 'completed') || note.length > 4000 || files.length > 2)
+        if ((status !== 'planned' && status !== 'in-progress' && status !== 'completed' && status !== 'archived') || note.length > 4000 || files.length > 2)
           throw new ApiError(400, 'Invalid audit status, note or attachment count.')
+        if (rawBody.has('title') && status === 'archived') throw new ApiError(400, 'Archive an existing audit.')
+        if (!audit && !rawBody.has('title')) throw new ApiError(404, 'Audit record not found.')
         if (!audit && (!title || title.length > 160 || !/^\d{4}-\d{2}-\d{2}$/.test(auditDate)))
           throw new ApiError(400, 'Enter a valid audit title and date.')
         if (audit && title) throw new ApiError(409, 'Audit already exists.')
