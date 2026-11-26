@@ -7,7 +7,7 @@ import {
   Folder, FolderPlus, Upload, MoreVertical, Trash2, Download, Eye,
   ChevronRight, Loader2, FileText, Image as ImageIcon, FileSpreadsheet,
   FileCode, File as FileIcon, X, FolderInput, Check,
-  Edit2
+  Edit2, Network, ExternalLink
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import { filesApi } from '../api/resources'
@@ -28,21 +28,24 @@ function iconFor(file: StoredFile) {
 
 interface Crumb { id?: string; name: string }
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024 * 1024
+const MAX_NETWORK_PROJECT_BYTES = 10 * 1024 * 1024
 const MAX_FILES_PER_BATCH = 20
 
-export default function FileExplorer() {
+export default function FileExplorer({ networkProjects = false }: { networkProjects?: boolean }) {
   const { currentOrg } = useApp()
-  return <FileExplorerContent key={currentOrg?.id ?? 'none'} />
+  return <FileExplorerContent key={`${currentOrg?.id ?? 'none'}:${networkProjects}`} networkProjects={networkProjects} />
 }
 
-function FileExplorerContent() {
+function FileExplorerContent({ networkProjects }: { networkProjects: boolean }) {
   useLocale()
   const { currentOrg, toast, canWrite } = useApp()
   const [breadcrumbs, setBreadcrumbs] = useState<Crumb[]>([{ id: undefined, name: 'Files' }])
   const [folders, setFolders] = useState<FileFolder[]>([])
   const [files, setFiles] = useState<StoredFile[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [failedProjects, setFailedProjects] = useState<{ name: string; message: string }[]>([])
   const [newFolderOpen, setNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
@@ -65,19 +68,21 @@ function FileExplorerContent() {
   const load = useCallback(async () => {
     if (!currentOrg) return
     setLoading(true)
+    setLoadFailed(false)
     try {
       const [f, fl] = await Promise.all([
-        filesApi.getFolders(currentOrg.id, currentFolderId),
-        filesApi.getFiles(currentOrg.id, currentFolderId),
+        networkProjects ? Promise.resolve([]) : filesApi.getFolders(currentOrg.id, currentFolderId),
+        filesApi.getFiles(currentOrg.id, currentFolderId, networkProjects),
       ])
       setFolders(f)
       setFiles(fl)
     } catch {
-      toast(tr("Failed to load files"), 'error')
+      if (networkProjects) setLoadFailed(true)
+      else toast(tr("Failed to load files"), 'error')
     } finally {
       setLoading(false)
     }
-  }, [currentOrg, currentFolderId, toast])
+  }, [currentOrg, currentFolderId, networkProjects, toast])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load() }, [load])
@@ -104,47 +109,54 @@ function FileExplorerContent() {
       toast(tr("Select at most {{value1}} files at once.", { value1: MAX_FILES_PER_BATCH }), 'error')
       return
     }
-    if (filesArr.some(file => file.size > MAX_UPLOAD_BYTES)) {
+    if (!networkProjects && filesArr.some(file => file.size > MAX_UPLOAD_BYTES)) {
       toast(tr("Each file must be at most 8 GiB."), 'error')
       return
     }
 
     setUploading(true)
+    setFailedProjects([])
 
     let failed = 0
+    const rejected: typeof failedProjects = []
     for (const f of filesArr) {
       try {
-        await filesApi.upload(currentOrg.id, f, currentFolderId)
-      } catch {
+        if (networkProjects && f.size > MAX_NETWORK_PROJECT_BYTES)
+          throw new Error(tr('Network projects must be at most 10 MiB.'))
+        await filesApi.upload(currentOrg.id, f, currentFolderId, networkProjects)
+      } catch (error) {
         failed++
+        if (networkProjects)
+          rejected.push({ name: f.name, message: error instanceof Error ? tr(error.message) : tr('Failed to upload project.') })
       }
     }
-    setUploading(false)
-
+    setFailedProjects(rejected)
     if (failed > 0)
         toast(tr("{{value1}} file(s) failed to upload", { value1: failed }), 'error')
     else
         toast(filesArr.length === 1 ? tr("File uploaded") : tr("{{value1}} files uploaded", { value1: filesArr.length }))
 
     await load()
-  }, [uploading, currentOrg, canCreate, previewFile, toast, load, currentFolderId])
+    setUploading(false)
+  }, [uploading, currentOrg, canCreate, previewFile, toast, load, currentFolderId, networkProjects])
 
   const handleReplace = async (file: File) => {
     const target = replacementTarget.current
     replacementTarget.current = null
     if (!target || uploading || !canWrite('files', target.id)) return
-    if (file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
-      toast(tr('Choose a non-empty file up to 8 GiB.'), 'error')
+    if (file.size === 0 || file.size > (networkProjects ? MAX_NETWORK_PROJECT_BYTES : MAX_UPLOAD_BYTES)) {
+      toast(tr(networkProjects ? 'Choose a non-empty JSON file up to 10 MiB.' : 'Choose a non-empty file up to 8 GiB.'), 'error')
       return
     }
-    if (file.name !== target.name && !window.confirm(tr('Replace “{{oldName}}” with “{{newName}}”? The previous content will be lost.', { oldName: target.name, newName: file.name }))) return
+    if (networkProjects && !window.confirm(tr('Replace the contents of “{{oldName}}” with the selected JSON?', { oldName: target.name }))) return
+    if (!networkProjects && file.name !== target.name && !window.confirm(tr('Replace “{{oldName}}” with “{{newName}}”? The previous content will be lost.', { oldName: target.name, newName: file.name }))) return
     setUploading(true)
     try {
       await filesApi.replace(target.id, file)
       toast(tr('File updated'))
       await load()
     } catch (error) {
-      toast(error instanceof ApiError ? error.message : tr('Failed to update file'), 'error')
+      toast(error instanceof ApiError ? tr(error.message) : tr('Failed to update file'), 'error')
     } finally { setUploading(false) }
   }
 
@@ -198,28 +210,32 @@ function FileExplorerContent() {
     setRenaming(true)
     try {
       if (renameTarget.type === 'folder') await filesApi.renameFolder(renameTarget.id, renameValue.trim())
-      else await filesApi.renameFile(renameTarget.id, renameValue.trim())
+      else {
+        const name = renameValue.trim()
+        await filesApi.renameFile(renameTarget.id, networkProjects && !/\.json$/i.test(name) ? `${name}.json` : name)
+      }
       setRenameTarget(null)
       await load()
-    } catch {
-      toast(tr("Failed to rename"), 'error')
+    } catch (error) {
+      toast(networkProjects && error instanceof ApiError ? tr(error.message) : tr("Failed to rename"), 'error')
     } finally {
       setRenaming(false)
     }
   }
 
   return (
-    <div className="p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(canCreate && previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
+    <div className="p-4 sm:p-6 max-w-[1200px]" onDragOver={e => { e.preventDefault(); if(canCreate && previewFile === null) setDragOver(true) }} onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); if (canCreate) void handleUpload(e.dataTransfer.files) }}>
 
-      <input ref={replacementInputRef} type="file" className="hidden" aria-label={tr('Update file')}
+      <input ref={replacementInputRef} type="file" accept={networkProjects ? '.json' : undefined} className="hidden" aria-label={tr('Update file')}
         onChange={e => { const file = e.target.files?.[0]; if (file) void handleReplace(file); e.target.value = '' }} />
-      <p className="mb-3 text-xs text-ink-muted">{tr('Maximum file size: 8 GiB')}</p>
       {/* Header */}
       <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">{tr("Files")}</h1>
-          <div className="flex items-center gap-1 mt-1 flex-wrap">
+          <h1 className="text-xl font-semibold text-balance text-ink-primary">{tr(networkProjects ? 'Network projects' : 'Files')}</h1>
+          {networkProjects
+            ? <p className="mt-1 text-sm text-pretty text-ink-muted">{tr('Keep network designs and plans as JSON files for this organization.')}</p>
+            : <div className="flex items-center gap-1 mt-1 flex-wrap">
             {breadcrumbs.map((crumb, i) => (
               <span key={crumb.id ?? 'root'} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight size={12} className="text-ink-muted" />}
@@ -229,24 +245,50 @@ function FileExplorerContent() {
                 </button>
               </span>
             ))}
-          </div>
+          </div>}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setNewFolderOpen(true)} disabled={!canCreate}
+          {!networkProjects && <button onClick={() => setNewFolderOpen(true)} disabled={!canCreate}
             title={canCreate ? undefined : tr("Your organization role does not permit changes to this resource.")}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-800 border border-edge-default text-ink-secondary text-xs hover:text-ink-primary hover:border-edge-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <FolderPlus size={14} />  {tr("New Folder")} </button>
-          <input ref={fileInputRef} type="file" multiple className="hidden" disabled={!canCreate}
+            <FolderPlus size={14} />  {tr("New Folder")} </button>}
+          <input ref={fileInputRef} type="file" multiple accept={networkProjects ? '.json' : undefined} className="hidden" disabled={!canCreate}
             onChange={e => { if (e.target.files) void handleUpload(e.target.files); e.target.value = '' }} />
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading || !canCreate}
             title={canCreate ? undefined : tr("Your organization role does not permit changes to this resource.")}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium transition-all disabled:opacity-50"
             style={{ boxShadow: '0 1px 12px rgba(37,99,235,0.3)' }}>
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {uploading ? tr("Uploading…") : tr("Upload")}
+            {uploading ? tr("Uploading…") : tr(networkProjects ? 'Add JSON files' : 'Upload')}
           </button>
         </div>
       </div>
+
+      {networkProjects && (
+        <section aria-labelledby="network-architect-heading" className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-edge-default bg-navy-800 p-4 sm:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-400">
+              <Network size={19} aria-hidden="true" />
+            </div>
+            <div>
+              <h2 id="network-architect-heading" className="font-semibold text-balance text-ink-primary">Network Architect</h2>
+              <p className="mt-0.5 max-w-xl text-sm text-pretty text-ink-muted">{tr('Download a JSON file and import it into the editor. After exporting your changes, use Update file to replace the saved copy.')}</p>
+            </div>
+          </div>
+          <a href="https://network-architect.lewanmordor.workers.dev/" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-edge-default px-3 py-2 text-sm font-medium text-ink-primary hover:border-blue-500 hover:text-blue-400 focus-visible:outline-2 focus-visible:outline-blue-500">
+            {tr('Open Network Architect')} <ExternalLink size={15} aria-hidden="true" />
+          </a>
+        </section>
+      )}
+
+      <p className="mb-3 text-xs text-ink-muted">{tr(networkProjects ? 'JSON files up to 10 MiB each' : 'Maximum file size: 8 GiB')}</p>
+
+      {failedProjects.length > 0 && (
+        <ul role="status" className="mb-4 space-y-1 rounded-lg border border-red-500/30 p-3 text-sm text-ink-primary">
+          {failedProjects.map((file, index) => <li key={index} className="wrap-anywhere"><strong>{file.name}</strong> · {file.message}</li>)}
+        </ul>
+      )}
 
       {dragOver && (
         <div className="fixed inset-0 z-40 bg-blue-500/10 border-4 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
@@ -256,14 +298,19 @@ function FileExplorerContent() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 size={20} className="animate-spin text-ink-muted" /></div>
+      ) : loadFailed ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-edge-default bg-navy-800 p-4 text-sm">
+          <p className="text-ink-secondary">{tr('Failed to load files')}</p>
+          <button type="button" onClick={() => void load()} className="font-medium text-blue-400 hover:underline">{tr('Retry')}</button>
+        </div>
       ) : folders.length === 0 && files.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 border-2 border-dashed border-edge-subtle rounded-xl">
           <Folder size={28} className="text-ink-muted opacity-40" />
-          <p className="text-sm text-ink-muted">{tr("This folder is empty")}</p>
-          <p className="text-xs text-ink-muted">{tr("Drag files here, or use the Upload button above")}</p>
+          <p className="text-sm text-ink-muted">{tr(networkProjects ? 'No network projects yet' : 'This folder is empty')}</p>
+          {(!networkProjects || canCreate) && <p className="px-3 text-center text-xs text-ink-muted">{tr(networkProjects ? 'Export a project from Network Architect, then add its JSON file here.' : 'Drag files here, or use the Upload button above')}</p>}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className={networkProjects ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}>
           {folders.map(folder => (
             <div key={folder.id} {...contextItem("folders", folder.id, folder.name)} className="relative group">
               <button data-context-action={tr("Open folder")} onClick={() => openFolder(folder)}
@@ -300,7 +347,7 @@ function FileExplorerContent() {
           ))}
 
           {files.map(file => {
-            const previewable = getPreviewKind(file.name, file.mimeType) !== 'none'
+            const previewable = !networkProjects && getPreviewKind(file.name, file.mimeType) !== 'none'
             return (
               <div key={file.id} {...contextItem("files", file.id, file.name)} className="relative group transition transition-all hover:scale-[1.05] border-blue-500 rounded-xl hover:border-1">
                 <div title={file.name}
@@ -312,31 +359,31 @@ function FileExplorerContent() {
                         <Eye size={13} className='text-green-500' />
                       </button>
                     )}
-                    <button data-context-action={tr("Download")} onClick={() => void download(file)} title={tr("Download")}
+                    <button data-context-action={tr("Download")} onClick={() => void download(file)} title={tr("Download")} aria-label={tr('Download')}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Download size={13} className='text-indigo-500' />
                     </button>
-                    {canWrite('files', file.id) && <button data-context-action={tr("Update file")} disabled={uploading} title={tr('Update file')} onClick={() => { replacementTarget.current = file; replacementInputRef.current?.click() }}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Update file")} disabled={uploading} title={tr('Update file')} aria-label={tr('Update file')} onClick={() => { replacementTarget.current = file; replacementInputRef.current?.click() }}
                       className="p-2 rounded-lg text-blue-400 hover:bg-navy-700 disabled:opacity-50">
                       <Upload size={13} /></button>}
-                    {canWrite('files', file.id) && <button data-context-action={tr("Delete")} data-context-danger="true" onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Delete")} data-context-danger="true" onClick={() => setDeleteTarget({ type: 'file', id: file.id, name: file.name })} title={tr("Delete")} aria-label={tr('Delete')}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-red-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Trash2 size={13} className='text-red-500' />
                     </button>}
-                    {canWrite('files', file.id) && <button data-context-action={tr("Rename")} onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")}
+                    {canWrite('files', file.id) && <button data-context-action={tr("Rename")} onClick={() => { setRenameTarget({ type: 'file', id: file.id, name: file.name }); setRenameValue(file.name) }} title={tr("Rename")} aria-label={tr('Rename')}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <Edit2 size={13} className='text-orange-500' />
                     </button>}
-                    {canWrite('files', file.id) && <button data-context-action={tr("Move")} onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
+                    {!networkProjects && canWrite('files', file.id) && <button data-context-action={tr("Move")} onClick={() => setMoveTarget({ type: 'file', id: file.id, name: file.name, currentFolderId: file.folderId })} title={tr("Move")}
                     className="cursor-pointer p-2 rounded-lg text-ink-muted hover:text-blue-400 hover:bg-navy-700 transition transition-all hover:scale-[1.4]">
                       <FolderInput size={13} className='text-gray-400' />
                     </button>}
                   </div>
 
-                  <div onClick={() => previewable && setPreviewFile(file)} className='cursor-pointer flex flex-col justify-center items-center gap-2 w-full'>
-                    {iconFor(file)}
+                  <div onClick={previewable ? () => setPreviewFile(file) : undefined} className={`flex w-full flex-col items-center justify-center gap-2 ${previewable ? 'cursor-pointer' : ''}`}>
+                    {networkProjects ? <FileCode size={18} className="text-blue-400" aria-hidden="true" /> : iconFor(file)}
                     <p className="text-xs text-ink-primary truncate w-full text-center px-1"><RecordIndex index={file.sortIndex} />{file.name}</p>
-                    <p className="text-[10px] text-ink-muted">{formatFileSize(file.size)}</p>
+                    <p className="text-xs tabular-nums text-ink-muted">{formatFileSize(file.size)}</p>
                   </div>
                 </div>
               </div>
@@ -394,7 +441,8 @@ function FileExplorerContent() {
               <button onClick={() => setRenameTarget(null)} disabled={renaming} className="text-ink-muted hover:text-ink-primary disabled:opacity-40"><X size={14} /></button>
             </div>
             <input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus disabled={renaming}
-              maxLength={renameTarget.type === 'folder' ? 200 : 260}
+              aria-label={tr(renameTarget.type === 'folder' ? 'Folder name' : 'File name')}
+              maxLength={renameTarget.type === 'folder' ? 200 : networkProjects ? 240 : 260}
               onKeyDown={e => { if (e.key === 'Enter') handleRename() }}
               className="w-full px-3 py-2 rounded-lg bg-navy-700 border border-edge-default text-ink-primary text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50 mb-4" />
             <div className="flex gap-2 justify-end">

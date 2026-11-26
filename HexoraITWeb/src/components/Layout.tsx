@@ -5,7 +5,7 @@ import {
   Network, CreditCard, Settings, ChevronLeft, ChevronRight,
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
-  ShieldCheck, Layers, Share2, Sun, Moon,
+  ShieldCheck, Layers, FileCode, Sun, Moon,
   FolderOpen, BookOpenText, FileText, ClipboardCheck, History,
 } from 'lucide-react'
 import type { View } from '../App'
@@ -55,7 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'warranty', label: 'Warranty',    icon: <ShieldCheck size={18} /> },
       { id: 'groups',   label: 'Groups',      icon: <Layers size={18} /> },
-      { id: 'diagram',  label: 'Diagram',     icon: <Share2 size={18} /> },
+      { id: 'diagram',  label: 'Network projects', icon: <FileCode size={18} /> },
     ],
   },
   {
@@ -197,7 +197,7 @@ function Sidebar({
           aria-current={currentView === 'reports' ? 'page' : undefined} onClick={() => handleNav('reports')}>
           <AlertTriangle size={18} />{!compact && <span>{tr('Report a problem')}</span>}
         </button>}
-        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (item.id !== 'operations' || canRead('operations')) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
+        {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (item.id !== 'operations' || canRead('operations')) && (item.id === 'diagram' ? canRead('files') : user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
           <NavigationSection key={section.label} label={section.label} compact={compact}>
             {section.items.map(item => <button key={item.id} onClick={() => handleNav(item.id)}
               title={tr(item.label)} aria-label={tr(item.label)} className="sidebar-link"
@@ -514,7 +514,7 @@ export default function Layout({ currentView, navigate, onLogout, children }: Pr
         </header>
 
         <main className="workspace-main flex-1 overflow-y-auto">
-          {currentOrg && ['assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'files', 'private-notes', 'diagram'].includes(currentView) && <aside className="flex justify-end px-4 pt-3 sm:px-6"><RecordOrderButton key={`${currentOrg.id}:${currentView}`} resources={currentView === 'tasks' ? ['tasks', 'projects'] : currentView === 'files' ? ['files', 'folders'] : [currentView]} /></aside>}
+          {currentOrg && ['assets', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'files', 'private-notes'].includes(currentView) && <aside className="flex justify-end px-4 pt-3 sm:px-6"><RecordOrderButton key={`${currentOrg.id}:${currentView}`} resources={currentView === 'tasks' ? ['tasks', 'projects'] : currentView === 'files' ? ['files', 'folders'] : [currentView]} /></aside>}
           {children}
         </main>
       </div>

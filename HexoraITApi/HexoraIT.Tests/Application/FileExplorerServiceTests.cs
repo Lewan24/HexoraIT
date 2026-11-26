@@ -16,6 +16,42 @@ public sealed class FileExplorerServiceTests : IDisposable
     private FileExplorerService Service() => new(_fixture.Db, _fixture.Mapper, _fixture.UserContext, _fixture.Storage, NullLogger<FileExplorerService>.Instance);
 
     [Fact]
+    public async Task NetworkProjects_KeepSeparateListingAndReplaceContentWithoutRenaming()
+    {
+        var (owner, organization) = _fixture.SeedUserWithOrg();
+        var service = Service();
+        using var original = new MemoryStream("""{"name":"Office","devices":[],"links":[]}"""u8.ToArray());
+        var project = (await service.UploadAsync(organization.Id, null, File(original, "office.json", "application/json"), networkProject: true))
+            .Value.Should().BeOfType<StoredFileDto>().Subject;
+        (await service.UploadAsync(organization.Id, null, File(original, "general.json", NetworkProjectFile.ContentType))).StatusCode.Should().Be(200);
+        (await service.GetFilesAsync(organization.Id, null, null)).Value.Should().BeOfType<List<StoredFileDto>>().Subject
+            .Should().ContainSingle(item => item.Name == "general.json");
+        (await service.GetFilesAsync(organization.Id, null, null, networkProjects: true)).Value.Should().BeOfType<List<StoredFileDto>>().Subject
+            .Should().ContainSingle(item => item.Id == project.Id);
+
+        (await service.RenameFileAsync(project.Id, new("current.json"))).StatusCode.Should().Be(204);
+        (await service.RenameFileAsync(project.Id, new("current.txt"))).StatusCode.Should().Be(400);
+        using var invalid = new MemoryStream("{}"u8.ToArray());
+        (await service.ReplaceAsync(project.Id, File(invalid, "invalid.json", "application/json"))).StatusCode.Should().Be(400);
+        const string updatedJson = """{"name":"New office","devices":[],"links":[]}""";
+        using var replacement = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(updatedJson));
+        var updated = (await service.ReplaceAsync(project.Id, File(replacement, "export.json", "application/json")))
+            .Value.Should().BeOfType<StoredFileDto>().Subject;
+        updated.Id.Should().Be(project.Id);
+        updated.Name.Should().Be("current.json");
+        updated.MimeType.Should().Be(NetworkProjectFile.ContentType);
+
+        var (_, otherOrg) = _fixture.SeedUserWithOrg();
+        (await service.GetFilesAsync(otherOrg.Id, null, null, networkProjects: true)).Value.Should().BeOfType<List<StoredFileDto>>().Subject.Should().BeEmpty();
+        (await service.GetContentAsync(project.Id, true)).StatusCode.Should().Be(404);
+        _fixture.ActAs(owner.Id);
+        var downloaded = (await service.GetContentAsync(project.Id, true)).Value.Should().BeOfType<DocumentDownload>().Subject;
+        using var reader = new StreamReader(downloaded.Content);
+        (await reader.ReadToEndAsync()).Should().Be(updatedJson);
+        (await service.DeleteFileAsync(project.Id)).StatusCode.Should().Be(204);
+    }
+
+    [Fact]
     public async Task FolderAndFileOperations_PreserveHierarchyAndContentContracts()
     {
         var (_, organization) = _fixture.SeedUserWithOrg();

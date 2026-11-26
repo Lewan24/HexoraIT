@@ -21,7 +21,7 @@ function provider({ loadOrganizationData = true, failLoading = false } = {}) {
     useState(initial) { const index = slot++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => mutations.push({ index, value })] },
     localStorage: { getItem: () => 'current', setItem() {} }, tr: value => value,
     hasPermission: () => true, queueMicrotask: callback => callback(), setTimeout: () => 0, uuidv7: () => "toast-id",
-    ...Object.fromEntries(["assetsApi", "passwordsApi", "subnetsApi", "licensesApi", "contactsApi", "contractsApi", "plansApi", "incidentsApi", "knowledgeApi", "tasksApi", "projectsApi", "groupsApi", "warrantyApi", "diagramApi"].map(name => [name, { getAll: () => Promise.reject(Error("offline")), get: () => Promise.reject(Error("offline")) }])),
+    ...Object.fromEntries(["assetsApi", "passwordsApi", "subnetsApi", "licensesApi", "contactsApi", "contractsApi", "plansApi", "incidentsApi", "knowledgeApi", "tasksApi", "projectsApi", "groupsApi", "warrantyApi"].map(name => [name, { getAll: () => Promise.reject(Error("offline")), get: () => Promise.reject(Error("offline")) }])),
   })
   vm.runInContext(ts.transpileModule(source, { fileName: 'AppProvider.tsx', compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ESNext } }).outputText, context)
   const value = context.AppProvider({ children: null, loadOrganizationData }).props.value

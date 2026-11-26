@@ -82,12 +82,19 @@ public sealed class ArchivePackage : IAsyncDisposable
                 };
                 if (string.IsNullOrEmpty(name)) Invalid("Missing attachment file name.");
                 staged.Position = 0;
-                var upload = await FileUploadSecurity.ValidateAsync(new FormFile(staged, 0, staged.Length, "file", name!), ArchiveSchema.MaxFileBytes, token);
+                var incoming = new FormFile(staged, 0, staged.Length, "file", name!);
+                var upload = owner.Entity is StoredFile { MimeType: NetworkProjectFile.ContentType }
+                    ? await NetworkProjectFile.ValidateAsync(incoming, token)
+                    : await FileUploadSecurity.ValidateAsync(incoming, ArchiveSchema.MaxFileBytes, token);
                 if (upload.FileName != name) Invalid("Unsafe attachment file name.");
-                // The signature validator, never archive-supplied MIME, determines preview behavior.
+                // Attachment types come from validation of the bytes. The project marker selects the JSON validator.
                 switch (owner.Entity)
                 {
-                    case StoredFile stored: stored.MimeType = upload.ContentType; break;
+                    case StoredFile stored:
+                        if (upload.ContentType == NetworkProjectFile.ContentType && stored.FolderId is not null)
+                            Invalid("Network projects cannot belong to a file folder.");
+                        stored.MimeType = upload.ContentType;
+                        break;
                     case Contract contract: contract.DocumentMimeType = upload.ContentType; break;
                     case WarrantyItem warranty: warranty.DocumentMimeType = upload.ContentType; break;
                 }

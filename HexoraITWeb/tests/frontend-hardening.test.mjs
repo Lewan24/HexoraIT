@@ -37,7 +37,7 @@ test('file write controls and client-side upload limits follow backend permissio
   assert.match(explorer, /const canCreate = canWrite\('files'\)/)
   assert.match(explorer, /canWrite\('files', file\.id\)/)
   assert.match(explorer, /disabled=\{uploading \|\| !canCreate\}/)
-  assert.match(explorer, /maxLength=\{renameTarget\.type === 'folder' \? 200 : 260\}/)
+  assert.match(explorer, /maxLength=\{renameTarget\.type === 'folder' \? 200 : networkProjects \? 240 : 260\}/)
 })
 
 test('large feature screens are loaded on demand and the XLSX exception stays bounded', async () => {
@@ -47,7 +47,7 @@ test('large feature screens are loaded on demand and the XLSX exception stays bo
     read('../src/components/FilePreviewModal.tsx'),
   ])
 
-  for (const screen of ['FileExplorer', 'NetworkDiagram', 'Settings', 'UserGuide']) {
+  for (const screen of ['FileExplorer', 'Settings', 'UserGuide']) {
     assert.match(app, new RegExp(`const ${screen} = lazy\\(\\(\\) => import\\('./components/${screen}'\\)\\)`))
     assert.doesNotMatch(app, new RegExp(`import ${screen} from`))
   }

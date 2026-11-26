@@ -128,22 +128,6 @@ public class AppMappingProfile : Profile
                 opt => opt.MapFrom(src => Guid.Parse(src.Id))
             );
 
-        CreateMap<DiagramNode, DiagramNodeDto>();
-        CreateMap<DiagramNodeDto, DiagramNode>().ForMember(d => d.SortIndex, o => o.Ignore());
-
-        CreateMap<DiagramEdge, DiagramEdgeDto>()
-            .ConstructUsing(s => new DiagramEdgeDto(s.Id, s.SourceNodeId, s.TargetNodeId, s.Label, s.ConnectionType));
-
-        CreateMap<DiagramEdgeDto, DiagramEdge>()
-            .ConstructUsing(s => new DiagramEdge
-            {
-                Id = s.Id,
-                SourceNodeId = s.Source,
-                TargetNodeId = s.Target,
-                Label = s.Label,
-                ConnectionType = s.ConnectionType,
-            });
-        
         CreateMap<FileFolder, FileFolderDto>();
         CreateMap<StoredFile, StoredFileDto>();
     }

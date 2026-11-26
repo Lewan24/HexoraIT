@@ -8,7 +8,7 @@ namespace HexoraITApi.Application;
 
 public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user)
 {
-    public static readonly string[] Resources = [.. OrganizationResources.All.Where(resource => resource is not ("dashboard" or "settings" or "data-transfer" or "operations" or "audit-history")), "folders", "ip-entries", "private-notes"];
+    public static readonly string[] Resources = [.. OrganizationResources.All.Where(resource => resource is not ("dashboard" or "settings" or "data-transfer" or "operations" or "audit-history" or "diagram")), "folders", "ip-entries", "private-notes"];
     private static string Permission(string resource) => resource switch { "folders" => "files", "ip-entries" => "networks", _ => resource };
     private async Task<bool> CanReadAsync(Guid org, string resource, CancellationToken token) =>
         Resources.Contains(resource) && await user.HasAccessAsync(org) &&
@@ -60,10 +60,9 @@ public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user
                 case "projects": await ApplyAsync(db.Projects.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "groups": await ApplyAsync(db.Groups.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "warranty": await ApplyAsync(db.WarrantyItems.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
-                case "files": await ApplyAsync(db.StoredFiles.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
+                case "files": await ApplyAsync(db.StoredFiles.Where(x => x.OrganizationId == org && x.MimeType != NetworkProjectFile.ContentType), changes, x => x.Id, token); break;
                 case "folders": await ApplyAsync(db.FileFolders.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "ip-entries": await ApplyAsync(db.IPEntries.Include(x => x.Subnet).Where(x => x.Subnet.OrganizationId == org && db.Subnets.Any(subnet => subnet.Id == x.SubnetId)), changes, x => x.Id, token); break;
-                case "diagram": await ApplyAsync(db.DiagramNodes.Where(x => x.OrganizationId == org), changes, x => x.Id, token); break;
                 case "private-notes": await ApplyAsync(db.PrivateNotes.Where(x => x.OrganizationId == org && x.UserId == user.UserId), changes, x => x.Id, token); break;
             }
             await db.SaveChangesAsync(token);
@@ -82,7 +81,7 @@ public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user
         foreach (var entry in entries) entry.SortIndex = changes[getId(entry)];
     }
 
-    private static Guid PermissionId(string resource, OrderRow row) => resource == "ip-entries" ? row.ParentId!.Value : resource == "diagram" ? Guid.Empty : row.Id;
+    private static Guid PermissionId(string resource, OrderRow row) => resource == "ip-entries" ? row.ParentId!.Value : row.Id;
 
     private sealed class OrderRow { public Guid Id { get; set; } public string Name { get; set; } = ""; public int? SortIndex { get; set; } public Guid? ParentId { get; set; } }
     private IQueryable<OrderRow> Query(Guid org, string resource) => resource switch
@@ -100,10 +99,9 @@ public sealed class RecordOrderService(AppDbContext db, ICurrentUserContext user
         "projects" => db.Projects.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
         "groups" => db.Groups.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
         "warranty" => db.WarrantyItems.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex }),
-        "files" => db.StoredFiles.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex, ParentId = x.FolderId }),
+        "files" => db.StoredFiles.Where(x => x.OrganizationId == org && x.MimeType != NetworkProjectFile.ContentType).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex, ParentId = x.FolderId }),
         "folders" => db.FileFolders.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Name, SortIndex = x.SortIndex, ParentId = x.ParentFolderId }),
         "ip-entries" => db.IPEntries.Where(x => x.Subnet.OrganizationId == org && db.Subnets.Any(subnet => subnet.Id == x.SubnetId)).Select(x => new OrderRow { Id = x.Id, Name = x.Ip + " " + x.Label, SortIndex = x.SortIndex, ParentId = x.SubnetId }),
-        "diagram" => db.DiagramNodes.Where(x => x.OrganizationId == org).Select(x => new OrderRow { Id = x.Id, Name = x.Label, SortIndex = x.SortIndex }),
         "private-notes" => db.PrivateNotes.Where(x => x.OrganizationId == org && x.UserId == user.UserId).Select(x => new OrderRow { Id = x.Id, Name = x.Title, SortIndex = x.SortIndex }),
         _ => throw new ArgumentOutOfRangeException(nameof(resource))
     };

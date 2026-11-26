@@ -57,8 +57,8 @@ public sealed class SecurityPipelineTests
     [Theory]
     [InlineData("/api/organizations/{organizationId:guid}/private-notes", 4)]
     [InlineData("/api/dashboard-layout", 3)]
-    [InlineData("/api/diagram", 2)]
-    public void PersonalizationAndDiagramMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
+    [InlineData("/api/files", 13)]
+    public void PersonalizationAndFileMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
     {
         using var factory = new SecurityWebApplicationFactory();
         var endpoints = factory.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>()
@@ -371,56 +371,39 @@ public sealed class SecurityPipelineTests
     }
 
     [Fact]
-    public async Task DiagramEndpoint_RejectsOversizedNodeCollection()
+    public async Task NetworkProjectUpload_RejectsUnrelatedJsonAndListsValidProjectsSeparately()
     {
         using var factory = new SecurityWebApplicationFactory();
-        var user = new User
-        {
-            Email = "diagram-limit@test.local",
-            DisplayName = "Diagram Limit",
-            PasswordHash = [1],
-            PasswordSalt = [1]
-        };
-        var organization = new Organization { Name = "Limits" };
+        var organization = new Organization { Name = "Network project tests" };
         string token;
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Database.EnsureCreatedAsync();
-            db.AddRange(user, organization);
-            db.UserOrganizations.Add(new UserOrganization
-            {
-                UserId = user.Id,
-                OrganizationId = organization.Id,
-                Role = OrgRole.Owner
-            });
+            var user = new User { Email = "network-project@test.local", DisplayName = "Owner", PasswordHash = [1], PasswordSalt = [1] };
+            db.AddRange(user, organization, new UserOrganization { UserId = user.Id, OrganizationId = organization.Id, Role = OrgRole.Owner });
             await db.SaveChangesAsync();
-            token = scope.ServiceProvider.GetRequiredService<IJwtTokenService>()
-                .CreateToken(user.Id, user.Email, user.SystemRole, user.SecurityStamp);
+            token = scope.ServiceProvider.GetRequiredService<IJwtTokenService>().CreateToken(user.Id, user.Email, user.SystemRole, user.SecurityStamp);
         }
 
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost")
-        });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var nodes = Enumerable.Range(0, 2001).Select(index => new
+        var query = $"organizationId={organization.Id}";
+        async Task<HttpStatusCode> Upload(string json)
         {
-            id = Guid.NewGuid(),
-            deviceType = "server",
-            label = $"Node {index}",
-            assetId = (Guid?)null,
-            x = 0,
-            y = 0,
-            color = (string?)null,
-            ip = (string?)null
-        });
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(json), "file", "project.json");
+            using var response = await client.PostAsync($"/api/files/upload?{query}&networkProject=true", form);
+            return response.StatusCode;
+        }
 
-        var response = await client.PutAsJsonAsync(
-            $"/api/diagram?organizationId={organization.Id}", new { nodes, edges = Array.Empty<object>() });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        (await Upload("{}")).Should().Be(HttpStatusCode.BadRequest);
+        (await Upload("""{"name":"Office","devices":[],"links":[]}""")).Should().Be(HttpStatusCode.OK);
+        using var ordinaryFiles = JsonDocument.Parse(await client.GetStringAsync($"/api/files?{query}"));
+        using var projects = JsonDocument.Parse(await client.GetStringAsync($"/api/files?{query}&networkProjects=true"));
+        ordinaryFiles.RootElement.GetArrayLength().Should().Be(0);
+        projects.RootElement.GetArrayLength().Should().Be(1);
+        projects.RootElement[0].GetProperty("name").GetString().Should().Be("project.json");
     }
 
     [Fact]

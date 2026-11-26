@@ -15,8 +15,8 @@ public interface IFileExplorerService
     Task<ApiOperationResult> GetFoldersAsync(Guid organizationId, Guid? parentFolderId, PaginationParameters? pagination, CancellationToken token = default);
     Task<ApiOperationResult> CreateFolderAsync(Guid organizationId, CreateFolderDto dto, CancellationToken token = default);
     Task<ApiOperationResult> DeleteFolderAsync(Guid id, CancellationToken token = default);
-    Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default);
-    Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default);
+    Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default, bool networkProjects = false);
+    Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default, bool networkProject = false);
     Task<ApiOperationResult> ReplaceAsync(Guid id, IFormFile file, CancellationToken token = default, string? revision = null);
     Task<ApiOperationResult> GetContentAsync(Guid id, bool download, CancellationToken token = default);
     Task<ApiOperationResult> DeleteFileAsync(Guid id, CancellationToken token = default);
@@ -73,22 +73,33 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         return new(StatusCodes.Status204NoContent);
     }
 
-    public async Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default)
+    public async Task<ApiOperationResult> GetFilesAsync(Guid organizationId, Guid? folderId, PaginationParameters? pagination, CancellationToken token = default, bool networkProjects = false)
     {
         if (!await userContext.HasPermissionAsync(organizationId, "files")) return new(StatusCodes.Status403Forbidden);
         if (!Pagination.TryResolve(pagination, out var window)) return new(StatusCodes.Status400BadRequest, "Both page and pageSize must be supplied together.");
-        var query = db.StoredFiles.Where(file => file.OrganizationId == organizationId &&
-            (file.FolderId == folderId || (folderId == null && !db.FileFolders.Any(folder => folder.Id == file.FolderId && folder.OrganizationId == organizationId))));
+        var query = db.StoredFiles.Where(file => file.OrganizationId == organizationId);
+        query = networkProjects
+            ? query.Where(file => file.MimeType == NetworkProjectFile.ContentType)
+            : query.Where(file => file.MimeType != NetworkProjectFile.ContentType &&
+                (file.FolderId == folderId || (folderId == null && !db.FileFolders.Any(folder => folder.Id == file.FolderId && folder.OrganizationId == organizationId))));
         var total = await query.CountAsync(token);
         var items = await query.OrderBy(file => file.SortIndex ?? int.MaxValue).ThenBy(file => file.Id).Skip(window.Offset).Take(window.PageSize)
             .ProjectTo<StoredFileDto>(mapper.ConfigurationProvider).ToListAsync(token);
         return new(StatusCodes.Status200OK, items, Pagination: new PaginationMetadata(total, window));
     }
 
-    public async Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default)
+    public async Task<ApiOperationResult> UploadAsync(Guid organizationId, Guid? folderId, IFormFile file, CancellationToken token = default, bool networkProject = false)
     {
         if (!await userContext.HasPermissionAsync(organizationId, "files", true)) return new(StatusCodes.Status403Forbidden);
-        ValidatedUpload validated; try { validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token); } catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
+        if (networkProject && folderId is not null) return new(StatusCodes.Status400BadRequest, "Network projects are stored in the network project library.");
+        ValidatedUpload validated;
+        try
+        {
+            validated = networkProject
+                ? await NetworkProjectFile.ValidateAsync(file, token)
+                : await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token);
+        }
+        catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
         if (folderId is { } target && !await db.FileFolders.AnyAsync(folder => folder.Id == target && folder.OrganizationId == organizationId, token))
             return new(StatusCodes.Status400BadRequest, "Target folder does not exist.");
         await using var content = file.OpenReadStream();
@@ -105,21 +116,23 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         if (stored is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(stored.OrganizationId, "files", true, stored.Id))
             return new(StatusCodes.Status403Forbidden);
+        var networkProject = stored.MimeType == NetworkProjectFile.ContentType;
         var editing = revision is not null;
-        if (editing && (revision != ContentRevision(stored) || file.FileName != stored.Name))
+        if (editing && (revision != ContentRevision(stored) || (!networkProject && file.FileName != stored.Name)))
             return ContentConflict();
         ValidatedUpload validated;
         try
         {
-            validated = await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token,
-                allowEmptyText: editing);
+            validated = networkProject
+                ? await NetworkProjectFile.ValidateAsync(file, token)
+                : await FileUploadSecurity.ValidateAsync(file, FileUploadSecurity.MaxFileBytes, token, allowEmptyText: editing);
         }
         catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
         await using var content = file.OpenReadStream();
         var path = await storage.SaveAsync(content, validated.FileName, validated.ContentType);
         var previousPath = stored.BlobPath;
         stored.BlobPath = path;
-        if (!editing) stored.Name = validated.FileName;
+        if (!editing && !networkProject) stored.Name = validated.FileName;
         stored.MimeType = validated.ContentType;
         stored.Size = file.Length;
         try { await db.SaveChangesAsync(token); }
@@ -181,13 +194,20 @@ public sealed class FileExplorerService(AppDbContext db, IMapper mapper, ICurren
         var file = await db.StoredFiles.FirstOrDefaultAsync(item => item.Id == id, token); if (file is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(file.OrganizationId, "files", true, file.Id)) return new(StatusCodes.Status403Forbidden);
         if (string.IsNullOrWhiteSpace(dto.Name)) return new(StatusCodes.Status400BadRequest, "File name is required.");
-        file.Name = dto.Name.Trim(); await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);
+        var name = dto.Name.Trim();
+        if (file.MimeType == NetworkProjectFile.ContentType)
+        {
+            try { name = NetworkProjectFile.ValidateName(name); }
+            catch (InvalidDataException ex) { return new(StatusCodes.Status400BadRequest, ex.Message); }
+        }
+        file.Name = name; await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);
     }
 
     public async Task<ApiOperationResult> MoveFileAsync(Guid id, MoveFileDto dto, CancellationToken token = default)
     {
         var file = await db.StoredFiles.FirstOrDefaultAsync(item => item.Id == id, token); if (file is null) return new(StatusCodes.Status404NotFound);
         if (!await userContext.HasPermissionAsync(file.OrganizationId, "files", true, file.Id)) return new(StatusCodes.Status403Forbidden);
+        if (file.MimeType == NetworkProjectFile.ContentType) return new(StatusCodes.Status400BadRequest, "Network projects are stored in the network project library.");
         if (dto.NewFolderId is { } target && !await db.FileFolders.AnyAsync(folder => folder.Id == target && folder.OrganizationId == file.OrganizationId, token))
             return new(StatusCodes.Status400BadRequest, "Target folder does not exist.");
         file.FolderId = dto.NewFolderId; await db.SaveChangesAsync(token); return new(StatusCodes.Status204NoContent);

@@ -5,7 +5,7 @@ import { useAuth } from './useAuth'
 import type {
   CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
-  DiagramNode, DiagramEdge, Toast,
+  Toast,
   OrgMembership,
   OrgRole,
   Project,
@@ -13,7 +13,7 @@ import type {
 import {
   organizationsApi, assetsApi, passwordsApi, subnetsApi, licensesApi,
   contactsApi, contractsApi, plansApi, incidentsApi, knowledgeApi,
-  tasksApi, groupsApi, warrantyApi, diagramApi,
+  tasksApi, groupsApi, warrantyApi,
   projectsApi,
 } from '../api/resources'
 import { ApiError } from '../api/http'
@@ -30,7 +30,6 @@ function emptyOrgState() {
     licenses: [] as License[], contacts: [] as Contact[], contracts: [] as Contract[],
     plans: [] as Plan[], incidents: [] as Incident[], knowledgeArticles: [] as KnowledgeArticle[],
     tasks: [] as Task[], projects: [] as Project[], groups: [] as Group[], warrantyItems: [] as WarrantyItem[],
-    diagramNodes: [] as DiagramNode[], diagramEdges: [] as DiagramEdge[],
   }
 }
 
@@ -195,17 +194,15 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
       load('projects', () => projectsApi.getAll(currentOrgId)),
       load('groups', () => groupsApi.getAll(currentOrgId)),
       load('warranty', () => warrantyApi.getAll(currentOrgId)),
-      !hiddenModules.includes('diagram') && hasPermission(access, 'diagram') ? diagramApi.get(currentOrgId) : Promise.resolve({ nodes: [], edges: [] }),
     ]).then(([
       assets, passwords, subnets, licenses, contacts, contracts,
-      plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems, diagram,
+      plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems,
     ]) => {
       if (cancelled) return
       setLoadedAccess(access)
       setData({
         assets, passwords, subnets, licenses, contacts, contracts,
         plans, incidents, knowledgeArticles, tasks, projects, groups, warrantyItems,
-        diagramNodes: diagram.nodes, diagramEdges: diagram.edges,
       })
     }).catch(() => {
       if (!cancelled) {
@@ -307,7 +304,7 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
       const indices = new Map(detail.changes.map(change => [change.id, change.sortIndex]))
       const keys: Record<string, keyof ReturnType<typeof emptyOrgState>> = {
         assets: 'assets', passwords: 'passwords', networks: 'subnets', licenses: 'licenses', contacts: 'contacts', contracts: 'contracts',
-        plans: 'plans', incidents: 'incidents', knowledge: 'knowledgeArticles', tasks: 'tasks', projects: 'projects', groups: 'groups', warranty: 'warrantyItems', diagram: 'diagramNodes',
+        plans: 'plans', incidents: 'incidents', knowledge: 'knowledgeArticles', tasks: 'tasks', projects: 'projects', groups: 'groups', warranty: 'warrantyItems',
       }
       if (detail.resource === 'ip-entries') setData(previous => ({ ...previous, subnets: previous.subnets.map(subnet => ({ ...subnet, ips: subnet.ips.map(entry => indices.has(entry.id) ? { ...entry, sortIndex: indices.get(entry.id)! } : entry) })) }))
       else {
@@ -701,12 +698,6 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     toast(tr("Document uploaded"))
   }, [guarded, toast])
 
-  // ── Diagram ──
-  const saveDiagram = useCallback(async (nodes: DiagramNode[], edges: DiagramEdge[]) => {
-    await guarded(() => diagramApi.save(currentOrgId, nodes, edges), 'Failed to save diagram')
-    setData(d => ({ ...d, diagramNodes: nodes, diagramEdges: edges }))
-  }, [currentOrgId, guarded])
-
   const orderedData = useMemo(() => ({ ...data,
     assets: orderRecords(data.assets),
     passwords: orderRecords(data.passwords),
@@ -720,7 +711,6 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     projects: orderRecords(data.projects),
     groups: orderRecords(data.groups),
     warrantyItems: orderRecords(data.warrantyItems),
-    diagramNodes: orderRecords(data.diagramNodes),
     subnets: orderRecords(data.subnets).map(subnet => ({ ...subnet, ips: orderRecords(subnet.ips) })),
   }), [data])
 
@@ -745,7 +735,6 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     addProject, updateProject, deleteProject,
     addGroup, updateGroup, deleteGroup,
     reloadWarranties, addWarranty, updateWarranty, deleteWarranty, toggleStarWarranty, uploadWarrantyDocument,
-    saveDiagram,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

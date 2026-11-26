@@ -32,7 +32,6 @@ const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'))
 const Tasks = lazy(() => import('./components/Tasks'))
 const Groups = lazy(() => import('./components/Groups'))
 const Warranty = lazy(() => import('./components/Warranty'))
-const NetworkDiagram = lazy(() => import('./components/NetworkDiagram'))
 const Settings = lazy(() => import('./components/Settings'))
 const AdminPanel = lazy(() => import('./components/AdminPanel'))
 const FileExplorer = lazy(() => import('./components/FileExplorer'))
@@ -123,7 +122,7 @@ function AuthenticatedApp() {
       case 'tasks':        return <Tasks />
       case 'groups':       return <Groups />
       case 'warranty':     return <Warranty />
-      case 'diagram':      return <NetworkDiagram />
+      case 'diagram':      return <FileExplorer networkProjects />
       case 'settings':     return <Settings navigate={navigate} />
       case 'adminpanel':   return <AdminPanel />
       default:             return null
@@ -131,7 +130,7 @@ function AuthenticatedApp() {
   })()
 
   return (
-    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram', 'operations'].includes(activeView)}>
+    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'operations'].includes(activeView)}>
       <OrganizationLifecycleRedirect view={activeView} navigate={navigate} />
       {/* Keep Studio mounted on return so pending local saves can finish. */}
       {auditPage !== 'unopened' && <div hidden={!inAudit}>

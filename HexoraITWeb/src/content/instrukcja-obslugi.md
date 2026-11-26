@@ -45,7 +45,7 @@ W **Ustawienia → Wygląd** zmienisz język i motyw. W **Ustawienia → Profil*
 | Umowy | Informacje o umowach i związanych z nimi dokumentach. |
 | Gwarancja | Ewidencja gwarancji sprzętu. |
 | Grupy | Dokumentowanie grup infrastruktury, np. grup AD; role dostępu do HexoraIT ustawia się osobno. |
-| Diagram | Graficzny schemat infrastruktury i połączeń urządzeń. |
+| Projekty sieci | Biblioteka plików JSON organizacji z odnośnikiem do Network Architect. Pobierz plik i zaimportuj go w edytorze. Po eksporcie dodaj nowy plik lub podmień zawartość istniejącego. |
 | Baza wiedzy | Wspólne procedury, instrukcje i artykuły. |
 | Prywatne notatki | Własne notatki użytkownika w kontekście organizacji. |
 | Kontakty | Dane osób i firm związanych z infrastrukturą. |
@@ -217,7 +217,7 @@ Reguła konkretnego elementu ma pierwszeństwo przed ustawieniami całego moduł
 4. Kliknij **Dodaj regułę**, następnie zaznacz **Odczyt** przy dodanej regule. Samo dodanie reguły nie włącza odczytu.
 5. Zapisz rolę.
 
-Osoba zobaczy udostępniony artykuł, ale nie pozostałe artykuły. Usunięcie reguły przywraca dla tego elementu ustawienie całego modułu. Reguła sieci obejmuje również jej adresy IP. Dla pulpitu, diagramu i ustawień edytor udostępnia uprawnienia modułu, bez wyboru pojedynczych elementów.
+Osoba zobaczy udostępniony artykuł, ale nie pozostałe artykuły. Usunięcie reguły przywraca dla tego elementu ustawienie całego modułu. Reguła sieci obejmuje również jej adresy IP. Dla pulpitu i ustawień edytor udostępnia uprawnienia modułu. Biblioteka projektów sieci korzysta z uprawnień modułu Pliki.
 
 Przyciski **Zezwól na wszystko** i **Zablokuj wszystko** zastępują aktualną konfigurację edytowanej roli, w tym usuwają jej indywidualne reguły. Przed zapisaniem sprawdź wynik.
 

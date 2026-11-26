@@ -3,7 +3,7 @@ import type { PasswordImportEntry } from '../lib/passwordImport'
 import type {
   CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
-  DiagramNode, DiagramEdge, Toast,
+  Toast,
   OrgMember,
   OrgRole,
   Project,
@@ -30,7 +30,7 @@ export interface AppContextValue {
   assets: Asset[]; passwords: PasswordEntry[]; subnets: Subnet[]; licenses: License[]
   contacts: Contact[]; contracts: Contract[]; plans: Plan[]; incidents: Incident[]
   knowledgeArticles: KnowledgeArticle[]; projects: Project[]; tasks: Task[]
-  groups: Group[]; warrantyItems: WarrantyItem[]; diagramNodes: DiagramNode[]; diagramEdges: DiagramEdge[]
+  groups: Group[]; warrantyItems: WarrantyItem[]
   isLoading: boolean
   toasts: Toast[]; dismissToast: (id: string) => void; toast: (message: string, type?: Toast['type']) => void
 
@@ -105,7 +105,6 @@ export interface AppContextValue {
   toggleStarWarranty: (id: string) => Promise<void>
   uploadWarrantyDocument: (id: string, file: File) => Promise<void>
 
-  saveDiagram: (nodes: DiagramNode[], edges: DiagramEdge[]) => Promise<void>
 }
 
 export const AppContext = createContext<AppContextValue | null>(null)

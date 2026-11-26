@@ -109,6 +109,8 @@ public sealed class OrganizationArchiveTests : IDisposable
         var node2 = new DiagramNode { OrganizationId = org.Id, Label = "Internet" };
         var payload = Encoding.UTF8.GetBytes("Attachment data with Polish text: Łódź");
         var blob = await fixture.Storage.SaveAsync(new MemoryStream(payload), "manual.txt", "text/plain");
+        var projectJson = """{"name":"Office","devices":[],"links":[]}"""u8.ToArray();
+        var projectBlob = await fixture.Storage.SaveAsync(new MemoryStream(projectJson), "office.json", NetworkProjectFile.ContentType);
         fixture.Db.AddRange(asset, subnet, project, folder, child, node, node2,
             new DiagramEdge { OrganizationId = org.Id, SourceNodeId = node.Id, TargetNodeId = node2.Id },
             new IPEntry { SubnetId = subnet.Id, AssetId = asset.Id, Ip = "10.0.0.1", IsAutoManaged = true, Status = IPEntryStatus.Used },
@@ -118,6 +120,7 @@ public sealed class OrganizationArchiveTests : IDisposable
             new Contract { OrganizationId = org.Id, Name = "Support", DocumentName = "contract.txt", DocumentMimeType = "text/plain", DocumentSize = payload.Length, DocumentBlobPath = blob },
             new WarrantyItem { OrganizationId = org.Id, Name = "Warranty", AssetId = asset.Id, DocumentName = "warranty.txt", DocumentMimeType = "text/plain", DocumentSize = payload.Length, DocumentBlobPath = blob },
             new StoredFile { OrganizationId = org.Id, Name = "manual.txt", MimeType = "text/plain", Size = payload.Length, BlobPath = blob, FolderId = child.Id },
+            new StoredFile { OrganizationId = org.Id, Name = "office.json", MimeType = NetworkProjectFile.ContentType, Size = projectJson.Length, BlobPath = projectBlob },
             new WorkTask { OrganizationId = org.Id, Title = "Task", ProjectId = project.Id, CreatedByUserId = user.Id, CreatedByName = "ACCOUNT_ATTRIBUTION" },
             new Plan { OrganizationId = org.Id, Title = "Plan", AssetIds = [asset.Id], SubnetIds = [subnet.Id] },
             new Incident { OrganizationId = org.Id, Title = "Incident" },
@@ -137,7 +140,7 @@ public sealed class OrganizationArchiveTests : IDisposable
         }
         var destination = await Destination(user);
         var preview = await Preview(destination.Id, zip);
-        preview.FileCount.Should().Be(3);
+        preview.FileCount.Should().Be(4);
         preview.Counts.Where(p => p.Value > 0).Should().HaveCount(ArchiveSchema.Entities.Length);
         (await Service().ImportAsync(destination.Id, Upload(zip), new(Password, preview.ReviewToken, destination.Name, true, ArchiveTestZip.Password))).StatusCode.Should().Be(200);
         fixture.Db.ChangeTracker.Clear();
@@ -151,12 +154,15 @@ public sealed class OrganizationArchiveTests : IDisposable
         task.ProjectId.Should().NotBe(project.Id); task.CreatedByUserId.Should().BeNull(); task.CreatedByName.Should().BeNull();
         var password = await fixture.Db.Passwords.SingleAsync(p => p.OrganizationId == destination.Id);
         fixture.Cipher.Decrypt(password.EncryptedPassword).Should().Be("literal-#secret");
-        var stored = await fixture.Db.StoredFiles.SingleAsync(f => f.OrganizationId == destination.Id);
+        var stored = await fixture.Db.StoredFiles.SingleAsync(f => f.OrganizationId == destination.Id && f.Name == "manual.txt");
         stored.BlobPath.Should().NotBe(blob);
         await using var restored = await fixture.Storage.OpenAsync(stored.BlobPath);
         using var buffer = new MemoryStream(); await restored.CopyToAsync(buffer); buffer.ToArray().Should().Equal(payload);
         var restoredFolder = await fixture.Db.FileFolders.SingleAsync(f => f.Id == stored.FolderId);
         restoredFolder.ParentFolderId.Should().NotBe(folder.Id).And.NotBeNull();
+        var restoredProject = await fixture.Db.StoredFiles.SingleAsync(f => f.OrganizationId == destination.Id && f.Name == "office.json");
+        restoredProject.MimeType.Should().Be(NetworkProjectFile.ContentType);
+        restoredProject.FolderId.Should().BeNull();
         var edge = await fixture.Db.DiagramEdges.SingleAsync(e => e.OrganizationId == destination.Id);
         edge.SourceNodeId.Should().NotBe(node.Id); edge.TargetNodeId.Should().NotBe(node2.Id);
         (await fixture.Db.Users.CountAsync()).Should().Be(1);

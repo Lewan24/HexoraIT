@@ -16,8 +16,6 @@ export type TaskStatus = 'todo' | 'in-progress' | 'done'
 export type GroupType = 'AD Security' | 'AD Distribution' | 'AD OU' | 'Local Group' | 'VLAN Group' | 'Project Team' | 'Other'
 export type WarrantyType = 'Standard' | 'Extended' | 'On-Site NBD' | 'Carry-In' | 'Mail-In' | 'Other'
 export type WarrantyStatus = 'active' | 'expiring' | 'expired'
-export type DiagramDeviceType = 'server' | 'firewall' | 'switch' | 'router' | 'workstation' | 'ap' | 'storage' | 'cloud' | 'internet' | 'printer' | 'custom'
-export type DiagramConnectionType = 'ethernet' | 'fiber' | 'wireless' | 'vpn' | 'wan'
 export type OrgRole = 'ReadOnly' | 'Member' | 'Admin' | 'Owner'
 export type SystemRole = 'User' | 'Admin' | 'Client'
 
@@ -131,16 +129,6 @@ export interface WarrantyItem extends OrderedRecord {
   contactName: string; contactPhone: string; contactEmail: string
   notes: string; assetId?: string; document?: WarrantyDocument
   starred: boolean; status: WarrantyStatus
-}
-
-export interface DiagramNode extends OrderedRecord {
-  id: string; deviceType: DiagramDeviceType; label: string; ip?: string
-  assetId?: string; x: number; y: number; color?: string
-}
-
-export interface DiagramEdge {
-  id: string; source: string; target: string
-  label?: string; connectionType: DiagramConnectionType
 }
 
 export interface FileFolder extends OrderedRecord { id: string; name: string; parentFolderId?: string; createdAt: string }

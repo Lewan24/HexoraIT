@@ -94,7 +94,6 @@ public sealed class RecordOrderTests : IDisposable
             ["files"] = new StoredFile { OrganizationId = org.Id },
             ["folders"] = new FileFolder { OrganizationId = org.Id },
             ["ip-entries"] = new IPEntry { SubnetId = subnet.Id },
-            ["diagram"] = new DiagramNode { OrganizationId = org.Id },
             ["private-notes"] = new PrivateNote { OrganizationId = org.Id, UserId = user.Id }
         };
         fixture.Db.AddRange(entities.Values.Cast<object>()); await fixture.Db.SaveChangesAsync();
@@ -109,7 +108,7 @@ public sealed class RecordOrderTests : IDisposable
         contracts.Single().SortIndex.Should().Be(17);
         var warranties = (List<WarrantyItemDto>)(await new WarrantyService(fixture.Db, fixture.Mapper, fixture.UserContext, fixture.Storage, Microsoft.Extensions.Logging.Abstractions.NullLogger<WarrantyService>.Instance).GetAllAsync(org.Id, null)).Value!;
         warranties.Single().SortIndex.Should().Be(17);
-        var dtoTypes = new Dictionary<string, Type> { ["assets"] = typeof(AssetDto), ["passwords"] = typeof(PasswordListDto), ["networks"] = typeof(SubnetDto), ["licenses"] = typeof(LicenseDto), ["contacts"] = typeof(ContactDto), ["plans"] = typeof(PlanDto), ["incidents"] = typeof(IncidentDto), ["knowledge"] = typeof(KnowledgeArticleDto), ["tasks"] = typeof(WorkTaskDto), ["projects"] = typeof(ProjectDto), ["groups"] = typeof(GroupDto), ["folders"] = typeof(FileFolderDto), ["files"] = typeof(StoredFileDto), ["ip-entries"] = typeof(IPEntryDto), ["diagram"] = typeof(DiagramNodeDto) };
+        var dtoTypes = new Dictionary<string, Type> { ["assets"] = typeof(AssetDto), ["passwords"] = typeof(PasswordListDto), ["networks"] = typeof(SubnetDto), ["licenses"] = typeof(LicenseDto), ["contacts"] = typeof(ContactDto), ["plans"] = typeof(PlanDto), ["incidents"] = typeof(IncidentDto), ["knowledge"] = typeof(KnowledgeArticleDto), ["tasks"] = typeof(WorkTaskDto), ["projects"] = typeof(ProjectDto), ["groups"] = typeof(GroupDto), ["folders"] = typeof(FileFolderDto), ["files"] = typeof(StoredFileDto), ["ip-entries"] = typeof(IPEntryDto) };
         foreach (var (resource, dtoType) in dtoTypes)
         {
             var dto = fixture.Mapper.Map(entities[resource], entities[resource].GetType(), dtoType);

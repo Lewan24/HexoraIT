@@ -29,7 +29,7 @@ test('optional UI dates are normalized to valid non-null backend date values', (
 })
 
 test('multipart uploads preserve the files endpoint contract', () => {
-  assert.match(resources, /\/files\/upload\$\{qs\(\{ organizationId, folderId \}\)\}/)
+  assert.match(resources, /\/files\/upload\$\{qs\(\{ organizationId, folderId, networkProject: networkProject \? 'true' : undefined \}\)\}/)
   assert.match(http, /const form = new FormData\(\)/)
   assert.match(http, /form\.append\(['"]file['"]/)
   assert.doesNotMatch(http, /Content-Type['"]:\s*['"]multipart\/form-data/)

@@ -10,7 +10,7 @@ export default function PermissionGate({ view, children }: { view: View; childre
   useLocale()
   const { user } = useAuth()
   const isClient = user?.systemRole === 'Client'
-  const { access, accessError, canRead, canWrite, currentOrg, isLoading } = useApp()
+  const { access, accessError, canRead, canWrite, currentOrg, hiddenModules, isLoading } = useApp()
   // Static application help is available independently of organization access.
   if (view === 'home') return isClient ? <p className="p-6">{tr('Access forbidden')}</p> : children
   if (view === 'help') return children
@@ -26,8 +26,8 @@ export default function PermissionGate({ view, children }: { view: View; childre
   if (view === 'reports' && isClient) return children
   if (view === 'private-notes') return children
   if (view === 'audit-studio' && canRead('audit-history', MODULE_ID)) return children
-  const resource = view === 'asset-detail' ? 'assets' : ['organization-customization', 'organization-documentation'].includes(view) ? 'settings' : view
-  if (!canRead(resource, resource === 'audit-history' ? MODULE_ID : undefined)) {
+  const resource = view === 'diagram' ? 'files' : view === 'asset-detail' ? 'assets' : ['organization-customization', 'organization-documentation'].includes(view) ? 'settings' : view
+  if ((view === 'diagram' && hiddenModules.includes('diagram')) || !canRead(resource, resource === 'audit-history' ? MODULE_ID : undefined)) {
     return (
       <div role="alert" className="p-8 flex flex-col items-center gap-3 text-center text-ink-secondary">
         <ShieldAlert size={32} className="text-orange-400" />

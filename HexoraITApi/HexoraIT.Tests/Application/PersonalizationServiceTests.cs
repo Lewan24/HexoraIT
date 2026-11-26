@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HexoraIT.Tests.Application;
 
-public sealed class PersonalizationAndDiagramServiceTests : IDisposable
+public sealed class PersonalizationServiceTests : IDisposable
 {
     private readonly TestFixture _fixture = new();
 
@@ -70,27 +70,6 @@ public sealed class PersonalizationAndDiagramServiceTests : IDisposable
         (await service.SaveAsync(organization.Id, new([], [], 100))).StatusCode.Should().Be(400);
         (await service.ResetAsync(organization.Id)).StatusCode.Should().Be(StatusCodes.Status204NoContent);
         (await service.GetAsync(organization.Id)).Value.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Diagram_RejectsForeignAssetsAndInvalidEdgesWithoutReplacingData()
-    {
-        var (_, organization) = _fixture.SeedUserWithOrg();
-        var other = new Organization { Name = "Other" };
-        var foreignAsset = new Asset { OrganizationId = other.Id, Name = "Foreign" };
-        var existing = new DiagramNode { OrganizationId = organization.Id, Label = "Existing" };
-        _fixture.Db.AddRange(other, foreignAsset, existing);
-        await _fixture.Db.SaveChangesAsync();
-        var service = new DiagramService(_fixture.Db, _fixture.Mapper, _fixture.UserContext);
-        var nodeId = Guid.NewGuid();
-
-        var foreign = await service.SaveAsync(organization.Id, new([new(nodeId, DiagramDeviceType.Server, "Node", null, foreignAsset.Id, 0, 0, null)], []));
-        var invalidEdge = await service.SaveAsync(organization.Id, new([new(nodeId, DiagramDeviceType.Server, "Node", null, null, 0, 0, null)],
-            [new(Guid.NewGuid(), nodeId, Guid.NewGuid(), null, DiagramConnectionType.Ethernet)]));
-
-        foreign.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        invalidEdge.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        (await _fixture.Db.DiagramNodes.SingleAsync()).Id.Should().Be(existing.Id);
     }
 
     public void Dispose() => _fixture.Dispose();

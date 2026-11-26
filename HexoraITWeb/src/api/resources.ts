@@ -3,7 +3,7 @@ import type { PasswordImportEntry } from '../lib/passwordImport'
 import type {
   CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
-  DiagramNode, DiagramEdge, Organization, OrganizationSummary,
+  Organization, OrganizationSummary,
   OrgMember, OrgMembership,
   OrgRole,
   AdminUser,
@@ -205,12 +205,6 @@ export const warrantyApi = {
   downloadDocument: (id: string) => http.getBlob(`/warranties/${id}/document`),
 }
 
-export const diagramApi = {
-  get: (organizationId: string) => http.get<{ nodes: DiagramNode[]; edges: DiagramEdge[] }>(`/diagram${qs({ organizationId })}`),
-  save: (organizationId: string, nodes: DiagramNode[], edges: DiagramEdge[]) =>
-    http.put<void>(`/diagram${qs({ organizationId })}`, { nodes, edges }),
-}
-
 export const filesApi = {
   getFolders: (organizationId: string, parentFolderId?: string) =>
     http.getAllPages<FileFolder>(`/files/folders${qs({ organizationId, parentFolderId })}`),
@@ -218,10 +212,10 @@ export const filesApi = {
     http.post<FileFolder>(`/files/folders${qs({ organizationId })}`, { name, parentFolderId }),
   deleteFolder: (id: string) => http.delete<void>(`/files/folders/${id}`),
 
-  getFiles: (organizationId: string, folderId?: string) =>
-    http.getAllPages<StoredFile>(`/files${qs({ organizationId, folderId })}`),
-  upload: (organizationId: string, file: File, folderId?: string) =>
-    http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId })}`, file),
+  getFiles: (organizationId: string, folderId?: string, networkProjects = false) =>
+    http.getAllPages<StoredFile>(`/files${qs({ organizationId, folderId, networkProjects: networkProjects ? 'true' : undefined })}`),
+  upload: (organizationId: string, file: File, folderId?: string, networkProject = false) =>
+    http.upload<StoredFile>(`/files/upload${qs({ organizationId, folderId, networkProject: networkProject ? 'true' : undefined })}`, file),
   replace: (id: string, file: File, revision?: string) => http.upload<StoredFile>(`/files/${id}/replace${qs({ revision })}`, file),
   deleteFile: (id: string) => http.delete<void>(`/files/${id}`),
   getContent: (id: string) => http.getVersionedBlob(`/files/${id}/content`),

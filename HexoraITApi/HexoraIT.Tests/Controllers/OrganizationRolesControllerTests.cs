@@ -160,23 +160,6 @@ public class OrganizationRolesControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Diagram_OmitsNodesAndEdgesForHiddenAssets()
-    {
-        var (user, org) = _fx.SeedUserWithOrg();
-        var asset = new Asset { OrganizationId = org.Id, Name = "Secret" };
-        var node = new DiagramNode { OrganizationId = org.Id, AssetId = asset.Id, Label = "Secret copied name" };
-        _fx.Db.Assets.Add(asset);
-        _fx.Db.DiagramNodes.Add(node);
-        await _fx.Db.SaveChangesAsync();
-        await AssignCustomRole(user, org, new PermissionDto("diagram", Guid.Empty, true, true));
-        var diagram = new DiagramService(_fx.Db, _fx.Mapper, _fx.UserContext);
-
-        var result = (await diagram.GetAsync(org.Id)).Value.As<DiagramDto>();
-        result.Nodes.Should().BeEmpty();
-        (await diagram.SaveAsync(org.Id, new([], []))).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-    }
-
-    [Fact]
     public async Task FolderDeletion_CannotDeleteRestrictedDescendantFile()
     {
         var (user, org) = _fx.SeedUserWithOrg();

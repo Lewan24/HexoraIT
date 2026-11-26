@@ -29,6 +29,7 @@ type Membership = {
   customRoleId?: string
 }
 type ResourceName = "assets" | "passwords" | "subnets" | "licenses" | "contacts" | "contracts" | "plans" | "incidents" | "knowledge" | "projects" | "tasks" | "groups" | "warranties" | "folders" | "files"
+const NETWORK_PROJECT_MIME = "application/vnd.hexora.network-project+json"
 type DemoState = {
   users: DemoUser[]
   organizations: Entity[]
@@ -36,7 +37,6 @@ type DemoState = {
   deletedOrganizationIds: string[]
   resources: Record<ResourceName, Entity[]>
   roles: Entity[]
-  diagrams: Record<string, { nodes: unknown[]; edges: unknown[] }>
   privateNotes?: Entity[]
   dashboards: Record<string, unknown>
   fileContents: Record<string, string>
@@ -326,39 +326,6 @@ function initialState(): DemoState {
       files: [],
     },
     roles: [],
-    diagrams: {
-      [ORG_ID]: {
-        nodes: [
-          {
-            id: "dn1",
-            deviceType: "firewall",
-            label: "FW-EDGE",
-            ip: "10.20.0.1",
-            assetId: "a2",
-            x: 100,
-            y: 140,
-          },
-          {
-            id: "dn2",
-            deviceType: "server",
-            label: "HV-01",
-            ip: "10.20.0.10",
-            assetId: "a1",
-            x: 360,
-            y: 140,
-          },
-        ],
-        edges: [
-          {
-            id: "de1",
-            source: "dn1",
-            target: "dn2",
-            label: "VLAN 20",
-            connectionType: "ethernet",
-          },
-        ],
-      },
-    },
     dashboards: {},
     fileContents: {},
   }
@@ -389,9 +356,6 @@ function activityRows(state: DemoState) {
     rows.set(`${organizationId}/${resource}/${item.id}`, { resource, organizationId, item })
   for (const org of state.organizations) {
     add('Organization', org.id, { ...org, isDeleted: state.deletedOrganizationIds.includes(org.id) })
-    const diagram = state.diagrams[org.id]
-    for (const node of (diagram?.nodes ?? []) as Entity[]) add('DiagramNode', org.id, node)
-    for (const edge of (diagram?.edges ?? []) as Entity[]) add('DiagramEdge', org.id, edge)
   }
   for (const member of state.memberships) add('UserOrganization', member.organizationId, { ...member, id: member.userId })
   for (const role of state.roles) if (role.organizationId) add('OrganizationRole', role.organizationId, role)
@@ -878,28 +842,28 @@ async function request<T>(
       const resource = tail.slice('record-order/'.length)
       const permission = resource === 'folders' ? 'files' : resource === 'ip-entries' ? 'networks' : resource
       const personal = resource === 'private-notes' && user.systemRole !== 'Client' && state.memberships.some(m => m.userId === user.id && m.organizationId === orgId) && !state.deletedOrganizationIds.includes(orgId)
-      if (!personal && !demoPermission(state, user, orgId, permission)) throw new ApiError(403, 'Access forbidden.')
+      if (resource === 'diagram' || (!personal && !demoPermission(state, user, orgId, permission))) throw new ApiError(403, 'Access forbidden.')
       const collection = resource === 'networks' ? 'subnets' : resource === 'warranty' ? 'warranties' : resource
       let records: { entity: Entity; parentId?: string }[]
       if (resource === 'ip-entries') records = state.resources.subnets.filter(x => x.organizationId === orgId).flatMap(subnet => ((subnet.ips ?? []) as Entity[]).map(entity => ({ entity, parentId: subnet.id })))
-      else if (resource === 'diagram') records = ((state.diagrams[orgId]?.nodes ?? []) as Entity[]).map(entity => ({ entity }))
       else if (resource === 'private-notes') records = (state.privateNotes ?? []).filter(note => note.organizationId === orgId && note.userId === user.id).map(entity => ({ entity }))
       else if (collection in state.resources) records = state.resources[collection as ResourceName].filter(x => x.organizationId === orgId).map(entity => ({ entity, parentId: (entity.folderId ?? entity.parentFolderId) as string | undefined }))
       else throw new ApiError(400, 'Unknown record section.')
-      records = records.filter(row => personal || demoPermission(state, user, orgId, permission, false, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id))
+      records = records.filter(row => (resource !== 'files' || row.entity.mimeType !== NETWORK_PROJECT_MIME) &&
+        (personal || demoPermission(state, user, orgId, permission, false, resource === 'ip-entries' ? row.parentId : row.entity.id)))
       if (method === 'GET') {
         const search = (url.searchParams.get('search') ?? '').toLowerCase(), parent = url.searchParams.get('parentId')
         const page = Math.max(1, Number(url.searchParams.get('page') ?? 1)), size = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize') ?? 200)))
         return records.filter(row => (!parent || row.parentId === parent) && String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? '').toLowerCase().includes(search))
           .sort((a, b) => compareDemoOrder(a.entity, b.entity)).slice((page - 1) * size, page * size).map(row => ({ id: row.entity.id, name: String(row.entity.name ?? row.entity.title ?? row.entity.label ?? row.entity.ip ?? ''), sortIndex: row.entity.sortIndex ?? null,
-            canWrite: personal || demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row.parentId : resource === 'diagram' ? MODULE_ID : row.entity.id) })) as T
+            canWrite: personal || demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row.parentId : row.entity.id) })) as T
       }
       if (method === 'PATCH') {
         const changes = body.changes as { id: string; sortIndex: number | null }[]
         if (!Array.isArray(changes) || !changes.length || changes.length > 500 || new Set(changes.map(x => x?.id)).size !== changes.length || changes.some(x => !x || !x.id || (x.sortIndex !== null && (!Number.isInteger(x.sortIndex) || x.sortIndex < 1 || x.sortIndex > 1_000_000)))) throw new ApiError(400, 'Invalid record indices.')
         const selected = changes.map(change => ({ change, row: records.find(row => row.entity.id === change.id) }))
         if (selected.some(x => !x.row)) throw new ApiError(400, 'Some records are unavailable in this organization.')
-        if (!personal && selected.some(({ row }) => !demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row!.parentId : resource === 'diagram' ? MODULE_ID : row!.entity.id))) throw new ApiError(403, 'Access forbidden.')
+        if (!personal && selected.some(({ row }) => !demoPermission(state, user, orgId, permission, true, resource === 'ip-entries' ? row!.parentId : row!.entity.id))) throw new ApiError(403, 'Access forbidden.')
         for (const { change, row } of selected) row!.entity.sortIndex = change.sortIndex
         writeState(state)
         return changes as T
@@ -1116,15 +1080,6 @@ async function request<T>(
     writeState(state)
     return undefined as T
   }
-  if (route === "/diagram") {
-    const orgId = organizationId(url)
-    if (method === "GET")
-      return (state.diagrams[orgId] ?? { nodes: [], edges: [] }) as T
-    state.diagrams[orgId] = body as { nodes: unknown[]; edges: unknown[] }
-    writeState(state)
-    return undefined as T
-  }
-
   if (route === "/files/folders" && method === "GET") {
     const orgId = organizationId(url)
     const parentFolderId = url.searchParams.get("parentFolderId") ?? undefined
@@ -1148,8 +1103,11 @@ async function request<T>(
   if (route === "/files" && method === "GET") {
     const orgId = organizationId(url)
     const folderId = url.searchParams.get("folderId") ?? undefined
+    const networkProjects = url.searchParams.get("networkProjects") === "true"
+    if (!demoPermission(state, user, orgId, 'files')) throw new ApiError(403, "Access forbidden.")
     return (state.resources.files ?? []).filter(
-      (item) => item.organizationId === orgId && item.folderId === folderId,
+      item => item.organizationId === orgId && demoPermission(state, user, orgId, 'files', false, item.id) &&
+        (networkProjects ? item.mimeType === NETWORK_PROJECT_MIME : item.mimeType !== NETWORK_PROJECT_MIME && item.folderId === folderId),
     ) as T
   }
   const folderMatch = route.match(/^\/files\/folders\/([^/]+)(?:\/(move))?$/)
@@ -1174,11 +1132,19 @@ async function request<T>(
   if (fileMatch) {
     const fileId = fileMatch[1]!
     const file = state.resources.files.find((item) => item.id === fileId)
+    if (!file || !demoPermission(state, user, String(file.organizationId), 'files', false, fileId))
+      throw new ApiError(404, "File not found.")
     if (
       (fileMatch[2] === "content" || fileMatch[2] === "download") &&
       responseType === "blob"
     )
       return dataUrlBlob(state.fileContents[fileId]) as T
+    if (!demoPermission(state, user, String(file.organizationId), 'files', true, fileId))
+      throw new ApiError(403, "Access forbidden.")
+    if (file.mimeType === NETWORK_PROJECT_MIME && method === "PATCH") {
+      if (fileMatch[2] === "move") throw new ApiError(400, "Network projects are stored in the network project library.")
+      validateNetworkProjectName(String(body.name ?? "").trim())
+    }
     if (method === "DELETE") {
       state.resources.files = state.resources.files.filter(
         (item) => item.id !== fileId,
@@ -1421,27 +1387,60 @@ function fileSnapshot(path: string) {
   return { blob: dataUrlBlob(state.fileContents[file.id]), revision: fileRevision(file) }
 }
 
+function validateNetworkProjectName(name: string) {
+  if (!/^.+\.json$/i.test(name) || name !== name.trim() || name.length > 240 ||
+      /[<>:"/\\|?*]/.test(name) || [...name].some(character => character < ' '))
+    throw new ApiError(400, "Choose a network project with a .json file name.")
+}
+
+async function validateNetworkProject(file: File) {
+  validateNetworkProjectName(file.name)
+  if (file.size > 10 * 1024 * 1024) throw new ApiError(400, "Network projects must be at most 10 MiB.")
+  const data = await file.text().then(text => {
+    try { return JSON.parse(text) }
+    catch { return null }
+  })
+  if (!data || typeof data.name !== "string" || !Array.isArray(data.devices) || !Array.isArray(data.links))
+    throw new ApiError(400, "The file is not a valid Network Architect project JSON.")
+}
+
+function ordinaryFileMime(file: File) {
+  return file.type && file.type !== NETWORK_PROJECT_MIME ? file.type : "application/octet-stream"
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const url = new URL(path, "https://demo.local")
   const state = readState()
-  actor(state)
+  const currentUser = actor(state)
   if (url.pathname === "/files/upload") {
+    const orgId = organizationId(url)
+    const folderId = url.searchParams.get("folderId") ?? undefined
+    const networkProject = url.searchParams.get("networkProject") === "true"
+    if (!demoPermission(state, currentUser, orgId, 'files', true)) throw new ApiError(403, "Access forbidden.")
+    if (networkProject) {
+      if (folderId) throw new ApiError(400, "Network projects are stored in the network project library.")
+      await validateNetworkProject(file)
+    }
     const created = {
       id: id(),
-      organizationId: organizationId(url),
-      folderId: url.searchParams.get("folderId") ?? undefined,
+      organizationId: orgId,
+      folderId,
       name: file.name,
-      mimeType: file.type || "application/octet-stream",
+      mimeType: networkProject ? NETWORK_PROJECT_MIME : ordinaryFileMime(file),
       size: file.size,
       uploadedAt: now(),
     } as Entity
-    state.resources.files.push(created)
-    state.fileContents[created.id] = await dataUrl(file)
-    writeState(state)
+    const content = await dataUrl(file)
+    const latest = readState()
+    latest.resources.files.push(created)
+    latest.fileContents[created.id] = content
+    writeState(latest)
     return created as T
   }
   const replacement = url.pathname.match(/^\/files\/([^/]+)\/replace$/)
   if (replacement) {
+    const networkProject = state.resources.files.find(value => value.id === replacement[1])?.mimeType === NETWORK_PROJECT_MIME
+    if (networkProject) await validateNetworkProject(file)
     const content = await dataUrl(file)
     const latest = readState()
     const user = actor(latest)
@@ -1451,9 +1450,14 @@ async function upload<T>(path: string, file: File): Promise<T> {
     if (!demoPermission(latest, user, String(item.organizationId), 'files', true, item.id))
       throw new ApiError(403, "Access forbidden.")
     const revision = url.searchParams.get("revision")
-    if (revision !== null && (revision !== fileRevision(item) || file.name !== item.name))
+    if (revision !== null && (revision !== fileRevision(item) || (!networkProject && file.name !== item.name)))
       throw new ApiError(409, "This file changed. Reopen it before editing again.")
-    Object.assign(item, { name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, contentRevision: id() })
+    Object.assign(item, {
+      name: networkProject ? item.name : file.name,
+      mimeType: networkProject ? NETWORK_PROJECT_MIME : ordinaryFileMime(file),
+      size: file.size,
+      contentRevision: id(),
+    })
     latest.fileContents[item.id] = content
     writeState(latest)
     return item as T
