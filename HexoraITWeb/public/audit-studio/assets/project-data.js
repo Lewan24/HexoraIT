@@ -100,7 +100,8 @@
       observation: text(item.observation), evidence: text(item.evidence), impactText: text(item.impactText),
       likelihood: risk(item.likelihood), impact: risk(item.impact), action: text(item.action), owner: text(item.owner),
       due: dateOnly(item.due), status: choice(item.status, findingStatus, 'open'),
-      managementResponse: text(item.managementResponse), retestEvidence: text(item.retestEvidence)
+      managementResponse: text(item.managementResponse), retestEvidence: text(item.retestEvidence),
+      ...(typeof item.questionId === 'string' ? { questionId: item.questionId } : {})
     }));
     const report = project.report ?? {};
     fields(result.report, report, ['classification', 'method', 'summary', 'limits', 'approved']);
@@ -111,5 +112,112 @@
     return result;
   }
 
-  window.AUDIT_PROJECT_DATA = { normalizeProject, dateOnly, risk };
+  const results = { unassessed:'Nie oceniono', conform:'Zgodne', partial:'Częściowo', nonconform:'Niezgodne', notapp:'Nie dotyczy' };
+  const scores = { conform:1, partial:0.5, nonconform:0 };
+  const findingScales = { niskie:[1,3], średnie:[2,3], wysokie:[4,4] };
+  const idPattern = /^[a-z0-9-]{1,80}$/i;
+  const questionFields = ['id','area','question','why','how','evidence','risk','riskReason','recommendation','reference','permission'];
+
+  function indicators(values) {
+    let eligible=0, assessed=0, points=0, excluded=0;
+    for (const status of values) {
+      if (status==='notapp') { excluded++; continue; }
+      eligible++;
+      if (Object.hasOwn(scores,status)) { assessed++; points+=scores[status]; }
+    }
+    return { eligible, assessed, excluded, unassessed:eligible-assessed, points,
+      percent:assessed ? Math.round(points / eligible * 100) : null };
+  }
+
+  function findingFromQuestion(question, answer, id) {
+    if (!['partial','nonconform'].includes(answer?.status)) return null;
+    const [likelihood,impact] = findingScales[question.risk];
+    return {
+      id, questionId:question.id, task:question.id, title:question.question,
+      criterion:question.reference, observation:results[answer.status]+(answer.note.trim()?' — '+answer.note.trim():' — uzupełnij opis na podstawie dowodu.'),
+      evidence:answer.evidence, likelihood, impact, impactText:question.riskReason,
+      action:question.recommendation, owner:'', due:'', status:'open', managementResponse:'', retestEvidence:''
+    };
+  }
+
+  function riskLevel(product) {
+    return product>=17?'Krytyczne':product>=10?'Wysokie':product>=5?'Umiarkowane':'Niskie';
+  }
+
+  function learningProgram(template) {
+    return { template:structuredClone(template), answers:{} };
+  }
+
+  function normalizeLearning(value) {
+    if (!isRecord(value) || !isRecord(value.programs)) throw Error('Nieprawidłowy zapis pytań.');
+    const programs = {};
+    for (const [key,program] of Object.entries(value.programs)) {
+      const t = program?.template;
+      if (!isRecord(t) || !idPattern.test(text(t.id)) || !Number.isSafeInteger(t.version) ||
+          t.version<1 || key!==t.id+'-'+t.version || ![1,2].includes(t.level) ||
+          !Array.isArray(t.areas) || !Array.isArray(t.questions) || !isRecord(program.answers) ||
+          !t.areas.length || !t.questions.length)
+        throw Error('Nieprawidłowy szablon zapisany w projekcie.');
+      const areas = new Set();
+      const safeAreas = t.areas.map(area => {
+        if (!idPattern.test(text(area?.id)) || areas.has(area.id) || !text(area.name).trim())
+          throw Error('Nieprawidłowy obszar w szablonie.');
+        areas.add(area.id);
+        return fields({},area,['id','name']);
+      });
+      const ids = new Set(), answers = {};
+      const questions = t.questions.map(question => {
+        if (!idPattern.test(text(question?.id)) || ids.has(question.id) || !areas.has(question.area) ||
+            !questionFields.every(field=>text(question[field]).trim()) || question.permission!=='read' ||
+            !Object.hasOwn(findingScales,question.risk))
+          throw Error('Nieprawidłowe pytanie w zapisanym szablonie.');
+        ids.add(question.id);
+        const answer = program.answers[question.id];
+        if (isRecord(answer)) {
+          const note = text(answer.note);
+          let status = Object.hasOwn(results,answer.status) ? answer.status : 'unassessed';
+          if (status==='notapp' && !note.trim()) status='unassessed';
+          answers[question.id] = { status, note, evidence:text(answer.evidence) };
+        }
+        return fields({},question,questionFields);
+      });
+      programs[key] = { template:{
+        ...fields({},t,['id','name','description','audience','learning','duration']),
+        version:t.version, level:t.level, areas:safeAreas, questions
+      }, answers };
+    }
+    if (value.selected!==null && !Object.hasOwn(programs,value.selected)) throw Error('Brak wybranego szablonu w zapisie.');
+    return { selected:value.selected, programs, consent:text(value.consent), step:Number.isInteger(value.step) ? Math.max(0,Math.min(6,value.step)) : 0 };
+  }
+
+  function newProject(legacy,id,mode='learning') {
+    if (!idPattern.test(text(id))) throw Error('Nieprawidłowy identyfikator projektu.');
+    return { ...legacy, schema:3, id, mode, auditDate:'', demo:false, learning:{ selected:null, programs:{}, consent:'', step:0 } };
+  }
+
+  function migrateProject(project,normalizeLegacy,id) {
+    return newProject(normalizeLegacy(project),id,'auditor');
+  }
+
+  function normalizeV3(project,normalizeLegacy) {
+    if (!isRecord(project) || project.schema!==3 || !idPattern.test(text(project.id)) ||
+        !['learning','auditor'].includes(project.mode))
+      throw Error('Nieprawidłowy projekt w formacie 3.');
+    return { ...normalizeLegacy({ ...project,schema:2 }), schema:3, id:project.id, mode:project.mode,
+      auditDate:dateOnly(project.auditDate), demo:project.demo===true, learning:normalizeLearning(project.learning) };
+  }
+
+  function normalizeWorkspace(value,normalizeLegacy) {
+    if (!isRecord(value) || value.schema!==3 || !Array.isArray(value.projects) ||
+        !Number.isSafeInteger(value.revision) || value.revision<0)
+      throw Error('Nieprawidłowa lista projektów.');
+    const projects = value.projects.map(project=>normalizeV3(project,normalizeLegacy));
+    const ids = new Set(projects.map(project=>project.id));
+    if (ids.size!==projects.length || (projects.length ? !ids.has(value.activeId) : value.activeId!==null))
+      throw Error('Nieprawidłowe identyfikatory na liście projektów.');
+    return { schema:3, revision:value.revision, activeId:value.activeId, projects };
+  }
+
+  window.AUDIT_PROJECT_DATA = { normalizeProject, dateOnly, risk, indicators, findingFromQuestion, riskLevel, results,
+    learningProgram, newProject, migrateProject, normalizeV3, normalizeWorkspace };
 })();

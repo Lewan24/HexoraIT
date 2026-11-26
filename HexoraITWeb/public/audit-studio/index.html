@@ -4,41 +4,48 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="CyberAudit Studio 2.0 - konfigurowalny audyt bezpieczeństwa, KSC/NIS2, ISO, ryzyka, dowody i raport PDF. Działa lokalnie.">
+  <meta name="description" content="CyberAudit Studio 2.1 - konfigurowalny audyt bezpieczeństwa, KSC/NIS2, ISO, ryzyka, dowody i raport PDF. Działa lokalnie.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'self' blob:; frame-src 'self' blob:;">
-  <title>CyberAudit Studio 2.0 | Projektuj, audytuj, raportuj</title>
+  <title>CyberAudit Studio 2.1 | Projektuj, audytuj, raportuj</title>
   <link rel="stylesheet" href="assets/style.css">
   <script defer src="assets/audit-data.js"></script>
   <script defer src="assets/playbook-data.js"></script>
   <script defer src="assets/requirements-data.js"></script>
   <script defer src="assets/project-data.js"></script>
+  <script defer src="assets/templates-data.js"></script>
+  <script defer src="assets/demo-data.js"></script>
+  <script defer src="assets/learning-ui.js"></script>
   <script defer src="assets/app-v2.js"></script>
 </head>
 <body>
   <a class="skip" href="#content" id="skip-content">Przejdź do treści</a>
   <div class="layout">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#home" aria-label="CyberAudit Studio, panel główny"><span class="logo-mark">C<span>✓</span></span><span>CyberAudit <b>STUDIO <i>2.0</i></b></span></a>
+      <a class="brand" href="#home" aria-label="CyberAudit Studio, panel główny"><span class="logo-mark">C<span>✓</span></span><span>CyberAudit <b>STUDIO <i>2.1</i></b></span></a>
       <div class="sidebar-caption">PRZESTRZEŃ AUDYTORA</div>
       <nav id="main-nav" aria-label="Nawigacja">
         <a href="#home" data-view="home"><span class="nav-glyph">◫</span> Pulpit</a>
-        <a href="#setup" data-view="setup"><span class="nav-glyph">⚙</span> Konfigurator audytu</a>
-        <a href="#plan" data-view="plan"><span class="nav-glyph">☷</span> Plan i listy kontrolne <small id="nav-progress"></small></a>
-        <a href="#criteria" data-view="criteria"><span class="nav-glyph">§</span> Macierz wymagań</a>
-        <a href="#evidence" data-view="evidence"><span class="nav-glyph">▧</span> Rejestr dowodów</a>
-        <a href="#findings" data-view="findings"><span class="nav-glyph">⚑</span> Ustalenia i działania naprawcze</a>
-        <a href="#report" data-view="report"><span class="nav-glyph">▤</span> Raport i PDF</a>
-        <a href="#library" data-view="library"><span class="nav-glyph">▣</span> Formularze i wzory</a>
+        <a href="#audit" data-view="audit" data-learner>Audyt</a>
+        <a href="#setup" data-view="setup" data-auditor hidden><span class="nav-glyph">⚙</span> Konfigurator audytu</a>
+        <a href="#plan" data-view="plan" data-auditor hidden><span class="nav-glyph">☷</span> Plan i listy kontrolne <small id="nav-progress"></small></a>
+        <a href="#criteria" data-view="criteria" data-auditor hidden><span class="nav-glyph">§</span> Macierz wymagań</a>
+        <a href="#evidence" data-view="evidence"><span class="nav-glyph">▧</span> Dowody</a>
+        <a href="#findings" data-view="findings"><span class="nav-glyph">⚑</span> Ustalenia</a>
+        <a href="#report" data-view="report"><span class="nav-glyph">▤</span> Raport</a>
+        <a href="#library" data-view="library" data-auditor hidden><span class="nav-glyph">▣</span> Formularze i wzory</a>
         <a href="#help" data-view="help"><span class="nav-glyph">✳</span> Jak audytować?</a>
-        <a href="#sources" data-view="sources"><span class="nav-glyph">↗</span> Źródła i zakres prawny</a>
+        <a href="#glossary" data-view="glossary">Słowniczek</a>
+        <a href="#sources" data-view="sources" data-auditor hidden><span class="nav-glyph">↗</span> Źródła i zakres prawny</a>
       </nav>
       <div class="sidebar-foot"><p><span class="dot"></span> Praca bez internetu • dane w przeglądarce</p><small>Bez serwera. Bez telemetrii.<br>Nie wpisuj haseł ani sekretów.<br>Weryfikacja źródeł: 04.11.2026</small></div>
     </aside>
     <div class="main-frame">
       <header class="topbar">
         <button type="button" class="icon-button mobile-menu" id="menu-toggle" aria-label="Menu" aria-controls="sidebar" aria-expanded="false">☰</button>
-        <div class="project-header"><strong id="active-project">Projekt bez nazwy</strong><small><span id="app-version">Wersja 2.0</span> · <span id="breadcrumb-text">Pulpit</span></small></div>
-        <div class="topbar-right"><button id="top-export" class="btn btn-light btn-sm" type="button">↓ Kopia JSON</button><button id="top-pdf" class="btn btn-accent btn-sm" type="button">Raport PDF</button></div>
+        <div class="project-header"><strong id="active-project">Projekt bez nazwy</strong><small><span id="app-version">Wersja 2.1</span> · <span id="breadcrumb-text">Pulpit</span> <span id="demo-badge" class="chip chip-warn" hidden>Ćwiczenie</span></small></div>
+        <div class="topbar-right">
+          <a class="btn btn-light btn-sm" href="#projects">Projekty</a>
+          <label class="mode-switch"><span class="sr-only">Tryb pracy</span><select id="project-mode"><option value="learning">Nauka</option><option value="auditor">Audytor</option></select></label><button id="top-export" class="btn btn-light btn-sm" type="button">↓ Kopia JSON</button><button id="top-pdf" class="btn btn-accent btn-sm" type="button">Raport PDF</button></div>
       </header>
       <main id="content" tabindex="-1">
         <section class="storage-panel" aria-label="Zapis i kopie projektu">
@@ -64,12 +71,71 @@
           </div>
         </section>
         <section class="view" id="view-home" aria-labelledby="home-heading">
-          <div class="hero"><div><h1 id="home-heading">Zacznij od zakresu audytu</h1><p>Wybierz, którą część firmy chcesz sprawdzić i po czym poznasz, że działa jak należy. Studio przygotuje plan pracy.</p><div class="button-row"><a class="btn btn-accent" href="#setup">Skonfiguruj audyt</a><a class="btn btn-light" href="#plan">Otwórz plan pracy</a></div></div><div class="hero-steps"><h2>Pierwszy przegląd w trzech krokach</h2><ol><li>Ustal cel, granice i zgodę na prace.</li><li>Zbierz dowody z rozmów, dokumentów i wglądu w ustawienia.</li><li>Zapisz ustalenia, uzgodnij działania i przygotuj raport.</li></ol></div></div>
+          <div class="page-head">
+            <h1 id="home-heading">Pulpit audytu</h1>
+            <div class="button-row"><button class="btn btn-accent" type="button" data-new>Rozpocznij audyt</button><a class="btn btn-light" href="#projects">Otwórz listę projektów</a></div>
+          </div>
+          <div id="learning-home" data-learner>
+            <section class="panel space-top" id="learning-guide" aria-labelledby="guide-heading">
+              <h2 id="guide-heading">Mój pierwszy audyt krok po kroku</h2>
+              <p id="guide-intro">Ustal, co obejmie audyt, i potwierdź zgodę. Potem zbierz dowody i zapisz wyniki.</p>
+              <ol id="guide-steps" class="guide-steps"></ol>
+              <div class="button-row"><button id="guide-prev" type="button" class="btn btn-light">Poprzedni krok</button><a id="guide-link" class="btn btn-accent" href="#audit">Przejdź do tego kroku</a><button id="guide-next" type="button" class="btn btn-light">Następny krok</button></div>
+            </section>
+            <section class="panel space-top" aria-labelledby="demo-heading">
+              <h2 id="demo-heading">Ćwiczenie na fikcyjnej firmie</h2>
+              <p>Przećwicz ocenianie dokumentów i odpowiedzi na przykładzie firmy zatrudniającej 10 osób.</p>
+              <div class="button-row"><button id="open-demo" type="button" class="btn btn-accent">Otwórz projekt demonstracyjny</button><button id="delete-demo" type="button" class="btn btn-outline-danger" hidden>Usuń projekt demonstracyjny</button></div>
+            </section>
+            <section class="space-top" aria-labelledby="templates-heading"><h2 id="templates-heading">Szablony przeglądów</h2><div id="learning-cards" class="preset-grid"></div></section>
+          </div>
+          <div data-auditor hidden>
+          <div class="hero"><div><h2>Zacznij od zakresu audytu</h2><p>Wybierz, którą część firmy chcesz sprawdzić i po czym poznasz, że działa jak należy. Studio przygotuje plan pracy.</p><div class="button-row"><a class="btn btn-accent" href="#setup">Skonfiguruj audyt</a><a class="btn btn-light" href="#plan">Otwórz plan pracy</a></div></div><div class="hero-steps"><h2>Pierwszy przegląd w trzech krokach</h2><ol><li>Ustal cel, granice i zgodę na prace.</li><li>Zbierz dowody z rozmów, dokumentów i wglądu w ustawienia.</li><li>Zapisz ustalenia, uzgodnij działania i przygotuj raport.</li></ol></div></div>
           <div class="metric-row" id="dashboard-metrics"></div>
           <div class="section-heading"><div><div class="kicker">SZYBKI START</div><h2>Wybierz scenariusz audytu</h2><p>Gotowy profil wypełnia konfigurator, ale wszystkie elementy można zmienić.</p></div></div>
           <div id="preset-cards" class="preset-grid"></div>
           <div class="two-grid space-top"><div class="panel"><div class="panel-title"><h3>Gdzie jesteśmy w procesie?</h3><span class="chip">aktualny projekt</span></div><div id="dashboard-stages"></div></div><div class="panel"><div class="panel-title"><h3>Przed pierwszym testem</h3><span class="chip chip-warn">warunki wejścia</span></div><div class="micro-steps"><div><b>01. Zgoda i upoważnienie</b><span>Potwierdzony właściciel, zakres i Rules of Engagement.</span></div><div><b>02. Prawidłowe kryteria</b><span>Zidentyfikowane przepisy, dokumentacja i wyjątki.</span></div><div><b>03. Bezpieczne dowody</b><span>Identyfikatory zamiast haseł i danych wrażliwych.</span></div><div><b>04. Dopasowana próba</b><span>Populacja, okres, poziom pewności i ograniczenia.</span></div></div></div></div>
           <div class="caution"><b>Ważna granica:</b> program pomaga prowadzić audyt i dokumentować wyniki. Nie kwalifikuje firmy automatycznie do KSC, nie zapewnia certyfikacji ISO, a ukończona lista kontrolna sama w sobie nie stanowi dowodu spełniania prawa. Ocena musi wynikać z odpowiednich dowodów i uprawnionego zakresu.</div>
+            <h2 class="space-top">Programy zaawansowane</h2>
+            <div id="advanced-cards" class="preset-grid"></div>
+          </div>
+        </section>
+        <section class="view" id="view-projects" aria-labelledby="projects-heading">
+          <div class="page-head"><h1 id="projects-heading">Projekty</h1><p>Projekty zapisują się w tej przeglądarce. Kopię JSON możesz przenieść na inne urządzenie.</p></div>
+          <div class="button-row">
+            <button class="btn btn-accent" type="button" id="new-project" data-new>Nowy projekt</button>
+            <label class="btn btn-light file-btn" for="import-file">Wczytaj kopię JSON <input id="import-file" type="file" accept=".json,application/json"></label>
+          </div>
+          <p id="project-message" role="status" class="storage-note space-top"></p>
+          <ul id="project-list" class="project-list"></ul>
+        </section>
+        <section class="view" id="view-audit" aria-labelledby="audit-heading">
+          <div class="page-head"><h1 id="audit-heading">Audyt</h1><p>Odpowiadaj na podstawie rozmów, dokumentów i ustawień dostępnych do odczytu. Podawaj identyfikatory dowodów i metadane.</p></div>
+          <section class="panel" id="learning-scope" aria-labelledby="learning-scope-heading">
+            <h2 id="learning-scope-heading">Zakres i zgoda</h2>
+            <p id="learning-scope-text"></p>
+            <label class="field">Zgoda na przegląd <input id="learning-consent" maxlength="300" placeholder="Np. zgoda właściciela, data i numer dokumentu"></label>
+            <p class="muted">Zapisz tylko informację, kto i kiedy uzgodnił zakres. W razie wątpliwości sprawdź pojęcie <a href="#glossary/roe">zasad prac (RoE)</a>.</p>
+          </section>
+          <div id="audit-programs" class="toolbar space-top"></div>
+          <section class="panel space-top" id="demo-materials" aria-labelledby="demo-materials-heading" hidden>
+            <h2 id="demo-materials-heading">Materiały fikcyjnej firmy</h2>
+            <div id="demo-documents"></div>
+            <button type="button" id="toggle-key" class="btn btn-light" aria-expanded="false" aria-controls="answer-key">Pokaż klucz odpowiedzi</button>
+            <div id="answer-key" class="space-top" hidden></div>
+          </section>
+          <div id="learning-summary" class="panel space-top" hidden></div>
+          <div id="question-toolbar" class="toolbar space-top" hidden>
+            <label class="field">Obszar <select id="question-area"></select></label>
+            <label class="field">Ocena <select id="question-filter"></select></label>
+          </div>
+          <datalist id="question-evidence-list"></datalist>
+          <p id="question-message" role="status" class="storage-note"></p>
+          <div id="questions"></div>
+        </section>
+        <section class="view" id="view-glossary" aria-labelledby="glossary-heading">
+          <div class="page-head"><h1 id="glossary-heading">Słowniczek</h1><p>Najczęstsze pojęcia spotykane podczas przeglądu IT.</p></div>
+          <dl id="glossary-terms" class="panel glossary-terms"></dl>
         </section>
         <section class="view" id="view-setup" aria-labelledby="setup-heading">
           <div class="page-head"><div class="kicker">Zakres audytu</div><h1 id="setup-heading">Konfigurator audytu</h1><p>Najpierw zdefiniuj <b>po co</b> audytujesz i <b>jakie wymagania</b> chcesz ocenić. Możesz zrobić jedynie przegląd KSC/NIS2, wybrane zagadnienia lub sprawdzenie zmian po wcześniejszym audycie.</p></div>
@@ -91,7 +157,7 @@
         <section class="view" id="view-criteria" aria-labelledby="criteria-heading"><div class="page-head"><div class="kicker">Ocena wymagań</div><h1 id="criteria-heading">Macierz wymagań</h1><p>Przypisz osobną ocenę każdemu punktowi kontrolnemu. Połączenia z zadaniami są <b>podpowiedzią do doboru dowodów</b>; nie są pełnym mapowaniem wszystkich klauzul i załączników.</p></div><div class="caution" id="criteria-warning"></div><div class="toolbar"><div class="field"><label for="req-search">Szukaj kryterium</label><input id="req-search" type="search" placeholder="Art. 21, kopia zapasowa, SoA…"></div><div class="field"><label for="req-filter">Filtr</label><select id="req-filter"><option value="all">Wszystkie wybrane kryteria</option><option value="open">Niesprawdzone</option><option value="gaps">Częściowe, niezgodne, brak dowodu</option></select></div></div><label class="inline-check criteria-show-all"><input id="show-all-criteria" type="checkbox"> Pokaż także kryteria wyłączone z programu lub niewybrane w reteście</label><div id="requirements-list" class="requirements-list"></div></section>
         <section class="view" id="view-evidence" aria-labelledby="evidence-heading"><div class="page-head"><div class="kicker">Dokumentacja dowodów</div><h1 id="evidence-heading">Rejestr dowodów</h1><p>Zapisuj <b>metadane i bezpieczne odwołania</b>. Dowody właściwe przechowuj w repozytorium firmy, zgodnie z uzgodnionymi zasadami poufności i retencji.</p></div><div class="two-grid"><form id="evidence-form" class="panel" autocomplete="off"><h2>Dodaj dowód do rejestru</h2><div class="form-grid"><div class="field"><label for="ev-id">ID dowodu</label><input id="ev-id" name="id" placeholder="Np. E-003" required></div><div class="field"><label for="ev-task">ID zadania</label><input id="ev-task" name="task" placeholder="F23"></div></div><div class="field"><label for="ev-title">Co potwierdza dowód?</label><input id="ev-title" name="title" placeholder="Zanonimizowany raport polityk MFA" required></div><div class="form-grid"><div class="field"><label for="ev-kind">Typ</label><select id="ev-kind" name="kind"><option>Dokument</option><option>Eksport konfiguracji</option><option>Zapis systemowy / log</option><option>Wywiad / protokół</option><option>Wynik testu</option><option>Inne</option></select></div><div class="field"><label for="ev-date">Data pozyskania</label><input type="date" id="ev-date" name="date"></div></div><div class="field"><label for="ev-location">Bezpieczna lokalizacja / referencja</label><input id="ev-location" name="location" placeholder="Repozytorium / AUD-123 / E-003"></div><div class="form-grid"><div class="field"><label for="ev-owner">Dostarczył / właściciel</label><input id="ev-owner" name="owner"></div><div class="field"><label for="ev-class">Klasyfikacja</label><select id="ev-class" name="classification"><option>Wewnętrzne</option><option>Poufne</option><option>Ściśle poufne (tylko metadane)</option><option>Publiczne</option></select></div></div><label class="inline-check"><input type="checkbox" name="verified"> Sprawdzono źródło i autentyczność</label><button class="btn btn-accent" type="submit">+ Zapisz dowód</button></form><div class="panel"><h2>Jak ocenić jakość dowodu?</h2><div class="micro-steps"><div><b>Wiarygodność</b><span>Właściciel źródła, podpis, log i spójna data.</span></div><div><b>Powiązanie</b><span>Kontrola i okres, których dotyczy materiał.</span></div><div><b>Reprezentatywność</b><span>Dobór próbki do populacji, krytyczności i okresu.</span></div><div><b>Bezpieczeństwo</b><span>Minimalizacja danych, bez sekretów, ograniczony dostęp.</span></div></div><div class="notice-mini">Pole „zweryfikowano” oznacza weryfikację pochodzenia dowodu. Nie oznacza, że kontrola przeszła test.</div></div></div><div class="panel space-top"><div class="panel-title"><h2>Indeks dowodów</h2><span id="evidence-count" class="chip"></span></div><div id="evidence-table"></div></div></section>
         <section class="view" id="view-findings" aria-labelledby="findings-heading"><div class="page-head"><div class="kicker">Ryzyko i poprawki</div><h1 id="findings-heading">Ustalenia i plan naprawczy</h1><p>Każde ustalenie powinno mieć kryterium, opis obserwacji, dowód, wpływ, właściciela oraz wykonalny plan działania. Ocena 5×5 jest przykładowa i wymaga dostosowania.</p></div><div class="two-grid"><form id="finding-form" class="panel" autocomplete="off"><h2>Nowe ustalenie</h2><div class="form-grid"><div class="field"><label for="fi-task">Zadanie</label><input id="fi-task" name="task" placeholder="F23"></div><div class="field"><label for="fi-criterion">Kryterium / podstawa</label><input id="fi-criterion" name="criterion" placeholder="NIS2 art. 21(2)(j), polityka"></div></div><div class="field"><label for="fi-title">Tytuł problemu</label><input id="fi-title" name="title" placeholder="Np. brak MFA dla części kont administratorów" required></div><div class="field"><label for="fi-observation">Obserwacja i zakres próby</label><textarea id="fi-observation" name="observation" rows="3" required placeholder="Co stwierdzono, na jakiej próbie i w jakim okresie?"></textarea></div><div class="field"><label for="fi-evidence">ID dowodów / referencje</label><input id="fi-evidence" name="evidence" placeholder="E-003, E-004"></div><div class="field"><label for="fi-impacttext">Możliwy wpływ na biznes</label><textarea id="fi-impacttext" name="impactText" rows="2" placeholder="Skutki utraty poufności, integralności, dostępności"></textarea></div><div class="form-grid"><div class="field"><label for="fi-likely">Prawdopodobieństwo 1-5</label><select id="fi-likely" name="likelihood"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div><div class="field"><label for="fi-impact">Wpływ 1-5</label><select id="fi-impact" name="impact"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div></div><div class="field"><label for="fi-action">Działanie naprawcze i kryterium zamknięcia</label><textarea id="fi-action" name="action" rows="3" placeholder="Co ma zostać wdrożone i jak to potem sprawdzisz?"></textarea></div><div class="form-grid"><div class="field"><label for="fi-owner">Odpowiedzialny</label><input id="fi-owner" name="owner"></div><div class="field"><label for="fi-due">Termin</label><input id="fi-due" name="due" type="date"></div></div><button type="submit" class="btn btn-accent">+ Dodaj ustalenie</button></form><div class="panel"><h2>Zasady oceny</h2><div class="risk-legend"><div><span class="risk-mark low"></span> 1-4 Niskie</div><div><span class="risk-mark med"></span> 5-9 Umiarkowane</div><div><span class="risk-mark high"></span> 10-16 Wysokie</div><div><span class="risk-mark critical"></span> 17-25 Krytyczne</div></div><p class="muted">Zapisz konkretne uzasadnienie ryzyka. Podwyższone ryzyko należy eskalować niezwłocznie zgodnie z ustalonymi zasadami, bez czekania na PDF. Formalną akceptację ryzyka podejmuje uprawniony właściciel.</p><div class="notice-mini">Brak dokumentu nie zawsze dowodzi, że kontrola działa źle. Odróżnij „nie oceniono” od „niezgodne”.</div></div></div><div class="panel space-top"><div class="panel-title"><h2>Rejestr ustaleń i plan działań</h2><span class="chip" id="findings-count"></span></div><div id="findings-list"></div></div></section>
-        <section class="view" id="view-report" aria-labelledby="report-heading"><div class="page-head"><div class="kicker">Wyniki audytu</div><h1 id="report-heading">Raport dla klienta i PDF</h1><p>Podgląd raportu aktualizuje się na podstawie audytu. Raport zawiera zakres, metodykę, kryteria, macierz ocen, przebieg zadań, listy kontrolne, dowody, ustalenia i działania. PDF powstaje lokalnie przez funkcję drukowania przeglądarki.</p></div><div class="two-grid"><div class="panel"><h2>Treść i odbiorcy</h2><div class="field"><label for="rp-class">Klasyfikacja i odbiorcy</label><input id="rp-class" placeholder="Poufne / zarząd, właściciel IT, IOD"></div><div class="field"><label for="rp-method">Metoda i zasady doboru próby</label><textarea id="rp-method" rows="3" placeholder="Wywiady, przegląd dokumentów, próbki..."></textarea></div><div class="field"><label for="rp-summary">Podsumowanie dla kierownictwa</label><textarea id="rp-summary" rows="4" placeholder="Najważniejsze wnioski, skutki, decyzje..."></textarea></div><div class="field"><label for="rp-limits">Ograniczenia, braki dowodów, wyłączenia</label><textarea id="rp-limits" rows="3" placeholder="Zakres i pewność wniosków..."></textarea></div><div class="field"><label for="rp-conclusion">Rodzaj konkluzji</label><select id="rp-conclusion"><option value="none">Wnioski jeszcze niezatwierdzone</option><option value="limited">Ocena ograniczona / konieczne dalsze dowody</option><option value="gaps">W badanym zakresie stwierdzono niezgodności lub luki</option><option value="scoped">W badanej próbie nie stwierdzono istotnych odstępstw</option></select></div><div class="field"><label for="rp-approved">Zatwierdzający i data</label><input id="rp-approved" placeholder="Imię, funkcja, data lub «do zatwierdzenia»"></div><label class="inline-check"><input id="rp-appendix" type="checkbox" checked> Dołącz pełny aneks techniczny (każde zadanie i kroki)</label></div><div class="panel"><h2>Kontrola jakości przed wydaniem</h2><div id="quality-gates"></div><div class="thin-divider"></div><div class="button-column"><button class="btn btn-accent" id="generate-pdf" type="button">▤ Generuj / zapisz PDF</button><button class="btn btn-light" id="download-html-report" type="button">↓ Pobierz samodzielny raport HTML</button><button class="btn btn-light" id="export-csv" type="button">↓ Pobierz CSV zadań</button><button class="btn btn-light" id="export-json" type="button">↓ Kopia całego projektu JSON</button><label class="btn btn-light file-btn" for="import-file">↑ Importuj projekt JSON <input id="import-file" type="file" accept=".json,application/json"></label><button class="btn btn-danger-ghost" id="new-project" type="button">Utwórz nowy pusty projekt</button></div><div class="notice-mini">Aby zapisać PDF, wybierz w oknie drukowania <b>„Zapisz jako PDF”</b>. Działa bez internetu, bez przesyłania informacji na zewnętrzny serwer. Wyłącz nagłówki/stopki przeglądarki, jeśli chcesz czysty dokument.</div></div></div><div class="panel space-top report-preview-panel"><div class="panel-title"><h2>Podgląd raportu</h2><span class="chip">aktualne dane</span></div><div class="report-preview" id="report-preview"></div></div></section>
+        <section class="view" id="view-report" aria-labelledby="report-heading"><div class="page-head"><div class="kicker">Wyniki audytu</div><h1 id="report-heading">Raport dla klienta i PDF</h1><p>Podgląd raportu aktualizuje się na podstawie audytu. Raport zawiera zakres, metodykę, kryteria, macierz ocen, przebieg zadań, listy kontrolne, dowody, ustalenia i działania. PDF powstaje lokalnie przez funkcję drukowania przeglądarki.</p></div><div class="two-grid"><div class="panel"><h2>Treść i odbiorcy</h2><div class="field"><label for="rp-class">Klasyfikacja i odbiorcy</label><input id="rp-class" placeholder="Poufne / zarząd, właściciel IT, IOD"></div><div class="field" data-auditor hidden><label for="rp-method">Metoda i zasady doboru próby</label><textarea id="rp-method" rows="3" placeholder="Wywiady, przegląd dokumentów, próbki..."></textarea></div><div class="field"><label for="rp-summary">Podsumowanie dla kierownictwa</label><textarea id="rp-summary" rows="4" placeholder="Najważniejsze wnioski, skutki, decyzje..."></textarea></div><div class="field"><label for="rp-limits">Ograniczenia, braki dowodów, wyłączenia</label><textarea id="rp-limits" rows="3" placeholder="Zakres i pewność wniosków..."></textarea></div><div class="field" data-auditor hidden><label for="rp-conclusion">Rodzaj konkluzji</label><select id="rp-conclusion"><option value="none">Wnioski jeszcze niezatwierdzone</option><option value="limited">Ocena ograniczona / konieczne dalsze dowody</option><option value="gaps">W badanym zakresie stwierdzono niezgodności lub luki</option><option value="scoped">W badanej próbie nie stwierdzono istotnych odstępstw</option></select></div><div class="field" data-auditor hidden><label for="rp-approved">Zatwierdzający i data</label><input id="rp-approved" placeholder="Imię, funkcja, data lub «do zatwierdzenia»"></div><label class="inline-check" data-auditor hidden><input id="rp-appendix" type="checkbox" checked> Dołącz pełny aneks techniczny (każde zadanie i kroki)</label></div><div class="panel"><div data-auditor hidden><h2>Kontrola jakości przed wydaniem</h2><div id="quality-gates"></div></div><p data-learner>Wydruk obejmuje zakres, ocenę według obszarów, ustalenia, działania i dowody.</p><div class="thin-divider"></div><div class="button-column"><button class="btn btn-accent" id="generate-pdf" type="button">▤ Generuj / zapisz PDF</button><button class="btn btn-light" id="download-html-report" type="button">↓ Pobierz samodzielny raport HTML</button><button class="btn btn-light" id="export-csv" type="button" data-auditor hidden>↓ Pobierz CSV zadań</button><button class="btn btn-light" id="export-json" type="button">↓ Kopia całego projektu JSON</button><a href="#projects" class="btn btn-light">Otwórz projekty i import JSON</a></div><div class="notice-mini">Aby zapisać PDF, wybierz w oknie drukowania <b>„Zapisz jako PDF”</b>. Działa bez internetu, bez przesyłania informacji na zewnętrzny serwer. Wyłącz nagłówki/stopki przeglądarki, jeśli chcesz czysty dokument.</div></div></div><div class="panel space-top report-preview-panel"><div class="panel-title"><h2>Podgląd raportu</h2><span class="chip">aktualne dane</span></div><div class="report-preview" id="report-preview"></div></div></section>
         <section class="view" id="view-library" aria-labelledby="library-heading"><div class="page-head"><div class="kicker">Materiały do pobrania</div><h1 id="library-heading">Formularze, wzory i materiały</h1><p>Dziesięć edytowalnych formularzy PDF AcroForm i odpowiedniki Markdown. Można ich używać osobno od aplikacji, np. przy pracy w środowiskach z ograniczonym dostępem.</p></div><div id="docs-grid" class="docs-grid"></div><div class="caution"><b>Podpisy:</b> formularze nie zastępują podpisu elektronicznego, mandatów umownych ani urzędowych wzorów, jeśli w danej sprawie są wymagane.</div></section>
         <section class="view" id="view-help" aria-labelledby="help-heading"><div class="page-head"><div class="kicker">Wskazówki do audytu</div><h1 id="help-heading">Jak korzystać i na co patrzeć?</h1><p>Praktyczne wskazówki dla początkujących i zespołów doświadczonych audytorów. Bez zamieniania profesjonalnej oceny na bezrefleksyjne odhaczanie.</p></div><div id="help-grid" class="help-grid"></div></section>
         <section class="view" id="view-sources" aria-labelledby="sources-heading"><div class="page-head"><div class="kicker">ŹRÓDŁA / 04.11.2026</div><h1 id="sources-heading">Podstawy, źródła i zastrzeżenia</h1><p>Materiały pierwotne, oficjalne komunikaty i standardy. Odnośniki otwierają się po kliknięciu; aplikacja nie korzysta z połączenia internetowego podczas normalnej pracy.</p></div><div class="caution"><b>Aktualizuj przed audytem:</b> ustawa o KSC i akty wykonawcze, kryteria sektorowe, kwalifikacja podmiotu, umowy oraz licencjonowane normy. Sama macierz jest przewodnikiem i nie stanowi kompletnego opracowania każdego rozporządzenia lub normy.</div><div id="source-cards" class="sources-grid"></div></section>
@@ -100,6 +166,20 @@
   </div>
   <div id="print-only" aria-hidden="true"></div>
   <dialog id="pdf-dialog" aria-labelledby="pdf-dialog-title"><div class="dialog-title"><b id="pdf-dialog-title">Podgląd dokumentu</b><button class="btn btn-light btn-sm" id="close-pdf" type="button">Zamknij</button></div><iframe id="pdf-dialog-frame" title="Podgląd dokumentu PDF" loading="lazy"></iframe></dialog>
+  <dialog id="project-dialog" aria-labelledby="project-dialog-heading">
+    <form id="project-form" class="panel">
+      <h2 id="project-dialog-heading">Nowy projekt</h2>
+      <div class="form-grid">
+        <label class="field">Nazwa <input name="name" required maxlength="200" autofocus></label>
+        <label class="field">Firma <input name="org" required maxlength="200"></label>
+        <label class="field">Audytor <input name="lead" required maxlength="200"></label>
+        <label class="field">Data audytu <input name="auditDate" type="date" required></label>
+      </div>
+      <label class="field">Zakres <textarea name="scope" required rows="3" maxlength="4000" placeholder="Np. konta, poczta i pliki używane w biurze"></textarea></label>
+      <p id="project-form-message" role="status"></p>
+      <div class="button-row"><button class="btn btn-light" id="project-cancel" type="button">Anuluj</button><button class="btn btn-accent" type="submit">Zapisz projekt</button></div>
+    </form>
+  </dialog>
   <dialog id="replace-dialog" aria-labelledby="replace-heading" aria-describedby="replace-message">
     <div class="panel">
       <h2 id="replace-heading">Zastąpić bieżący projekt?</h2>
@@ -107,7 +187,7 @@
       <div class="button-row">
         <button class="btn btn-light" type="button" id="replace-cancel" autofocus>Anuluj</button>
         <button class="btn btn-light" type="button" id="replace-download">Pobierz kopię JSON</button>
-        <button class="btn btn-accent" type="button" id="replace-confirm">Zastąp projekt</button>
+        <button class="btn btn-accent" type="button" id="replace-confirm">Potwierdź</button>
       </div>
     </div>
   </dialog>

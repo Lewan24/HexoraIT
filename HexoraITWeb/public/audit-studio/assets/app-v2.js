@@ -7,7 +7,7 @@
  */
 (() => {
   'use strict';
-  const APP_VERSION='2.0';
+  const APP_VERSION='2.1';
   const A=window.AUDIT_DATA, G=window.AUDIT_GUIDE, R=window.AUDIT_REQUIREMENTS;
   const ALL=A.stages.flatMap(s=>s.tasks.map(t=>({...t,stage:s.id,stageTitle:s.title,phase:s.mode})));
   const TASK_BY_ID=Object.assign(Object.create(null),Object.fromEntries(ALL.map(t=>[t.id,t])));
@@ -16,16 +16,21 @@
   const workspace=scope.get('workspace'),account=scope.get('account');
   const isScopeId=value=>/^[a-z0-9-]{1,80}$/i.test(value||'');
   const embeddedScope=isScopeId(workspace)&&isScopeId(account);
-  const KEY=embeddedScope?`cyberaudit-studio-v2:${account}:${workspace}`:'cyberaudit-studio-v2';
+  const scopeSuffix=embeddedScope?`:${account}:${workspace}`:'';
+  const LEGACY_KEY='cyberaudit-studio-v2'+scopeSuffix;
+  const KEY='cyberaudit-studio-v3'+scopeSuffix;
   const LAST_COPY_KEY=KEY+'-last-backup';
   const STORAGE_ESTIMATE=5*1024*1024;
-  const {normalizeProject,dateOnly,risk}=window.AUDIT_PROJECT_DATA;
+  const {normalizeProject,dateOnly,risk,learningProgram,
+    newProject,migrateProject,normalizeV3,normalizeWorkspace}=window.AUDIT_PROJECT_DATA;
+  const {templates}=window.AUDIT_TEMPLATES;
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
   const h=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n=(x,d=0)=>Number.isFinite(Number(x))?Number(x):d;
   const v=(id)=>document.getElementById(id);
-  const dateNow=()=>new Date().toISOString().slice(0,10);
+  const dateNow=()=>new Date().toLocaleDateString('sv-SE');
+  const makeId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),value=>value.toString(16).padStart(2,'0')).join('');
   const LABEL={new:'Nie rozpoczęto',progress:'W trakcie',waiting:'Brak dowodów / blokada',done:'Wykonane',na:'Poza zakresem / N/D',unassessed:'Nie oceniono',conform:'Zgodne w próbie',partial:'Częściowo zgodne',nonconform:'Niezgodne',unknown:'Brak wystarczających dowodów',notapp:'Nie dotyczy',open:'Otwarte',doing:'W realizacji',retest:'Do ponownego sprawdzenia',closed:'Zamknięte po ponownym sprawdzeniu',accepted:'Ryzyko zaakceptowane'};
   const FRAMEWORKS=[
     {id:'KSC',name:'KSC / NIS2',subtitle:'Polska: ustawa o KSC + art. 20/21/23 NIS2',kind:'prawo'},
@@ -73,6 +78,7 @@
     {id:'retest',name:'Sprawdzenie po zmianach',desc:'Weryfikacja wyłącznie poprawianych obszarów i ustaleń.',type:'retest',depth:'standard',standards:['KSC'],topics:TOPICS.map(x=>x.id),tech:{cloud:false,apps:false,ot:false}},
     {id:'iso',name:'Przegląd ISO 27001',desc:'SZBI, SoA i dobór testów, z licencjonowaną normą.',type:'compliance',depth:'deep',standards:['ISO'],topics:TOPICS.map(x=>x.id),tech:{cloud:false,apps:false,ot:false}},
     {id:'technical',name:'Audyt techniczny',desc:'Dostęp, infrastruktura, logi, kopie i konfiguracja.',type:'technical',depth:'deep',standards:['CIS','NIST'],topics:['assets','network','identity','systems','continuity','apps','cloud'],tech:{cloud:false,apps:false,ot:false}},
+    {id:'full',name:'Pełny program audytu',desc:'Przegląd przekrojowy i wybór właściwych dla organizacji technologii.',type:'integrated',depth:'deep',standards:[],topics:TOPICS.map(x=>x.id),tech:{cloud:false,apps:false,ot:false}},
     {id:'custom',name:'Audyt własny',desc:'Zbuduj plan od zera i dostosuj szczegóły.',type:'integrated',depth:'standard',standards:[],topics:TOPICS.map(x=>x.id),tech:{cloud:false,apps:false,ot:false}}
   ];
   const initial=()=>({
@@ -81,8 +87,11 @@
     tasks:{}, requirements:{}, evidence:[], findings:[],
     report:{classification:'Poufne - do uzgodnienia',method:'Wywiady, przegląd dokumentów, kontrola konfiguracji tylko do odczytu, próbkowanie oparte na ryzyku. Testy aktywne wyłącznie po zatwierdzeniu RoE.',summary:'',limits:'',conclusion:'none',approved:'',appendix:true},updated:null,changesSinceExport:0
   });
-  let state=initial(),savedSnapshot=null,contentSnapshot='',recovery=null,replacement=null;
-  let storageAvailable=true;
+  const emptyWorkspace=()=>({schema:3,revision:0,activeId:null,projects:[]});
+  let workspaceState=emptyWorkspace(),state=newProject(initial(),makeId());
+  let savedSnapshot=null,contentSnapshot='',recovery=null,replacement=null;
+  let storageAvailable=true,saveTimer,dirty=false,transitioning=false;
+  let projectFormPreset=null,projectFormTemplate=null,projectFormMode='learning';
   let lastSaved='Projekt nie był jeszcze zapisywany.';
   let availableCopy=null;
   const taskIds=new Set(ALL.map(task=>task.id));
@@ -94,38 +103,75 @@
   const reqState=id=>state.requirements[id]||{status:'unassessed',evidence:'',notes:'',applicability:'pending'};
   const normalize=project=>normalizeProject(project,initial,taskIds,requirementIds,blankTask);
   const projectContent=({updated,changesSinceExport,...content})=>JSON.stringify(content);
+  const learningUI=window.createAuditLearningUI({h,getState:()=>state,hasProject,save,go,
+    chooseTemplate:chooseLearningTemplate,chooseProfile,nextEvidenceId,nextFindingId,
+    refreshRecords:()=>{renderEvidence();renderFindings();renderDashboard();renderReport();}});
+  const renderLearner=learningUI.render;
+  const setupLearningEvents=learningUI.bind;
 
-  function load(){
+  function resetContentSnapshot(){
+    contentSnapshot=projectContent(state);
+    dirty=false;
+  }
+
+  function activate(){
+    state=workspaceState.projects.find(project=>project.id===workspaceState.activeId)??newProject(initial(),makeId());
+    resetContentSnapshot();
+  }
+
+  function archiveRecovery(raw,key){
+    const prefix=key+'-corrupt-';
+    recovery={raw,archived:false,offered:false};
+    try{
+      let archived=false;
+      for(let index=0;index<localStorage.length&&!archived;index++){
+        const item=localStorage.key(index);
+        archived=Boolean(item?.startsWith(prefix)&&localStorage.getItem(item)===raw);
+      }
+      if(!archived)localStorage.setItem(prefix+new Date().toISOString(),raw);
+      recovery.archived=true;
+    }catch{ /* Oryginał pozostaje pod dotychczasowym kluczem. */ }
+    lastSaved='Zapis wstrzymany do decyzji o odzyskaniu danych.';
+  }
+
+  async function load(){
+    let legacy=null;
     try{
       savedSnapshot=localStorage.getItem(KEY);
-      availableCopy=localStorage.getItem(LAST_COPY_KEY);
+      availableCopy=localStorage.getItem(LAST_COPY_KEY)??localStorage.getItem(LEGACY_KEY+'-last-backup');
+      if(savedSnapshot===null)legacy=localStorage.getItem(LEGACY_KEY);
     }catch{
       storageAvailable=false;
       lastSaved='Pamięć przeglądarki jest niedostępna. Pobierz kopię JSON, aby zachować pracę.';
     }
     if(savedSnapshot!==null){
-      try{state=normalize(JSON.parse(savedSnapshot));}
-      catch{
-        const prefix=KEY+'-corrupt-';
-        recovery={raw:savedSnapshot,archived:false,offered:false};
-        try{
-          let archived=false;
-          for(let index=0;index<localStorage.length&&!archived;index++){
-            const key=localStorage.key(index);
-            archived=Boolean(key?.startsWith(prefix)&&localStorage.getItem(key)===savedSnapshot);
-          }
-          if(!archived)localStorage.setItem(prefix+new Date().toISOString(),savedSnapshot);
-          recovery.archived=true;
-        }catch{ /* Oryginał pozostaje pod kluczem projektu. */ }
-        lastSaved='Zapis wstrzymany do decyzji o odzyskaniu danych.';
+      try{
+        workspaceState=normalizeWorkspace(JSON.parse(savedSnapshot),normalize);
+        lastSaved=workspaceState.projects.length?'Wczytano projekty z przeglądarki.':'Lista projektów jest pusta.';
+      }
+      catch{archiveRecovery(savedSnapshot,KEY);}
+    }else if(legacy!==null){
+      let project;
+      try{project=migrateProject(JSON.parse(legacy),normalize,makeId());}
+      catch{archiveRecovery(legacy,LEGACY_KEY);}
+      if(project){
+        recovery={raw:legacy,archived:true,offered:false,migration:project};
+        if(await retryMigration())lastSaved='Przeniesiono dotychczasowy projekt. Oryginał zachowano.';
       }
     }
-    contentSnapshot=projectContent(state);
-    updateStorageDisplay();
+    activate();
+  }
+
+  async function retryMigration(){
+    const pending=recovery;
+    if(!await commitWorkspace(current=>({...current,activeId:pending.migration.id,projects:[pending.migration]}),
+      { legacy:pending.raw }))return false;
+    recovery=null;
+    return true;
   }
 
   function updateStorageDisplay(){
-    const name=state.config.name.trim()||'Projekt bez nazwy';
+    const name=hasProject()?(state.config.name.trim()||'Projekt bez nazwy'):'Wybierz projekt';
     const project=v('active-project');
     project.textContent=name;
     project.title=name;
@@ -133,7 +179,12 @@
     if(status.textContent!==lastSaved)status.textContent=lastSaved;
     const count=state.changesSinceExport;
     v('changes-since-export').textContent='Zmiany od ostatniej kopii JSON: '+count;
-    v('backup-reminder').hidden=count<10;
+    v('backup-reminder').hidden=count<10 || !hasProject();
+    v('changes-since-export').hidden=!hasProject();
+    v('top-export').disabled=!hasProject();
+    v('top-pdf').disabled=!hasProject();
+    v('project-mode').value=state.mode;
+    v('demo-badge').hidden=!state.demo;
     v('last-copy-download').hidden=availableCopy===null;
     const meter=v('storage-meter'),label=v('storage-usage');
     try{
@@ -154,68 +205,360 @@
     }
     v('recovery-panel').hidden=!recovery;
     if(recovery){
-      v('recovery-message').textContent=recovery.archived
+      v('resume-save').textContent=recovery.migration?'Ponów przenoszenie':'Utwórz pustą listę projektów';
+      v('recovery-download').textContent=recovery.migration?'Pobierz oryginalny zapis':'Pobierz uszkodzony zapis';
+      v('recovery-message').textContent=recovery.migration
+        ?'Przenoszenie projektu czeka na zapis. Oryginał jest bezpieczny. '+lastSaved
+        :recovery.archived
         ?'Nie można otworzyć zapisu projektu. Oryginalne dane zachowano w pamięci przeglądarki. Pobierz je albo świadomie wznów zapis.'
         :'Nie można otworzyć zapisu ani utworzyć dodatkowej kopii w przeglądarce. Oryginalny zapis nadal istnieje. Pobierz go przed wznowieniem zapisu.';
       v('resume-save').disabled=!recovery.archived&&!recovery.offered;
     }
   }
 
-  function writeProject(project){
-    if(!storageAvailable){
-      lastSaved='Projekt jest tylko w tej karcie. Pobierz kopię JSON.';
-      return false;
-    }
-    try{
-      if(localStorage.getItem(KEY)!==savedSnapshot){
-        lastSaved='Projekt zmieniono w innej karcie. Pobierz kopię JSON i odśwież stronę.';
+  function hasProject(){return workspaceState.activeId!==null;}
+
+  async function commitWorkspace(change,{legacy}={}){
+    const commit=()=>{
+      try{
+        if(storageAvailable&&(localStorage.getItem(KEY)!==savedSnapshot ||
+            (legacy!==undefined && localStorage.getItem(LEGACY_KEY)!==legacy))){
+          lastSaved='Zapis zmienił się w innej karcie. Pobierz kopię JSON i odśwież stronę.';
+          return false;
+        }
+        const next=change(workspaceState);
+        next.revision=workspaceState.revision+1;
+        if(storageAvailable){
+          const snapshot=JSON.stringify(next);
+          localStorage.setItem(KEY,snapshot);
+          if(legacy!==undefined&&localStorage.getItem(KEY)!==snapshot){
+            lastSaved='Przeniesiony zapis zmienił się w innej karcie. Odśwież stronę.';
+            return false;
+          }
+          savedSnapshot=snapshot;
+        }
+        workspaceState=next;
+        dirty=false;
+        lastSaved=storageAvailable?'Zapisano w przeglądarce.':'Projekt jest tylko w tej karcie. Pobierz kopię JSON.';
+        return true;
+      }catch{
+        lastSaved='Nie udało się zapisać. Sprawdź miejsce w pamięci i pobierz kopię JSON.';
         return false;
       }
-      const snapshot=JSON.stringify(project);
-      localStorage.setItem(KEY,snapshot);
-      savedSnapshot=snapshot;
-      lastSaved='Zapisano w przeglądarce.';
-      return true;
-    }catch{
-      lastSaved='Nie udało się zapisać projektu. Pobierz kopię JSON.';
-      return false;
+    };
+    if(storageAvailable&&navigator.locks?.request){
+      try{return await navigator.locks.request(KEY,commit);}
+      catch{ /* Wersja z pliku może nie udostępniać blokad. */ }
     }
+    return commit();
+  }
+
+  async function flushChanges(){
+    clearTimeout(saveTimer);
+    if(!dirty || recovery || transitioning)return;
+    await commitWorkspace(current=>({...current}));
+    updateStorageDisplay();
   }
 
   function save(){
+    if(!hasProject())return;
     const content=projectContent(state);
     if(content!==contentSnapshot){
       contentSnapshot=content;
       state.changesSinceExport=Math.min(Number.MAX_SAFE_INTEGER,state.changesSinceExport+1);
       state.updated=new Date().toISOString();
-      if(!recovery)writeProject(state);
+      dirty=true;
+      lastSaved='Zmiany oczekują na zapis.';
+      clearTimeout(saveTimer);
+      if(!recovery)saveTimer=setTimeout(flushChanges,220);
     }
     updateStorageDisplay();
   }
 
-  function backupBeforeReplace(next, routeToSetup=false){
+  async function transition(change,screen){
+    if(transitioning)return false;
     if(recovery){
       v('recovery-panel').scrollIntoView({block:'nearest'});
       v('recovery-download').focus();
-      return;
+      return false;
     }
-    // Zapisujemy rzeczywisty stan formularzy, także po braku miejsca na zapis roboczy.
-    const copy=projectJson(state);
-    let stored=false;
+    transitioning=true;
+    clearTimeout(saveTimer);
     try{
-      localStorage.setItem(LAST_COPY_KEY,copy);
-      stored=true;
-    }catch{ /* Kopię można zapisać jako plik. */ }
-    availableCopy=copy;
-    replacement={next,routeToSetup,copy,stored};
-    v('replace-heading').textContent=routeToSetup?'Utworzyć nowy projekt?':'Wczytać projekt z pliku?';
-    v('replace-message').textContent=stored
-      ?'Bieżący projekt zapisano jako ostatnią kopię. Możesz również pobrać ją na dysk.'
-      :'Brak miejsca lub dostępu do pamięci przeglądarki. Pobierz kopię bieżącego projektu przed zastąpieniem.';
-    v('replace-confirm').disabled=!stored;
+      if(!await commitWorkspace(change)){
+        updateStorageDisplay();
+        return false;
+      }
+      activate();
+      openTasks.clear();
+      v('show-all-tasks').checked=state.config.preset==='full';
+      v('task-search').value='';
+      v('task-filter').value='all';
+      v('req-search').value='';
+      v('req-filter').value='all';
+      v('show-all-criteria').checked=false;
+      v('evidence-form').reset();
+      v('finding-form').reset();
+      if(v('answer-key'))v('answer-key').hidden=true;
+      renderAll();
+      updateStorageDisplay();
+      if(screen)go(screen);
+      return true;
+    }finally{transitioning=false;}
+  }
+
+  function go(screen){
+    if(location.hash==='#'+screen)route(true);
+    else location.hash='#'+screen;
+  }
+
+  function addProject(project,screen){
+    return transition(current=>({...current,activeId:project.id,projects:[...current.projects,project]}),screen);
+  }
+
+  function saveLastCopy(project){
+    availableCopy=projectJson(project);
+    try{localStorage.setItem(LAST_COPY_KEY,availableCopy);return true;}
+    catch{return false;}
+  }
+
+  function applyMode(){
+    const auditor=state.mode==='auditor';
+    $$('[data-auditor]').forEach(el=>{el.hidden=!auditor;});
+    $$('[data-learner]').forEach(el=>{el.hidden=auditor;});
+    v('project-mode').value=state.mode;
+  }
+
+  function renderWorkspace(){
+    v('project-list').innerHTML=workspaceState.projects.length?workspaceState.projects.map(project=>{
+      const active=project.id===workspaceState.activeId;
+      const name=project.config.name||'Projekt bez nazwy';
+      const modified=project.updated?new Date(project.updated).toLocaleString('pl-PL'):'brak';
+      return `<li class="panel project-card">
+        <div><h2>${h(name)}</h2><p>${h(project.config.org||'Firma niepodana')} · ${h(project.auditDate||'Brak daty audytu')}${project.demo?' · Ćwiczenie':''}${active?' · Aktywny':''}</p>
+        <small>Ostatnia zmiana: ${h(modified)}</small></div>
+        <div class="button-row">
+          <button type="button" class="btn btn-accent btn-sm" data-project-action="open" data-project-id="${h(project.id)}">Otwórz</button>
+          <button type="button" class="btn btn-light btn-sm" data-project-action="copy" data-project-id="${h(project.id)}">Skopiuj</button>
+          <button type="button" class="btn btn-light btn-sm" data-project-action="export" data-project-id="${h(project.id)}">Eksportuj JSON</button>
+          <button type="button" class="btn btn-outline-danger btn-sm" data-project-action="delete" data-project-id="${h(project.id)}">Usuń</button>
+        </div></li>`;
+    }).join(''):'<li class="empty-state">Brak zapisanych projektów. Utwórz nowy albo wczytaj kopię JSON.</li>';
+    v('delete-demo').hidden=!workspaceState.projects.some(project=>project.demo);
+  }
+
+  function configurePreset(project,id){
+    const preset=PRESETS.find(item=>item.id===id);
+    if(!preset)return;
+    project.config={...project.config,preset:preset.id,type:preset.type,depth:preset.depth,standards:[...preset.standards],
+      topics:[...preset.topics],tech:{...preset.tech},manual:{},criterionManual:{},targets:''};
+  }
+
+  function startProject({preset=null,template=null}={}){
+    projectFormPreset=preset;
+    projectFormTemplate=template;
+    projectFormMode=preset?'auditor':template?'learning':state.mode;
+    const form=v('project-form');
+    form.reset();
+    form.elements.auditDate.value=dateNow();
+    v('project-form-message').textContent='';
+    v('project-dialog').showModal();
+  }
+
+  function selectProgram(project,template){
+    const key=template.id+'-'+template.version;
+    if(!Object.hasOwn(project.learning.programs,key))project.learning.programs[key]=learningProgram(template);
+    project.learning.selected=key;
+  }
+
+  function chooseLearningTemplate(template){
+    if(!hasProject()){startProject({template});return;}
+    selectProgram(state,template);
+    save();
+    renderLearner();
+    go('audit');
+  }
+
+  function chooseProfile(id){
+    if(!hasProject()){startProject({preset:id});return;}
+    applyPreset(id);
+    if(id==='full'){
+      v('show-all-tasks').checked=true;
+      renderPlan();
+    }
+    go('setup');
+  }
+
+  function convertImport(source){
+    if([2,'2'].includes(source?.schema))return migrateProject(source,normalize,makeId());
+    return {...normalizeV3(source,normalize),id:makeId()};
+  }
+
+  function importCorrections(raw,normalized){
+    if(raw===null || typeof raw!=='object')return raw===normalized?0:1;
+    if(normalized===null || typeof normalized!=='object')return 1;
+    return Object.keys(raw).reduce((count,key)=>count+importCorrections(raw[key],normalized[key]),0);
+  }
+
+  function displayReplacement(details,title,message,label){
+    replacement=details;
+    v('replace-heading').textContent=title;
+    v('replace-message').textContent=message;
+    v('replace-download').hidden=!details.copy;
+    v('replace-confirm').textContent=label;
+    v('replace-confirm').disabled=details.requiresDownload===true;
     v('replace-dialog').showModal();
+  }
+
+  function deleteProject(project){
+    const stored=saveLastCopy(project);
+    displayReplacement({ deleteId:project.id,copy:availableCopy,requiresDownload:!stored },
+      'Usunąć projekt „'+(project.config.name||'Projekt bez nazwy')+'”?',stored
+        ?'Zapisano ostatnią kopię. Przed usunięciem możesz również pobrać ją na dysk.'
+        :'Pobierz kopię na dysk przed usunięciem. Przeglądarka nie zapisała kopii.', 'Usuń projekt');
     updateStorageDisplay();
   }
+
+  async function openDemo(){
+    const existing=workspaceState.projects.find(project=>project.demo);
+    if(existing){
+      await transition(current=>({...current,activeId:existing.id}),'audit');
+      return;
+    }
+    const project=newProject(initial(),makeId());
+    project.auditDate=dateNow();
+    project.demo=true;
+    Object.assign(project.config,{name:'Ćwiczenie — pierwszy audyt',org:'Firma Demo Sp. z o.o.',
+      lead:'Osoba ucząca się',scope:'Przegląd materiałów dydaktycznych o kontach, urządzeniach, danych i organizacji pracy.',
+      standards:[],preset:'custom',type:'integrated'});
+    selectProgram(project,templates[0]);
+    project.updated=new Date().toISOString();
+    await addProject(project,'audit');
+  }
+
+  function setupWorkspaceEvents(){
+    document.addEventListener('click',event=>{
+      if(event.target.closest('[data-new]'))startProject();
+    });
+    v('project-mode').addEventListener('change',event=>{
+      state.mode=event.target.value==='auditor'?'auditor':'learning';
+      save();
+      applyMode();
+      renderReport();
+      route(true);
+    });
+    v('project-cancel').addEventListener('click',()=>v('project-dialog').close());
+    v('project-form').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      const data=new FormData(form);
+      const values=Object.fromEntries(['name','org','lead','scope'].map(key=>[key,String(data.get(key)??'').trim()]));
+      const auditDate=dateOnly(data.get('auditDate'));
+      if(!auditDate||Object.values(values).some(value=>!value)){
+        v('project-form-message').textContent='Uzupełnij nazwę, firmę, audytora, zakres i datę.';
+        return;
+      }
+      const project=newProject(initial(),makeId(),projectFormMode);
+      project.auditDate=auditDate;
+      project.updated=new Date().toISOString();
+      Object.assign(project.config,values);
+      if(project.mode==='auditor')configurePreset(project,projectFormPreset??'custom');
+      else{
+        Object.assign(project.config,{standards:[],preset:'custom',type:'integrated'});
+        selectProgram(project,projectFormTemplate??templates[0]);
+      }
+      const screen=project.mode==='auditor'?'setup':projectFormTemplate?'audit':'home';
+      if(await addProject(project,screen)){
+        if(projectFormPreset==='full'){v('show-all-tasks').checked=true;renderPlan();}
+        v('project-dialog').close();
+        $('#view-'+screen+' h1')?.focus();
+      }else v('project-form-message').textContent=lastSaved;
+    });
+
+    v('project-list').addEventListener('click',async event=>{
+      const button=event.target.closest('[data-project-action]');
+      if(!button)return;
+      const project=workspaceState.projects.find(item=>item.id===button.dataset.projectId);
+      if(!project)return;
+      const action=button.dataset.projectAction;
+      if(action==='delete'){deleteProject(project);return;}
+      if(action==='export'){
+        if(project.id===state.id)exportJson();
+        else download(filenameBase(project)+'-'+dateNow()+'.json',projectJson(project),'application/json;charset=utf-8');
+        return;
+      }
+      if(action==='copy'){
+        const copy=structuredClone(project);
+        copy.id=makeId();
+        copy.config.name=(copy.config.name||'Projekt')+' — kopia';
+        copy.updated=new Date().toISOString();
+        if(await addProject(copy,'home'))return;
+      }else if(await transition(current=>({...current,activeId:project.id}),'home'))return;
+      v('project-message').textContent=lastSaved;
+    });
+    v('open-demo').addEventListener('click',()=>void openDemo());
+    v('delete-demo').addEventListener('click',()=>{
+      const project=workspaceState.projects.find(item=>item.demo);
+      if(project)deleteProject(project);
+    });
+
+    v('last-copy-download').addEventListener('click',()=>{
+      if(availableCopy!==null)download('ostatnia-kopia-audytu.json',availableCopy,'application/json;charset=utf-8');
+    });
+    v('recovery-download').addEventListener('click',()=>{
+      if(!recovery)return;
+      download(recovery.migration?'oryginalny-projekt-2.json':'uszkodzony-zapis-audytu.txt',recovery.raw);
+      recovery.offered=true;
+      updateStorageDisplay();
+    });
+    v('resume-save').addEventListener('click',async()=>{
+      if(!recovery||(!recovery.archived&&!recovery.offered)||transitioning)return;
+      transitioning=true;
+      try{
+        if(recovery.migration)await retryMigration();
+        else if(confirm('Rozpocząć z pustą listą? Kopia odzyskiwania pozostanie dostępna po pobraniu lub w pamięci.')){
+          if(await commitWorkspace(()=>emptyWorkspace()))recovery=null;
+        }
+        if(!recovery){activate();renderAll();go('projects');}
+        updateStorageDisplay();
+      }finally{transitioning=false;}
+    });
+    v('replace-download').addEventListener('click',()=>{
+      if(!replacement?.copy)return;
+      download('ostatnia-kopia-audytu.json',replacement.copy,'application/json;charset=utf-8');
+      v('replace-confirm').disabled=false;
+    });
+    v('replace-cancel').addEventListener('click',()=>v('replace-dialog').close());
+    v('replace-dialog').addEventListener('close',()=>{replacement=null;});
+    v('replace-confirm').addEventListener('click',async()=>{
+      if(!replacement || transitioning)return;
+      const details=replacement;
+      const done=details.next ? await addProject(details.next,'home') : await transition(current=>{
+        const projects=current.projects.filter(project=>project.id!==details.deleteId);
+        return {...current,projects,activeId:current.activeId===details.deleteId?(projects[0]?.id??null):current.activeId};
+      },'projects');
+      if(done)v('replace-dialog').close();
+      else v('replace-message').textContent=lastSaved;
+    });
+    v('import-file').addEventListener('change',async event=>{
+      const file=event.target.files[0];
+      event.target.value='';
+      if(!file)return;
+      if(file.size>8_000_000){v('project-message').textContent='Plik przekracza 8 MB.';return;}
+      try{
+        const source=JSON.parse(await file.text());
+        const next=convertImport(source);
+        const metadata=new Set(['schema','id','exported','projectName','appVersion']);
+        const corrections=Object.keys(source).filter(key=>!metadata.has(key))
+          .reduce((count,key)=>count+importCorrections(source[key],next[key]),0);
+        next.changesSinceExport=0;
+        const notice=corrections?' Podczas walidacji zmieniono lub pominięto wartości pól: '+corrections+'. Zatrzymaj oryginalny plik do porównania.':'';
+        displayReplacement({next},'Wczytać „'+(next.config.name||'Projekt bez nazwy')+'”?',
+          'Plik zostanie dodany jako osobny projekt.'+notice,'Wczytaj projekt');
+      }catch(ex){v('project-message').textContent='Nie udało się wczytać projektu. '+ex.message;}
+    });
+  }
+
   function itemTopics(id){return TOPICS.filter(x=>(G.topics[x.id]||[]).includes(id)).map(x=>x.id);}
   function hasRelevantTech(t){if(t.applicability==='cloud'&&!state.config.tech.cloud)return false;if(t.applicability==='apps'&&!state.config.tech.apps)return false;if(t.applicability==='ot'&&!state.config.tech.ot)return false;return true;}
   function selectedByType(t){const c=state.config;
@@ -239,7 +582,7 @@
     if(!selectedByDepth(t))return false;
     if(!(itemTopics(t.id).some(x=>c.topics.includes(x))))return false;
     if(!c.standards.length)return true;
-    return c.standards.some(s=>(G.standards[s]||[]).includes(t.id));
+    return c.standards.some(s=>Array.isArray(G.standards[s])&&G.standards[s].includes(t.id));
   }
   function included(t){const full=TASK_BY_ID[t.id]||t;const force=state.config.manual[full.id];return force==='include'||(force!=='exclude'&&taskDefaultIncluded(full));}
   const activeTasks=()=>ALL.filter(included);
@@ -269,8 +612,11 @@
     return '"'+safe.replace(/"/g,'""')+'"';
   }
   function download(name,content,mime='text/plain;charset=utf-8'){const url=URL.createObjectURL(new Blob([content],{type:mime}));const el=document.createElement('a');el.href=url;el.download=name;el.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
-  function filenameBase(){return (state.config.name||state.config.org||'cyber-audit').normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,50)||'cyber-audit';}
-  function applyPreset(id){const p=PRESETS.find(x=>x.id===id);if(!p)return;state.config={...state.config,preset:p.id,type:p.type,depth:p.depth,standards:[...p.standards],topics:[...p.topics],tech:{...p.tech},manual:{},criterionManual:{},targets:''};save();renderAll();}
+  function filenameBase(project=state){
+    return (project.config.name||project.config.org||'audyt').normalize('NFKD').replace(/\p{M}/gu,'')
+      .replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'audyt';
+  }
+  function applyPreset(id){configurePreset(state,id);save();renderAll();}
   function presetCard(p,compact=false){return `<button class="preset-card ${compact?'compact':''} ${state.config.preset===p.id?'is-selected':''}" type="button" data-preset="${h(p.id)}"><span class="preset-icon">${({nis2:'§',discovery:'◎',retest:'↺',iso:'◈',technical:'▥',custom:'⚙'})[p.id]}</span><span class="preset-copy"><b>${h(p.name)}</b><small>${h(p.desc)}</small></span><span class="preset-chevron">→</span></button>`;}
   function renderPresets(){v('preset-cards').innerHTML=PRESETS.map(x=>presetCard(x)).join('');v('setup-presets').innerHTML=PRESETS.map(x=>presetCard(x,true)).join('');}
   function renderDashboard(){const t=totals(),r=reqTotals();v('dashboard-metrics').innerHTML=[['Zadania w planie',t.total],['Wykonane',t.done],['Wymagania wybrane',r.total],['Ustalenia',state.findings.length]].map(([name,num])=>`<div class="metric"><span>${h(name)}</span><strong>${num}</strong></div>`).join('');v('nav-progress').textContent=`${t.done}/${t.total}`;
@@ -332,8 +678,14 @@
   function renderEvidence(){v('evidence-count').textContent=state.evidence.length+' rekordów';v('evidence-table').innerHTML=state.evidence.length?`<div class="table-wrap"><table><thead><tr><th>ID / zadanie</th><th>Opis</th><th>Źródło / lokalizacja</th><th>Data</th><th>Weryfikacja</th><th></th></tr></thead><tbody>${state.evidence.map((x,i)=>`<tr><td><b>${h(x.id)}</b><br><small>${h(x.task)}</small></td><td>${h(x.title)}<br><small>${h(x.kind)} • ${h(x.classification)}</small></td><td>${h(x.owner)}<br><small>${h(x.location)}</small></td><td>${h(x.date)}</td><td>${x.verified?'<span class="status-tag good">Potwierdzone źródło</span>':'<span class="status-tag warn">Do sprawdzenia</span>'}</td><td><button class="btn btn-outline-danger btn-sm" type="button" data-delete-evidence="${i}">Usuń</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state">Brak zapisanych dowodów. Dodaj pierwszy identyfikator do rejestru.</div>';
   }
   function riskGrade(f){const value=n(f.likelihood,1)*n(f.impact,1);return {value,name:value>=17?'Krytyczne':value>=10?'Wysokie':value>=5?'Umiarkowane':'Niskie',cls:value>=17?'critical':value>=10?'high':value>=5?'med':'low'};}
+  function nextFindingId(){
+    const ids=new Set(state.findings.map(item=>item.id.toLowerCase()));
+    let number=1,id;
+    do{id='U-'+String(number++).padStart(3,'0');}while(ids.has(id.toLowerCase()));
+    return id;
+  }
   function renderFindings(){v('findings-count').textContent=state.findings.length+' ustaleń';
-    v('findings-list').innerHTML=state.findings.length?state.findings.map((f,i)=>{const risk=riskGrade(f);return `<article class="finding" data-finding="${i}"><div class="finding-top"><div><span class="task-id">${h(f.id)}</span><h3>${h(f.title)}</h3><p class="muted">${h(f.criterion)} • ${h(f.task)}</p></div><span class="risk-score ${risk.cls}">${risk.value}/25 · ${risk.name}</span></div><p><b>Obserwacja:</b> ${h(f.observation)}</p><p><b>Wpływ:</b> ${h(f.impactText||'Nie opisano')} · <b>Dowody:</b> ${h(f.evidence||'Nie podano')}</p><div class="finding-edit-grid"><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div><div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ponownego sprawdzenia</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div><div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div><div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Stanowisko kierownictwa / formalna akceptacja</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div></div><div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button><span class="status-tag warn" data-closure-warning ${f.status==='closed'&&!f.retestEvidence.trim()?'':'hidden'}>Zamknięte bez dowodu ponownego sprawdzenia</span></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
+    v('findings-list').innerHTML=state.findings.length?state.findings.map((f,i)=>{const risk=riskGrade(f);return `<article class="finding" data-finding="${i}"><div class="finding-top"><div><span class="task-id">${h(f.id)}</span><h3>${h(f.title)}</h3><p class="muted">${h(f.criterion)} • ${h(f.task)}</p></div><span class="risk-score ${risk.cls}">${risk.value}/25 · ${risk.name}</span></div><p><b>Wpływ:</b> ${h(f.impactText||'Nie opisano')}</p><div class="finding-edit-grid"><div class="field field-wide"><label for="finding-${h(i)}-observation">Opis ustalenia</label><textarea id="finding-${h(i)}-observation" data-finding-field="observation" rows="2">${h(f.observation)}</textarea></div><div class="field"><label for="finding-${h(i)}-evidence">Identyfikatory dowodów</label><input id="finding-${h(i)}-evidence" data-finding-field="evidence" value="${h(f.evidence)}"></div><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div><div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ponownego sprawdzenia</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div><div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div><div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Stanowisko kierownictwa / formalna akceptacja</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div></div><div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button><span class="status-tag warn" data-closure-warning ${f.status==='closed'&&!f.retestEvidence.trim()?'':'hidden'}>Zamknięte bez dowodu ponownego sprawdzenia</span></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
   }
   function renderLibrary(){v('docs-grid').innerHTML=DOCS.map(([id,title,desc])=>`<article class="doc-card"><div class="doc-icon">PDF</div><div><b>${h(title)}</b><p>${h(desc)}</p><small>PDF z polami + edytowalny Markdown</small></div><div class="doc-links"><button class="btn btn-light btn-sm" data-pdf="formularze_pdf/${id}.pdf" data-title="${h(title)}" type="button">Podgląd</button><a class="btn btn-light btn-sm" href="formularze_pdf/${id}.pdf" download>Pobierz PDF</a><a href="szablony_edytowalne/${id}.md" download>Wzór MD ↓</a></div></article>`).join('');}
   function renderHelp(){const rows=[
@@ -404,7 +756,7 @@
     const legal=({unknown:'Nieustalony - wymaga weryfikacji',key:'Podmiot kluczowy (wg kwalifikacji klienta)',important:'Podmiot ważny (wg kwalifikacji klienta)',none:'Poza KSC (wg kwalifikacji klienta)'})[c.legal]||'Nieustalony';
     const name=printableText(c.name||'Raport z audytu cyberbezpieczeństwa','Raport z audytu cyberbezpieczeństwa');
     const phaseName=({discovery:'Audyt wstępny',compliance:'Ocena zgodności / przegląd luk',integrated:'Audyt przekrojowy',technical:'Audyt techniczny',retest:'Sprawdzenie po zmianach'})[c.type]||c.type;
-    const summary=`<section class="pdf-cover"><div class="pdf-brand">CYBERAUDIT STUDIO <span>2026 / 2.0</span></div><div class="pdf-kicker">RAPORT AUDYTU BEZPIECZEŃSTWA</div><h1>${name}</h1><p class="pdf-sub">${h(phaseName)} • ${h(c.standards.join(', ')||'Kryteria zlecenia')}</p><div class="pdf-meta-grid"><div><small>ORGANIZACJA</small><b>${printableText(c.org)}</b></div><div><small>AUDYTOR / ZESPÓŁ</small><b>${printableText(c.lead)}</b></div><div><small>SPONSOR</small><b>${printableText(c.sponsor)}</b></div><div><small>DATA OPRACOWANIA</small><b>${h(printedDate())}</b></div><div><small>KLASYFIKACJA</small><b>${printableText(p.classification)}</b></div><div><small>STATUS RAPORTU</small><b>${p.approved?'Do potwierdzenia podpisem / '+h(p.approved):'Roboczy - niezatwierdzony'}</b></div></div><p class="pdf-cover-note">Wnioski obowiązują wyłącznie w granicach udokumentowanego zakresu i zbadanej próby. Projekt nie zastępuje audytu ustawowego ani certyfikacyjnego.</p></section>`;
+    const summary=`<section class="pdf-cover"><div class="pdf-brand">CYBERAUDIT STUDIO <span>2026 / ${h(APP_VERSION)}</span></div><div class="pdf-kicker">RAPORT AUDYTU BEZPIECZEŃSTWA</div><h1>${name}</h1><p class="pdf-sub">${h(phaseName)} • ${h(c.standards.join(', ')||'Kryteria zlecenia')}</p><div class="pdf-meta-grid"><div><small>ORGANIZACJA</small><b>${printableText(c.org)}</b></div><div><small>AUDYTOR / ZESPÓŁ</small><b>${printableText(c.lead)}</b></div><div><small>SPONSOR</small><b>${printableText(c.sponsor)}</b></div><div><small>DATA OPRACOWANIA</small><b>${h(printedDate())}</b></div><div><small>KLASYFIKACJA</small><b>${printableText(p.classification)}</b></div><div><small>STATUS RAPORTU</small><b>${p.approved?'Do potwierdzenia podpisem / '+h(p.approved):'Roboczy - niezatwierdzony'}</b></div></div><p class="pdf-cover-note">Wnioski obowiązują wyłącznie w granicach udokumentowanego zakresu i zbadanej próby. Projekt nie zastępuje audytu ustawowego ani certyfikacyjnego.</p></section>`;
     const overview=`<section class="pdf-section"><h2>1. Podsumowanie dla kierownictwa</h2><p>${printableText(p.summary,'Podsumowanie nie zostało jeszcze sporządzone.')}</p><div class="pdf-kpis"><div><b>${stat.total}</b><small>zadań w planie</small></div><div><b>${stat.done}</b><small>wykonanych</small></div><div><b>${rs.checked}/${rs.total}</b><small>ocenionych kryteriów</small></div><div><b>${state.findings.length}</b><small>ustaleń</small></div></div><p><b>Konkluzja wybrana przez audytora:</b> ${h(({none:'Nie zatwierdzono konkluzji',limited:'Ocena ograniczona, wymagane dalsze dowody',gaps:'W badanym zakresie stwierdzono niezgodności lub luki',scoped:'W badanej próbie nie stwierdzono istotnych odstępstw'})[p.conclusion]||p.conclusion)}.</p><p class="pdf-warning"><b>Ograniczenie:</b> żadna metryka „wykonano” lub „oceniono” nie jest procentem zgodności. Wynik opiera się na dowodach i przyjętych kryteriach.</p></section>`;
     const manuallyExcluded=Object.keys(c.manual).filter(id=>c.manual[id]==='exclude');
     const excluded=excludedRequirements();
@@ -418,16 +770,22 @@
     const workflow=`<section class="pdf-section"><h2>6. Przebieg i pokrycie etapów</h2><table class="pdf-table"><thead><tr><th>Etap</th><th>Liczba</th><th>Wykonane</th><th>Blokady</th><th>N/D</th></tr></thead><tbody>${A.stages.map(s=>{const st=s.tasks.filter(included);if(!st.length)return '';return `<tr><td>${h(s.id+' · '+s.title)}</td><td>${st.length}</td><td>${st.filter(t=>taskState(t.id).status==='done').length}</td><td>${st.filter(t=>taskState(t.id).status==='waiting').length}</td><td>${st.filter(t=>taskState(t.id).status==='na').length}</td></tr>`;}).join('')}</tbody></table></section>`;
     const evidence=`<section class="pdf-section"><h2>7. Indeks dowodów (${state.evidence.length})</h2>${state.evidence.length?`<table class="pdf-table"><thead><tr><th>Dowód / zadanie</th><th>Opis i typ</th><th>Źródło / lokalizacja</th><th>Weryfikacja</th></tr></thead><tbody>${state.evidence.map(x=>`<tr><td>${h(x.id)}<br><small>${h(x.task)}</small></td><td>${h(x.title)}<br><small>${h(x.kind)}; ${h(x.classification)}</small></td><td>${h(x.owner)} • ${h(x.date)}<br><small>${h(x.location)}</small></td><td>${x.verified?'Tak':'Nie'}</td></tr>`).join('')}</tbody></table>`:'<p>Rejestr dowodów nie został uzupełniony. Odwołania w zadaniach mogą być niekompletne.</p>'}</section>`;
     const annex=`<section class="pdf-section pdf-appendix"><h2>8. Aneks: pełne karty zadań (${t.length})</h2><p class="pdf-small">Wykonanie podpunktu oraz ocena wyniku są niezależnymi polami. Każde zadanie zachowuje status, kryterium, wskazany dowód, próbę i komentarz.</p>${A.stages.map(s=>{const tasks=s.tasks.filter(included);if(!tasks.length)return '';return `<h3>${h(s.title)}</h3><p class="pdf-small">Cel: ${h(s.goal)} • kryterium zakończenia: ${h(s.gate)}</p>${tasks.map(x=>{const q=taskState(x.id),steps=G.steps[x.id]||[];return `<div class="pdf-task"><h4>${h(x.id)} · ${h(x.name)}</h4><div class="pdf-task-cols"><div><b>Status:</b> ${h(LABEL[q.status]||q.status)}<br><b>Ocena:</b> ${h(LABEL[q.assessment]||q.assessment)}</div><div><b>Osoba:</b> ${printableText(q.owner)}<br><b>ID dowodów:</b> ${printableText(q.evidence)}</div></div><p><b>Kryteria:</b> ${h(x.refs)} • <b>Oczekiwany dowód:</b> ${h(x.evidence)}</p><p><b>Zakres próby:</b> ${printableText(q.sample)} • <b>Weryfikacja źródła:</b> ${q.verified?'Tak':'Nie'}</p><ol class="pdf-checks">${steps.map((step,i)=>`<li>${q.checks[i]?'[X]':'[ ]'} ${h(step)}</li>`).join('')}</ol><p><b>Obserwacja:</b> ${printableText(q.notes,'Brak komentarza')}<br><b>Wyłączenie / uwagi:</b> ${printableText(q.reason,'Brak')}</p></div>`;}).join('')}`;}).join('')}</section>`;
-    const refs=`<section class="pdf-section"><h2>${withAppendix?'9':'8'}. Źródła i podstawa metodyczna</h2><ul class="pdf-list">${A.sources.filter(s=>selectedSources.has(s.id)||c.standards.some(f=>({KSC:['KSC26','NIS2','KSC_TIMES'],ISO:['ISO27001','ISO19011'],CIS:['CIS81'],NIST:['NISTCSF'],GDPR:['GDPR'],DORA:['DORA'],EU2690:['EU2690'],CRA:['CRA'],OWASP:['OWASPASVS']})[f]?.includes(s.id))).map(s=>`<li><b>${h(s.title)}</b> (${h(s.org)})<br><small>${h(s.url)}</small></li>`).join('')}</ul><p class="pdf-small">Źródła weryfikowano 04.11.2026. Przed podpisaniem raportu sprawdź zmiany prawa, normy i dokumentację umowną.</p></section>`;
+    const refs=`<section class="pdf-section"><h2>${withAppendix?'9':'8'}. Źródła i podstawa metodyczna</h2><ul class="pdf-list">${A.sources.filter(s=>selectedSources.has(s.id)||c.standards.some(f=>({KSC:['KSC26','NIS2','KSC_TIMES'],ISO:['ISO27001','ISO19011'],CIS:['CIS81'],NIST:['NISTCSF'],GDPR:['GDPR'],DORA:['DORA'],EU2690:['EU2690'],CRA:['CRA'],OWASP:['OWASPASVS']})[f]?.includes?.(s.id))).map(s=>`<li><b>${h(s.title)}</b> (${h(s.org)})<br><small>${h(s.url)}</small></li>`).join('')}</ul><p class="pdf-small">Źródła weryfikowano 04.11.2026. Przed podpisaniem raportu sprawdź zmiany prawa, normy i dokumentację umowną.</p></section>`;
     const sign=`<section class="pdf-section"><h2>Przekazanie i zatwierdzenie</h2><table class="pdf-table"><tbody><tr><th>Audytor wiodący</th><td>${printableText(c.lead)}</td></tr><tr><th>Odbiorca / zatwierdzający</th><td>${printableText(p.approved,'Do zatwierdzenia')}</td></tr><tr><th>Klasyfikacja i dystrybucja</th><td>${printableText(p.classification)}</td></tr><tr><th>Weryfikacja działań naprawczych</th><td>Termin i właściciele zgodnie z rejestrem działań naprawczych / do uzgodnienia</td></tr></tbody></table><p class="pdf-small">Automatyczne wygenerowanie raportu nie stanowi podpisu, poświadczenia zgodności, certyfikatu ani potwierdzenia wykonania audytu ustawowego.</p></section>`;
     const pieces=[summary,overview,methodology,issues,criteria,gate,workflow,evidence];if(withAppendix&&!preview)pieces.push(annex);pieces.push(refs,sign);
     if(preview)return pieces.slice(0,3).join('')+'<div class="pdf-preview-note">Podgląd pokazuje pierwsze trzy sekcje. W PDF i pobranym HTML dostępne są wszystkie wybrane sekcje oraz aneks techniczny.</div>';
     return pieces.join('');
   }
-  function renderReport(){renderQuality();v('report-preview').innerHTML=reportBody(false,true);}
+  function currentReport(preview=false){
+    return state.mode==='learning'?learningUI.report(preview):reportBody(Boolean(state.report.appendix),preview);
+  }
+  function renderReport(){
+    if(state.mode==='auditor')renderQuality();
+    v('report-preview').innerHTML=currentReport(true);
+  }
   const REPORT_STANDALONE_CSS=`@page{size:A4;margin:16mm 14mm}*{box-sizing:border-box}body{background:#fff;color:#1a2636;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;margin:0;overflow-wrap:anywhere}h1,h2,h3,h4{color:#0b213a;line-height:1.24}h1{font-size:29px}h2{font-size:18px;border-bottom:2px solid #dbe6ee;padding-bottom:7px;margin-top:21px}h3{font-size:14px;margin-top:16px}h4{font-size:11.5px;margin:0 0 7px}.pdf-cover{min-height:240mm;page-break-after:always;padding-top:19mm}.pdf-brand{letter-spacing:1.4px;font-weight:800;color:#123052}.pdf-brand span{float:right;font-weight:normal;color:#566b80}.pdf-kicker{margin-top:45mm;color:#1f7b87;font-weight:700;letter-spacing:2px}.pdf-sub{font-size:15px;color:#566b80}.pdf-meta-grid{margin-top:24mm;display:grid;grid-template-columns:1fr 1fr;gap:20px}.pdf-meta-grid div{border-top:1px solid #cfd8e2;padding-top:10px}.pdf-meta-grid small{font-size:9px;color:#576d7c;display:block}.pdf-meta-grid b{display:block;font-size:13px}.pdf-cover-note{margin-top:20mm;font-size:10px;color:#677788}.pdf-section{break-before:auto;page-break-inside:auto}.pdf-section>h2{break-after:avoid}.pdf-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:10px 0 15px}.pdf-table th,.pdf-table td{border:1px solid #dce5ed;padding:6px;vertical-align:top;word-wrap:break-word;text-align:left}.pdf-table th{background:#eef3f7;font-size:10px}.pdf-table tr{break-inside:avoid}.pdf-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:18px 0}.pdf-kpis div{padding:12px 8px;border:1px solid #dce5ed}.pdf-kpis b{display:block;font-size:22px;color:#123052}.pdf-kpis small{font-size:9px;color:#53667a}.pdf-warning{border-left:3px solid #b77939;padding:10px;background:#fff6e9}.pdf-small{font-size:10px;color:#586a7f}.pdf-list{padding-left:17px}.pdf-list li{margin-bottom:7px;overflow-wrap:anywhere}.pdf-finding,.pdf-task{border:1px solid #dce5ed;padding:10px 12px;margin:12px 0;break-inside:avoid}.pdf-finding>div:first-child{display:flex;justify-content:space-between;border-bottom:1px solid #dce5ed}.pdf-finding p,.pdf-task p{margin:5px 0}.pdf-task h4{color:#1f5568}.pdf-task-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pdf-checks{padding-left:17px;margin:7px 0}.pdf-checks li{margin:2px 0}.pdf-preview-note{display:none}a{color:#123052}`;
-  function htmlStandalone(){const body=reportBody(Boolean(state.report.appendix),false);const title=h(state.config.name||'Raport CyberAudit');return '<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>'+title+'</title><style>'+REPORT_STANDALONE_CSS+'</style></head><body>'+body+'</body></html>';}
-  function printPdf(){renderReport();v('print-only').innerHTML=reportBody(Boolean(state.report.appendix),false);document.body.classList.add('print-report');window.print();}
+  function htmlStandalone(){const body=currentReport();const title=h(state.config.name||'Raport CyberAudit');return '<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>'+title+'</title><style>'+REPORT_STANDALONE_CSS+learningUI.reportStyles+'</style></head><body>'+body+'</body></html>';}
+  function printPdf(){renderReport();v('print-only').innerHTML=currentReport();document.body.classList.add('print-report');window.print();}
   window.addEventListener('afterprint',()=>{document.body.classList.remove('print-report');v('print-only').innerHTML='';});
   function projectJson(project){
     return JSON.stringify({...project,projectName:project.config.name.trim()||'Projekt bez nazwy',
@@ -435,9 +793,10 @@
   }
   function exportJson(){
     download(`${filenameBase()}-${dateNow()}.json`,projectJson(state),'application/json;charset=utf-8');
-    if(state.changesSinceExport){
+    if(state.changesSinceExport&&!recovery){
       state.changesSinceExport=0;
-      if(!recovery)writeProject(state);
+      dirty=true;
+      void flushChanges();
     }
     updateStorageDisplay();
   }
@@ -453,9 +812,13 @@
     for(const [id,key] of Object.entries(reportFields)){
       const el=v(id);el[el.type==='checkbox'?'checked':'value']=state.report[key];
     }
-    renderPresets();renderSetupControls();renderDashboard();renderPlan();renderCriteria();renderEvidence();renderFindings();renderReport();}
+    applyMode();
+    renderWorkspace();
+    renderLearner();
+    renderPresets();renderSetupControls();renderDashboard();renderPlan();renderCriteria();renderEvidence();renderFindings();renderReport();
+  }
   function setupEvents(){
-    document.addEventListener('click',ev=>{const p=ev.target.closest('[data-preset]');if(p){applyPreset(p.dataset.preset);location.hash='#setup';}});
+    document.addEventListener('click',ev=>{const p=ev.target.closest('[data-preset]');if(p)chooseProfile(p.dataset.preset);});
     const map={'cfg-name':'name','cfg-org':'org','cfg-lead':'lead','cfg-sponsor':'sponsor','cfg-type':'type','cfg-depth':'depth','cfg-size':'size','cfg-legal':'legal','cfg-legal-evidence':'legalEvidence','cfg-scope':'scope','cfg-exclusions':'exclusions','cfg-period':'period','cfg-previous':'previous','cfg-targets':'targets'};
     const setup=v('view-setup');
     function updateSetup(ev){const el=ev.target,id=el.id,c=state.config;
@@ -515,9 +878,9 @@
     function updateReq(ev){const box=ev.target.closest('.requirement');if(!box)return;const id=box.dataset.req,q={...reqState(id)};const el=ev.target;
       if(!el.matches('[data-req-field]'))return;q[el.dataset.reqField]=el.value;state.requirements[id]=q;save();if(ev.type==='change'&&el.tagName==='SELECT'){preserveFocus(renderCriteria,'req-filter');renderDashboard();}}
     reqList.addEventListener('input',ev=>{if(ev.target.matches('input,textarea'))updateReq(ev);});reqList.addEventListener('change',updateReq);
-    v('evidence-form').addEventListener('submit',ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.currentTarget).entries());d.id=String(d.id||'').trim();if(state.evidence.some(x=>x.id.toLowerCase()===d.id.toLowerCase())){alert('Istnieje dowód o takim identyfikatorze. Użyj unikalnego ID.');return;}if(!d.id){alert('Wpisz identyfikator dowodu.');return;}d.date=dateOnly(d.date);d.verified=Boolean(d.verified);state.evidence.push(d);save();ev.currentTarget.reset();renderEvidence();renderReport();});
+    v('evidence-form').addEventListener('submit',ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.currentTarget).entries());d.id=String(d.id||'').trim();if(state.evidence.some(x=>x.id.toLowerCase()===d.id.toLowerCase())){alert('Istnieje dowód o takim identyfikatorze. Użyj unikalnego ID.');return;}if(!d.id){alert('Wpisz identyfikator dowodu.');return;}d.date=dateOnly(d.date);d.verified=Boolean(d.verified);state.evidence.push(d);learningUI.linkEvidence(d);save();ev.currentTarget.reset();renderEvidence();renderReport();});
     v('evidence-table').addEventListener('click',ev=>{const b=ev.target.closest('[data-delete-evidence]');if(!b)return;const i=n(b.dataset.deleteEvidence,-1);if(i<0||!state.evidence[i])return;if(confirm('Usunąć metadane dowodu? Odesłania do jego ID pozostaną w zadaniach.')){state.evidence.splice(i,1);save();renderEvidence();renderReport();}});
-    v('finding-form').addEventListener('submit',ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.currentTarget).entries());let number=Date.now(),id='U-'+String(number);const ids=new Set(state.findings.map(item=>item.id.toLowerCase()));while(ids.has(id.toLowerCase()))id='U-'+String(++number);state.findings.push({...f,id,due:dateOnly(f.due),likelihood:risk(f.likelihood),impact:risk(f.impact),status:'open',managementResponse:'',retestEvidence:''});save();ev.currentTarget.reset();renderFindings();renderDashboard();renderReport();});
+    v('finding-form').addEventListener('submit',ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.currentTarget).entries());const id=nextFindingId();state.findings.push({...f,id,due:dateOnly(f.due),likelihood:risk(f.likelihood),impact:risk(f.impact),status:'open',managementResponse:'',retestEvidence:''});save();ev.currentTarget.reset();renderFindings();renderDashboard();renderReport();});
     const fList=v('findings-list');
     fList.addEventListener('click',ev=>{const b=ev.target.closest('[data-delete-finding]');if(!b)return;const i=n(b.dataset.deleteFinding,-1);if(i<0||!state.findings[i])return;if(confirm('Usunąć wskazane ustalenie?')){state.findings.splice(i,1);save();renderFindings();renderDashboard();renderReport();}});
     function updateFinding(ev){const box=ev.target.closest('.finding');if(!box)return;const i=n(box.dataset.finding,-1),el=ev.target;if(!state.findings[i]||!el.matches('[data-finding-field]'))return;const finding=state.findings[i];finding[el.dataset.findingField]=el.type==='date'?dateOnly(el.value):el.value;save();
@@ -528,56 +891,8 @@
     v('top-export').addEventListener('click',exportJson);v('top-pdf').addEventListener('click',printPdf);v('generate-pdf').addEventListener('click',printPdf);
     v('export-json').addEventListener('click',exportJson);v('export-csv').addEventListener('click',exportCsv);
     v('download-html-report').addEventListener('click',()=>download(`${filenameBase()}-raport.html`,htmlStandalone(),'text/html;charset=utf-8'));
-    v('last-copy-download').addEventListener('click',()=>{
-      if(availableCopy!==null)download('ostatnia-kopia-audytu.json',availableCopy,'application/json;charset=utf-8');
-    });
-    v('recovery-download').addEventListener('click',()=>{
-      if(!recovery)return;
-      download('uszkodzony-zapis-audytu.txt',recovery.raw);
-      recovery.offered=true;
-      updateStorageDisplay();
-    });
-    v('resume-save').addEventListener('click',()=>{
-      if(!recovery||(!recovery.archived&&!recovery.offered))return;
-      if(!confirm('Zastąpić uszkodzony zapis projektem widocznym w tej karcie?'))return;
-      if(writeProject(state)){
-        recovery=null;
-        v('save-indicator').focus();
-      }
-      updateStorageDisplay();
-    });
-    v('replace-download').addEventListener('click',()=>{
-      if(!replacement)return;
-      download('ostatnia-kopia-audytu.json',replacement.copy,'application/json;charset=utf-8');
-      v('replace-confirm').disabled=false;
-    });
-    v('replace-cancel').addEventListener('click',()=>v('replace-dialog').close());
-    v('replace-dialog').addEventListener('close',()=>{replacement=null;});
-    v('replace-confirm').addEventListener('click',()=>{
-      if(!replacement)return;
-      const {next,routeToSetup}=replacement;
-      next.changesSinceExport=0;
-      if(!writeProject(next)&&storageAvailable){
-        v('replace-message').textContent=lastSaved+' Bieżący projekt pozostał otwarty.';
-        return;
-      }
-      state=next;
-      contentSnapshot=projectContent(state);
-      openTasks.clear();
-      v('replace-dialog').close();
-      renderAll();
-      updateStorageDisplay();
-      if(routeToSetup)location.hash='#setup';
-    });
-    v('import-file').addEventListener('change',async ev=>{
-      const file=ev.target.files[0];
-      ev.target.value='';
-      if(!file)return;
-      if(file.size>8_000_000){alert('Plik przekracza 8 MB.');return;}
-      try{backupBeforeReplace(normalize(JSON.parse(await file.text())));}
-      catch(ex){alert('Nie udało się wczytać projektu. '+ex.message);}
-    });
-    v('new-project').addEventListener('click',()=>backupBeforeReplace(initial(),true));
+    setupWorkspaceEvents();
+    setupLearningEvents();
     v('docs-grid').addEventListener('click',ev=>{const b=ev.target.closest('[data-pdf]');if(!b)return;v('pdf-dialog-title').textContent=b.dataset.title;v('pdf-dialog-frame').src=b.dataset.pdf;v('pdf-dialog').showModal();});
     v('close-pdf').addEventListener('click',()=>v('pdf-dialog').close());
     v('pdf-dialog').addEventListener('close',()=>v('pdf-dialog-frame').removeAttribute('src'));
@@ -611,9 +926,12 @@
     v('menu-toggle').setAttribute('aria-expanded',String(open));
   }
   function route(moveFocus=false){
-    const page=(location.hash.slice(1)||'home').split('/')[0];
-    const titles={home:'Pulpit',setup:'Konfigurator audytu',plan:'Plan i listy kontrolne',criteria:'Macierz wymagań',evidence:'Rejestr dowodów',findings:'Ustalenia i plan naprawczy',report:'Raport i PDF',library:'Formularze i wzory',help:'Jak audytować?',sources:'Źródła'};
-    const name=Object.hasOwn(titles,page)?page:'home';
+    const [page,locationAnchor]=(location.hash.slice(1)||'home').split('/');
+    const titles={home:'Pulpit',projects:'Projekty',audit:'Audyt',glossary:'Słowniczek',setup:'Konfigurator audytu',plan:'Plan i listy kontrolne',criteria:'Macierz wymagań',evidence:'Rejestr dowodów',findings:'Ustalenia i plan naprawczy',report:'Raport i PDF',library:'Formularze i wzory',help:'Jak audytować?',sources:'Źródła'};
+    let name=Object.hasOwn(titles,page)?page:'home';
+    if(state.mode!=='auditor'&&['setup','plan','criteria','library','sources'].includes(name))name=hasProject()?'audit':'home';
+    if(state.mode==='auditor'&&name==='audit')name='plan';
+    if(!hasProject()&&['audit','evidence','findings','report'].includes(name))name='projects';
     $$('.view').forEach(view=>view.classList.toggle('active',view.id==='view-'+name));
     $$('#main-nav a').forEach(link=>{
       const active=link.dataset.view===name;
@@ -624,13 +942,42 @@
     v('breadcrumb-text').textContent=titles[name];
     setMenu(false);
     if(name==='report')renderReport();
+    if(name==='audit')renderLearner();
     if(moveFocus){
       const heading=$('#view-'+name+' h1');
       heading.tabIndex=-1;
       heading.focus({preventScroll:true});
     }
-    window.scrollTo({top:0,behavior:'instant'});
+    if(name==='glossary'&&locationAnchor&&v('term-'+locationAnchor)){
+      const term=v('term-'+locationAnchor);
+      term.focus({preventScroll:true});
+      term.scrollIntoView({block:'center'});
+    }else if(name==='audit'&&locationAnchor==='zgoda'){
+      v('learning-consent').focus({preventScroll:true});
+      v('learning-scope').scrollIntoView({block:'center'});
+    }else if(name==='audit'&&locationAnchor==='pytania'){
+      v('audit-program').focus({preventScroll:true});
+      v('audit-programs').scrollIntoView({block:'center'});
+    }else window.scrollTo({top:0,behavior:'instant'});
   }
-  function init(){v('app-version').textContent='Wersja '+APP_VERSION;load();renderLibrary();renderHelp();renderSources();renderAll();setupEvents();window.addEventListener('hashchange',()=>route(true));route();}
+  async function init(){
+    v('app-version').textContent='Wersja '+APP_VERSION;
+    await load();
+    renderLibrary();renderHelp();renderSources();renderAll();setupEvents();updateStorageDisplay();
+    window.addEventListener('hashchange',()=>route(true));
+    window.addEventListener('storage',event=>{
+      if(event.key===KEY || event.key===null){
+        lastSaved='Lista projektów zmieniła się w innej karcie. Zapisz kopię bieżącej pracy i odśwież.';
+        updateStorageDisplay();
+      }
+    });
+    window.addEventListener('beforeunload',event=>{
+      if(!dirty)return;
+      event.preventDefault();
+      event.returnValue=true;
+    });
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)void flushChanges();});
+    route();
+  }
   document.addEventListener('DOMContentLoaded',init);
 })();
