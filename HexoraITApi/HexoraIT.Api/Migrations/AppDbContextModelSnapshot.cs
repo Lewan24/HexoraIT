@@ -1382,6 +1382,94 @@ namespace HexoraITApi.Migrations
                     b.ToTable("OrganizationActivities");
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("AuditDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "AuditDate", "Id");
+
+                    b.ToTable("OrganizationAudits");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAuditAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<int>("Size")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UpdateId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdateId");
+
+                    b.ToTable("OrganizationAuditAttachments");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAuditUpdate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuditId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuditId", "CreatedAt", "Id");
+
+                    b.ToTable("OrganizationAuditUpdates");
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationNotificationSettings", b =>
                 {
                     b.Property<Guid>("OrganizationId")
@@ -2264,6 +2352,37 @@ namespace HexoraITApi.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAudit", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAuditAttachment", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.OrganizationAuditUpdate", "Update")
+                        .WithMany("Attachments")
+                        .HasForeignKey("UpdateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Update");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAuditUpdate", b =>
+                {
+                    b.HasOne("HexoraITApi.Domain.Entities.OrganizationAudit", "Audit")
+                        .WithMany("Updates")
+                        .HasForeignKey("AuditId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Audit");
+                });
+
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationNotificationSettings", b =>
                 {
                     b.HasOne("HexoraITApi.Domain.Entities.Organization", "Organization")
@@ -2464,6 +2583,16 @@ namespace HexoraITApi.Migrations
                     b.Navigation("Tasks");
 
                     b.Navigation("WarrantyItems");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAudit", b =>
+                {
+                    b.Navigation("Updates");
+                });
+
+            modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationAuditUpdate", b =>
+                {
+                    b.Navigation("Attachments");
                 });
 
             modelBuilder.Entity("HexoraITApi.Domain.Entities.OrganizationRole", b =>

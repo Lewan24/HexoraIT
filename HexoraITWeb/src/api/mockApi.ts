@@ -1,6 +1,7 @@
 import { ApiError } from "./errors"
 import { formatIpAddress, parseIpRange, rangeOffset, subnetAddressKind } from "../lib/ipRange"
 import { MODULE_ID, RESOURCES } from "../lib/permissions"
+import type { AuditUpdate, OrganizationAudit } from "./organizationAudits"
 import type { OrganizationActivityItem } from "./resources"
 import { DEMO_ACCOUNTS, DEMO_STORAGE_KEY } from "../demo"
 
@@ -39,6 +40,7 @@ type DemoState = {
   privateNotes?: Entity[]
   dashboards: Record<string, unknown>
   fileContents: Record<string, string>
+  organizationAudits?: (OrganizationAudit & { organizationId: string; updates: (AuditUpdate & { authorId: string })[] })[]
   organizationActivity?: { organizationId: string; event: OrganizationActivityItem }[]
 }
 
@@ -762,6 +764,63 @@ async function request<T>(
     const tail = orgMatch[2] ?? ""
     const org = state.organizations.find((item) => item.id === orgId)
     if (!org) throw new ApiError(404, "Organization not found.")
+    if (tail === 'audit-history' || tail.startsWith('audit-history/')) {
+      if (org.isArchived || state.deletedOrganizationIds.includes(orgId) ||
+          (org.hiddenModules as string[] | undefined)?.includes('audit-history') ||
+          !demoPermission(state, user, orgId, 'audit-history', method === 'POST'))
+        throw new ApiError(403, 'Access forbidden.')
+
+      const audits = (state.organizationAudits ?? []).filter(audit => audit.organizationId === orgId)
+      const [, auditId, collection, itemId] = tail.split('/')
+      const audit = audits.find(audit => audit.id === auditId)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const paginate = (items: unknown[]) => {
+        if (!Number.isInteger(page) || page < 1 || page > 10000) throw new ApiError(400, 'Invalid page.')
+        return { items: items.slice((page - 1) * 25, page * 25), more: items.length > page * 25 }
+      }
+
+      if (method === 'GET' && tail === 'audit-history') {
+        audits.sort((a, b) => b.auditDate.localeCompare(a.auditDate) || b.id.localeCompare(a.id))
+        return paginate(audits.map(({ id, title, auditDate, status }) => ({ id, title, auditDate, status }))) as T
+      }
+      if (method === 'GET' && collection === 'updates' && audit && !itemId) return paginate(audit.updates) as T
+      if (method === 'GET' && collection === 'attachments' && audit?.updates.some(update => update.attachments.some(file => file.id === itemId)))
+        return dataUrlBlob(state.fileContents[itemId!]) as T
+
+      if (method === 'POST' && collection === 'updates' && auditId && itemId && rawBody instanceof FormData) {
+        if (audit?.updates.some(update => update.id === itemId && update.authorId === user.id)) return undefined as T
+        const title = String(rawBody.get('title') ?? '').trim()
+        const auditDate = String(rawBody.get('auditDate') ?? '')
+        const note = String(rawBody.get('note') ?? '').trim()
+        const status = rawBody.get('status')
+        const files = rawBody.getAll('files')
+        if ((status !== 'planned' && status !== 'in-progress' && status !== 'completed') || note.length > 4000 || files.length > 2)
+          throw new ApiError(400, 'Invalid audit status, note or attachment count.')
+        if (!audit && (!title || title.length > 160 || !/^\d{4}-\d{2}-\d{2}$/.test(auditDate)))
+          throw new ApiError(400, 'Enter a valid audit title and date.')
+        if (audit && title) throw new ApiError(409, 'Audit already exists.')
+        const attachments = []
+        for (const file of files) {
+          if (!(file instanceof File) || !/\.(pdf|json)$/i.test(file.name) || !file.size || file.size > 10 * 1024 * 1024)
+            throw new ApiError(400, 'Attach a non-empty JSON or PDF file up to 10 MB.')
+          if (/\.json$/i.test(file.name)) {
+            try { JSON.parse(await file.text()) } catch { throw new ApiError(400, 'The JSON attachment is invalid.') }
+          } else if ((await file.slice(0, 5).text()) !== '%PDF-') {
+            throw new ApiError(400, 'The PDF attachment is invalid.')
+          }
+          const attachmentId = id()
+          state.fileContents[attachmentId] = await dataUrl(file)
+          attachments.push({ id: attachmentId, fileName: file.name, size: file.size })
+        }
+        const entry = audit ?? { id: auditId, organizationId: orgId, title, auditDate, status, updates: [] }
+        if (!audit) (state.organizationAudits ??= []).push(entry)
+        entry.status = status
+        entry.updates.unshift({ id: itemId, authorId: user.id, author: user.displayName, createdAt: now(), status, note, attachments })
+        writeState(state)
+        return undefined as T
+      }
+      throw new ApiError(404, 'Audit record not found.')
+    }
     if (tail === 'activity' || tail.startsWith('activity/')) {
       const member = state.memberships.find(value => value.organizationId === orgId && value.userId === user.id)
       if (!member || !['Owner', 'Admin'].includes(member.role) || member.customRoleId || user.systemRole === 'Client' ||
@@ -844,7 +903,7 @@ async function request<T>(
     if (tail.startsWith("documentation/")) {
       const member = state.memberships.find(m => m.organizationId === orgId && m.userId === user.id)
       if (!member || !["Owner", "Admin"].includes(member.role) || member.customRoleId || user.systemRole === "Client") throw new ApiError(403, "Access forbidden.")
-      const keys = [...RESOURCES.filter(key => !["dashboard", "settings", "data-transfer"].includes(key)), "private-notes"]
+      const keys = [...RESOURCES.filter(key => !["dashboard", "settings", "data-transfer", "audit-history"].includes(key)), "private-notes"]
       const records = (key: string): Entity[] => {
         if (key === "private-notes" || key === "diagram") return []
         const resource = key === "networks" ? "subnets" : key === "warranty" ? "warranties" : key

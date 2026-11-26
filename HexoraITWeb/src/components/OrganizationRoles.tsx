@@ -175,7 +175,7 @@ function RoleEditor({ orgId, orgName, owner }: { orgId: string; orgName: string;
           <p className="text-xs text-ink-muted">{tr("An individual rule can grant or deny access, overriding the module default. To share only one item, disable module access and enable Read for that item. Removing a rule restores the module default. Network rules include their IP entries.")}</p>
           <div className="flex flex-wrap gap-2">
             <select aria-label={tr("Resource module")} className={inputClass} value={resource} onChange={e => { setResource(e.target.value); setOptions([]); setResourceId('') }}>
-              {RESOURCES.filter(r => !['dashboard', 'diagram', 'settings', 'data-transfer'].includes(r)).map(r => <option key={r} value={r}>{tr(r)}</option>)}
+              {RESOURCES.filter(r => !['dashboard', 'diagram', 'settings', 'data-transfer', 'audit-history'].includes(r)).map(r => <option key={r} value={r}>{tr(r)}</option>)}
             </select>
             <select aria-label={tr("Individual resource")} className={inputClass} value={resourceId} onChange={e => setResourceId(e.target.value)}>
               <option value="">{tr("Choose a resource")}</option>

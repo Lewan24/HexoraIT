@@ -1,4 +1,5 @@
 import { http, qs } from './http'
+import type { PasswordImportEntry } from '../lib/passwordImport'
 import type {
   CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
@@ -84,6 +85,8 @@ export const assetsApi = {
 
 export const passwordsApi = {
   getAll: (organizationId: string) => http.getAllPages<PasswordEntry>(`/passwords${qs({ organizationId })}`),
+  import: (organizationId: string, entries: PasswordImportEntry[]) =>
+    http.post<PasswordEntry[]>(`/passwords/import${qs({ organizationId })}`, entries),
   reveal: (id: string) => http.get<string>(`/passwords/${id}/reveal`),
   create: (organizationId: string, data: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) =>
     http.post<PasswordEntry>(`/passwords${qs({ organizationId })}`, data),

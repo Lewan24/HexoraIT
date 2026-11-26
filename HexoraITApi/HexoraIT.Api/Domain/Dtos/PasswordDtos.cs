@@ -17,3 +17,8 @@ public record UpdatePasswordDto(
     [Required, StringLength(200)] string Name, [StringLength(500)] string Username,
     [StringLength(10000)] string? Password, [StringLength(200)] string Category,
     [Required, StringCollection(100, 100)] List<string> Tags, [StringLength(100000)] string Notes);
+
+public sealed record ImportPasswordDto(string Name, string Username, string Password, string Category,
+    Guid? ReplaceId, DateTime? ExpectedUpdatedAt, int? ExpectedTitleCount = null);
+
+public sealed record PasswordImportConflictDto(string Message, List<int> EntryIndices);

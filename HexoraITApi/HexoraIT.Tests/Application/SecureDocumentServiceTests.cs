@@ -40,6 +40,71 @@ public sealed class SecureDocumentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PasswordImport_RejectsDuplicatesAtomicallyAndReplacesOnlyTheConfirmedVersion()
+    {
+        var (_, org) = _fixture.SeedUserWithOrg();
+        var service = Passwords();
+        var existing = (await service.CreateAsync(org.Id, new(" Café ", "old", "old secret", "VPN", ["tag"], "notes")))
+            .Value.Should().BeOfType<PasswordListDto>().Subject;
+        var import = new ImportPasswordDto("CAFE\u0301", "", " new secret ", "Email", null, null);
+        var other = new ImportPasswordDto("Second entry", "login", "another secret", "Email", null, null);
+
+        (await service.ImportAsync(org.Id, [other, import])).StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        (await service.ImportAsync(org.Id, [other, other with { Name = "second entry " }])).StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        (await service.ImportAsync(org.Id, [other, import with { ReplaceId = existing.Id, ExpectedUpdatedAt = existing.UpdatedAt.AddSeconds(-1) }]))
+            .StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        (await service.GetAllAsync(org.Id, null)).Value.Should().BeOfType<List<PasswordListDto>>().Subject.Should().ContainSingle();
+
+        var result = (await service.ImportAsync(org.Id, [other, import with { ReplaceId = existing.Id, ExpectedUpdatedAt = existing.UpdatedAt }]))
+            .Value.Should().BeOfType<List<PasswordListDto>>().Subject;
+        var replaced = result.Single(entry => entry.Id == existing.Id);
+        replaced.Category.Should().Be("VPN");
+        replaced.Notes.Should().Be("notes");
+        replaced.Tags.Should().Equal("tag");
+        replaced.Username.Should().BeEmpty();
+        (await service.RevealAsync(replaced.Id)).Value.Should().Be(" new secret ");
+        (await service.ImportAsync(org.Id, [other])).StatusCode.Should().Be(StatusCodes.Status409Conflict);
+    }
+
+    [Fact]
+    public async Task PasswordImport_CanExplicitlyKeepSameTitleAndImportUnderAnEditedTitle()
+    {
+        var (_, org) = _fixture.SeedUserWithOrg();
+        var service = Passwords();
+        var existing = new ImportPasswordDto("Certum", "first-account", "first secret", "Other", null, null);
+        (await service.ImportAsync(org.Id, [existing])).StatusCode.Should().Be(StatusCodes.Status200OK);
+        var second = existing with { Name = "CERTUM ", Username = "second-account", Password = "second secret", ExpectedTitleCount = 1 };
+        var third = existing with { Username = "third-account", Password = "third secret", ExpectedTitleCount = 1 };
+        var renamed = existing with { Name = "Certum — backup", Username = "backup-account", Password = "backup secret" };
+
+        (await service.ImportAsync(org.Id, [second, third with { ExpectedTitleCount = null }, renamed]))
+            .StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        var saved = (await service.ImportAsync(org.Id, [second, third, renamed]))
+            .Value.Should().BeOfType<List<PasswordListDto>>().Subject;
+        saved.Select(item => item.Name).Should().Equal("CERTUM", "Certum", "Certum — backup");
+        (await service.RevealAsync(saved[0].Id)).Value.Should().Be("second secret");
+        (await service.RevealAsync(saved[1].Id)).Value.Should().Be("third secret");
+        (await service.ImportAsync(org.Id, [second, third, renamed])).StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        (await service.GetAllAsync(org.Id, null)).Value.Should().BeOfType<List<PasswordListDto>>().Subject.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task PasswordImport_RequiresWritePermissionAndScopesTitlesToTheOrganization()
+    {
+        var (_, first) = _fixture.SeedUserWithOrg();
+        var service = Passwords();
+        var entry = new ImportPasswordDto("Shared title", "login", "fixture secret", "Other", null, null);
+        (await service.ImportAsync(first.Id, [entry])).StatusCode.Should().Be(StatusCodes.Status200OK);
+
+        var (_, second) = _fixture.SeedUserWithOrg();
+        (await service.ImportAsync(first.Id, [entry])).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        (await service.ImportAsync(second.Id, [entry])).StatusCode.Should().Be(StatusCodes.Status200OK);
+
+        var (_, readOnly) = _fixture.SeedUserWithOrg(OrgRole.ReadOnly);
+        (await service.ImportAsync(readOnly.Id, [entry])).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Fact]
     public async Task ContractService_PreservesCrudStatusStarAndDocumentContract()
     {
         var (_, organization) = _fixture.SeedUserWithOrg();

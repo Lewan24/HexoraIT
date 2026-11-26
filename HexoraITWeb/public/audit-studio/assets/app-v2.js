@@ -13,6 +13,7 @@
   const TASK_BY_ID=Object.assign(Object.create(null),Object.fromEntries(ALL.map(t=>[t.id,t])));
   const SOURCE_BY_ID=Object.fromEntries(A.sources.map(s=>[s.id,s]));
   const scope=new URLSearchParams(location.search);
+  const hostedView=scope.get('embedded')==='1'&&window.parent!==window;
   const workspace=scope.get('workspace'),account=scope.get('account');
   const isScopeId=value=>/^[a-z0-9-]{1,80}$/i.test(value||'');
   const embeddedScope=isScopeId(workspace)&&isScopeId(account);
@@ -329,8 +330,13 @@
   }
 
   function go(screen){
-    if(location.hash==='#'+screen)route(true);
-    else location.hash='#'+screen;
+    const hash='#'+screen;
+    if(location.hash===hash){route(true);return;}
+    if(hostedView){
+      // Keep the browser's back step for the parent page.
+      history.replaceState(history.state,'',hash);
+      route(true);
+    }else location.hash=hash;
   }
 
   function addProject(project,screen){
@@ -879,6 +885,13 @@
     renderPresets();renderSetupControls();renderDashboard();renderPlan();renderCriteria();renderEvidence();renderFindings();renderReport();
   }
   function setupEvents(){
+    if(hostedView)document.addEventListener('click',event=>{
+      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+      const anchor=event.target.closest('a[href^="#"]:not([target]):not([download])');
+      if(!anchor)return;
+      event.preventDefault();
+      go(anchor.getAttribute('href').slice(1));
+    });
     document.addEventListener('click',ev=>{const p=ev.target.closest('[data-preset]');if(p)chooseProfile(p.dataset.preset);});
     const map={'cfg-name':'name','cfg-org':'org','cfg-lead':'lead','cfg-sponsor':'sponsor','cfg-type':'type','cfg-depth':'depth','cfg-size':'size','cfg-legal':'legal','cfg-legal-evidence':'legalEvidence','cfg-scope':'scope','cfg-exclusions':'exclusions','cfg-period':'period','cfg-previous':'previous','cfg-targets':'targets'};
     const setup=v('view-setup');
@@ -903,8 +916,8 @@
       const item=ev.target.closest('.work-item');if(!item)return;const id=item.dataset.id,t=TASK_BY_ID[id];
       if(ev.target.closest('.work-toggle')){const opened=!openTasks.has(id);if(opened)openTasks.add(id);else openTasks.delete(id);item.classList.toggle('is-open',opened);$('.work-toggle',item).setAttribute('aria-expanded',String(opened));return;}
       const a=ev.target.closest('[data-action]');if(!a)return;
-      if(a.dataset.action==='new-evidence'){v('ev-id').value=nextEvidenceId();v('ev-task').value=id;v('ev-title').value='Dowód dla: '+t.name;location.hash='#evidence';requestAnimationFrame(()=>v('ev-title').focus());}
-      else if(a.dataset.action==='new-finding'){v('fi-task').value=id;v('fi-title').value=t.name;v('fi-criterion').value=t.refs;v('fi-evidence').value=taskState(id).evidence;v('fi-observation').value=taskState(id).notes;location.hash='#findings';requestAnimationFrame(()=>v('fi-observation').focus());}
+      if(a.dataset.action==='new-evidence'){v('ev-id').value=nextEvidenceId();v('ev-task').value=id;v('ev-title').value='Dowód dla: '+t.name;go('evidence');requestAnimationFrame(()=>v('ev-title').focus());}
+      else if(a.dataset.action==='new-finding'){v('fi-task').value=id;v('fi-title').value=t.name;v('fi-criterion').value=t.refs;v('fi-evidence').value=taskState(id).evidence;v('fi-observation').value=taskState(id).notes;go('findings');requestAnimationFrame(()=>v('fi-observation').focus());}
       else if(a.dataset.action==='scope'){
         if(included(t)){const reason=prompt('Dlaczego wyłączasz tę czynność z zakresu? Powód trafi do projektu/raportu.',taskState(id).reason||'');if(reason===null)return;state.config.manual[id]='exclude';const x={...taskState(id)};x.reason=reason;state.tasks[id]=x;}
         else state.config.manual[id]='include';
@@ -935,7 +948,7 @@
         }else state.config.criterionManual[id]={mode:'include',reason:''};
         save();renderCriteria();renderDashboard();renderSetupSummary();renderReport();return;
       }
-      const jump=ev.target.closest('[data-jump]');if(!jump)return;const id=jump.dataset.jump;openTasks.add(id);v('task-search').value=id;v('task-filter').value='all';v('show-all-tasks').checked=true;renderPlan();location.hash='#plan';});
+      const jump=ev.target.closest('[data-jump]');if(!jump)return;const id=jump.dataset.jump;openTasks.add(id);v('task-search').value=id;v('task-filter').value='all';v('show-all-tasks').checked=true;renderPlan();go('plan');});
     function updateReq(ev){const box=ev.target.closest('.requirement');if(!box)return;const id=box.dataset.req,q={...reqState(id)};const el=ev.target;
       if(!el.matches('[data-req-field]'))return;q[el.dataset.reqField]=el.value;state.requirements[id]=q;save();if(ev.type==='change'&&el.tagName==='SELECT'){preserveFocus(renderCriteria,'req-filter');renderDashboard();}}
     reqList.addEventListener('input',ev=>{if(ev.target.matches('input,textarea'))updateReq(ev);});reqList.addEventListener('change',updateReq);

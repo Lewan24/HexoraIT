@@ -5,13 +5,14 @@ import { tr, useLocale } from '../i18n'
 import { useState, useEffect, useRef } from 'react'
 import {
   Search, Plus, Eye, EyeOff, Copy, Tag, KeyRound, Clock,
-  Edit2, Star, X, Trash2, RefreshCw, Shield, ChevronDown, ArrowLeft, Loader2,
+  Edit2, Star, X, Trash2, RefreshCw, Shield, ChevronDown, ArrowLeft, Loader2, Upload,
 } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { PasswordEntry } from '../api/types'
-
-const CATEGORIES = ['All', 'Cloud', 'Hypervisor', 'Network', 'Active Directory', 'Storage', 'Database', 'Application', 'Other']
-const CATEGORY_LIST = CATEGORIES.slice(1)
+import { config } from '../../config'
+import { PASSWORD_CATEGORIES } from '../lib/passwordImport'
+import PasswordGeneratorDialog from './PasswordGeneratorDialog'
+import PasswordImportDialog from './PasswordImportDialog'
 
 const STRENGTH_STYLES = {
   strong: 'text-green-400 bg-green-500/10 border-green-500/25',
@@ -19,11 +20,6 @@ const STRENGTH_STYLES = {
   weak: 'text-red-400 bg-red-500/10 border-red-500/25',
 }
 const STRENGTH_BAR = { strong: 'w-full bg-green-500', medium: 'w-2/3 bg-orange-500', weak: 'w-1/3 bg-red-500' }
-
-function generatePassword(len = 20): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|'
-  return Array.from(crypto.getRandomValues(new Uint8Array(len))).map(b => chars[b % chars.length]).join('')
-}
 
 function calcStrength(pw: string) {
   return pw.length >= 16 && /[A-Z]/.test(pw) && /[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw) ? 'strong' : pw.length >= 10 ? 'medium' : 'weak'
@@ -53,6 +49,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
     notes: initial?.notes ?? '',
   })
   const [showPw, setShowPw] = useState(false)
+  const [generatorOpen, setGeneratorOpen] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -60,9 +57,9 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
 
   useEffect(() => { firstRef.current?.focus() }, [])
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !submitting) onClose() }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !submitting && !generatorOpen) onClose() }
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
-  }, [onClose, submitting])
+  }, [onClose, submitting, generatorOpen])
 
   const set = (k: string, v: unknown) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })) }
   const addTag = () => { const t = tagInput.trim().toLowerCase(); if (t.length <= 100 && form.tags.length < 100 && t && !form.tags.includes(t)) set('tags', [...form.tags, t]); setTagInput('') }
@@ -70,7 +67,6 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
   const validate = () => {
     const e: Record<string, string> = {}
     if (!form.name.trim()) e.name = tr("Required")
-    if (!form.username.trim()) e.username = tr("Required")
     // Password is required on create, optional on edit — leaving it blank
     // while editing keeps the existing stored credential unchanged.
     if (!initial && !form.password) e.password = tr("Required")
@@ -97,7 +93,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
     }
   }
 
-  return (
+  return (<>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !submitting && onClose()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="relative bg-navy-800 border border-edge-strong rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" style={{ animation: 'modalIn 0.18s ease-out' }} onClick={e => e.stopPropagation()}>
@@ -117,7 +113,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
             {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Username *")}</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Username / Email")}</label>
             <input value={form.username} onChange={e => set('username', e.target.value)} placeholder={tr("e.g. admin@corp.com")}
               maxLength={500} className={inp(errors.username) + ' font-mono'} disabled={submitting} />
             {errors.username && <p className="text-[10px] text-red-400 mt-1">{errors.username}</p>}
@@ -127,7 +123,7 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
               <label className="text-[11px] font-medium text-ink-secondary">
                  {tr("Password")} {initial ? '' : '*'}
               </label>
-              <button type="button" onClick={() => set('password', generatePassword())} disabled={submitting}
+              <button type="button" onClick={() => setGeneratorOpen(true)} disabled={submitting}
                 className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-40">
                 <RefreshCw size={10} />  {tr("Generate")} </button>
             </div>
@@ -156,7 +152,8 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
             <label className="block text-[11px] font-medium text-ink-secondary mb-1.5">{tr("Category")}</label>
             <div className="relative">
               <select value={form.category} onChange={e => set('category', e.target.value)} className={inp() + ' appearance-none pr-8'} disabled={submitting}>
-                {CATEGORY_LIST.map(c => <option key={c} value={c}>{tr(c)}</option>)}
+                {!PASSWORD_CATEGORIES.includes(form.category) && <option value={form.category}>{tr(form.category)}</option>}
+                {PASSWORD_CATEGORIES.map(c => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
               <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             </div>
@@ -200,7 +197,11 @@ function PasswordForm({ initial, onSave, onClose }: PwFormProps) {
         </div>
       </div>
     </div>
-  )
+    {generatorOpen && <PasswordGeneratorDialog onClose={() => setGeneratorOpen(false)} onUse={password => {
+      set('password', password)
+      setGeneratorOpen(false)
+    }} />}
+  </>)
 }
 
 // ─── Detail Panel ─────────────────────────────────────────────────────────────
@@ -377,20 +378,29 @@ function PasswordDetail({ selected, onBack, onEdit, onDelete }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PasswordVault() {
+  const { currentOrg } = useApp()
+  return currentOrg ? <PasswordVaultWorkspace key={currentOrg.id} /> : null
+}
+
+function PasswordVaultWorkspace() {
   useLocale()
-  const { passwords, isLoading, addPassword, updatePassword, deletePassword, canWrite, toggleStarPassword } = useApp()
+  const { passwords, isLoading, addPassword, updatePassword, deletePassword, canWrite, toggleStarPassword, importPasswords, reloadPasswords } = useApp()
 
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('All')
+  const [category, setCategory] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editEntry, setEditEntry] = useState<PasswordEntry | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PasswordEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const usedCategories = Array.from(new Set(passwords.map(entry => entry.category).filter(Boolean)))
+    .sort((a, b) => tr(a).localeCompare(tr(b)))
+  const activeCategory = usedCategories.includes(category) ? category : ''
   const filtered = passwords.filter(p =>
-    (category === 'All' || p.category === category) &&
+    (!activeCategory || p.category === activeCategory) &&
     (p.name.toLowerCase().includes(query.toLowerCase()) || p.username.toLowerCase().includes(query.toLowerCase()) || p.category.toLowerCase().includes(query.toLowerCase()) || p.tags.some(t => t.includes(query.toLowerCase())))
   )
 
@@ -441,9 +451,15 @@ export default function PasswordVault() {
               <h2 className="text-sm font-semibold text-ink-primary">{tr("Password Vault")}</h2>
               <p className="text-[10px] text-ink-muted mt-0.5 font-mono">{passwords.length}  {tr("entries")}</p>
             </div>
-            <button disabled={!canWrite('passwords')} onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all disabled:opacity-40" title={tr("Add entry")}>
-              <Plus size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              {config.appMode === 'http' && canWrite('passwords') && <button type="button" onClick={() => setImportOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-edge-default px-2 py-1.5 text-xs text-ink-secondary hover:bg-navy-700">
+                <Upload size={13} />{tr('Import')}
+              </button>}
+              <button disabled={!canWrite('passwords')} onClick={() => setAddOpen(true)} className="p-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 active:scale-95 text-white transition-all disabled:opacity-40" aria-label={tr("Add entry")} title={tr("Add entry")}>
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
@@ -453,14 +469,13 @@ export default function PasswordVault() {
           </div>
         </div>
 
-        <div className="px-3 py-2 border-b border-edge-subtle flex-shrink-0 flex flex-wrap gap-1">
-          {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCategory(c)}
-              className={`px-2 py-0.5 rounded-md text-[10px] font-mono transition-colors ${category === c ? 'bg-blue-500 text-white' : 'bg-navy-800 text-ink-muted hover:text-ink-secondary border border-edge-subtle'}`}>
-              {tr(c)}
-            </button>
-          ))}
-        </div>
+        <label className="flex items-center gap-2 border-b border-edge-subtle px-4 py-2 text-xs text-ink-muted">
+          {tr('Category')}
+          <select value={activeCategory} onChange={event => setCategory(event.target.value)} className={inp()}>
+            <option value="">{tr('All categories')}</option>
+            {usedCategories.map(value => <option key={value} value={value}>{tr(value)}</option>)}
+          </select>
+        </label>
 
         <div className="flex-1 overflow-y-auto divide-y divide-edge-subtle">
           {filtered.length === 0 && (
@@ -497,6 +512,7 @@ export default function PasswordVault() {
       <div className={`flex-1 overflow-y-auto ${mobileDetailOpen ? 'block' : 'hidden md:block'}`}>
         {selected ? (
           <PasswordDetail
+            key={`${selected.id}:${selected.updatedAt}`}
             selected={selected}
             onBack={() => setMobileDetailOpen(false)}
             onEdit={() => setEditEntry(selected)}
@@ -512,6 +528,9 @@ export default function PasswordVault() {
       </div>
 
       {/* Modals */}
+      {importOpen && canWrite('passwords') && <PasswordImportDialog
+        onClose={() => setImportOpen(false)} loadVault={reloadPasswords} onImport={importPasswords}
+        canReplace={id => canWrite('passwords', id)} />}
       {addOpen && canWrite('passwords') && (
         <PasswordForm
           onSave={async d => { await addPassword(d as Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }); setAddOpen(false) }}

@@ -70,7 +70,7 @@ public sealed class SecurityPipelineTests
     }
 
     [Theory]
-    [InlineData("/api/passwords", 6)]
+    [InlineData("/api/passwords", 7)]
     [InlineData("/api/contracts", 8)]
     [InlineData("/api/warranties", 8)]
     public void SensitiveAndDocumentMinimalApis_AuthorizeEveryOperation(string routePrefix, int expectedCount)
@@ -197,7 +197,7 @@ public sealed class SecurityPipelineTests
                 !endpoint.RoutePattern.RawText.Contains("/clients") && !endpoint.RoutePattern.RawText.Contains("/role-resources") &&
                 !endpoint.RoutePattern.RawText.EndsWith("/role", StringComparison.Ordinal))
             .ToList();
-        endpoints.Should().HaveCount(30);
+        endpoints.Should().HaveCount(34);
         endpoints.Should().AllSatisfy(endpoint => endpoint.Metadata.GetMetadata<IAuthorizeData>().Should().NotBeNull());
     }
 

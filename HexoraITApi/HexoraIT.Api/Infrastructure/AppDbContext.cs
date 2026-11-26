@@ -111,6 +111,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<OrganizationRole> OrganizationRoles => Set<OrganizationRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<OrganizationAudit> OrganizationAudits => Set<OrganizationAudit>();
+    public DbSet<OrganizationAuditUpdate> OrganizationAuditUpdates => Set<OrganizationAuditUpdate>();
+    public DbSet<OrganizationAuditAttachment> OrganizationAuditAttachments => Set<OrganizationAuditAttachment>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<PasswordEntry> Passwords => Set<PasswordEntry>();
@@ -135,6 +138,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserId
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<OrganizationAudit>(e =>
+        {
+            e.HasOne<Organization>().WithMany().HasForeignKey(a => a.OrganizationId);
+            e.Property(a => a.Title).HasMaxLength(160);
+            e.HasIndex(a => new { a.OrganizationId, a.AuditDate, a.Id });
+        });
+        b.Entity<OrganizationAuditUpdate>(e =>
+        {
+            e.HasOne(u => u.Audit).WithMany(a => a.Updates).HasForeignKey(u => u.AuditId);
+            e.Property(u => u.Status).HasMaxLength(20);
+            e.Property(u => u.Note).HasMaxLength(4000);
+            e.HasIndex(u => new { u.AuditId, u.CreatedAt, u.Id });
+        });
+        b.Entity<OrganizationAuditAttachment>(e =>
+        {
+            e.HasOne(f => f.Update).WithMany(u => u.Attachments).HasForeignKey(f => f.UpdateId);
+            e.Property(f => f.FileName).HasMaxLength(240);
+        });
         b.Entity<OperationTemplateVersion>(e =>
         {
             e.Property(t => t.Key).HasMaxLength(40);

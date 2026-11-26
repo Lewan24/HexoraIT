@@ -21,6 +21,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { rolesApi } from '../api/roles'
 import { orderRecords, type RecordOrderEvent } from '../lib/recordOrder'
 import { hasPermission } from '../lib/permissions'
+import type { PasswordImportEntry } from '../lib/passwordImport'
 import type { OrganizationAccess } from '../api/types'
 
 function emptyOrgState() {
@@ -350,11 +351,27 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     toast(tr("Password \"{{value1}}\" saved", { value1: p.name }))
   }, [currentOrgId, guarded, toast])
 
-  const updatePassword = useCallback(async (p: PasswordEntry & { password?: string }) => {
-    await guarded(() => passwordsApi.update(p.id, p), 'Failed to update password')
-    setData(d => ({ ...d, passwords: d.passwords.map(x => x.id === p.id ? { ...x, ...p } : x) }))
-    toast(tr("Password \"{{value1}}\" updated", { value1: p.name }))
-  }, [guarded, toast])
+  const reloadPasswords = useCallback(async () => {
+    const passwords = await passwordsApi.getAll(currentOrgId)
+    if (currentOrgRef.current === currentOrgId) setData(d => ({ ...d, passwords }))
+    return passwords
+  }, [currentOrgId])
+
+  const importPasswords = useCallback(async (entries: PasswordImportEntry[]) => {
+    const saved = await passwordsApi.import(currentOrgId, entries)
+    if (currentOrgRef.current !== currentOrgId) return
+    const ids = new Set(saved.map(entry => entry.id))
+    setData(d => ({ ...d, passwords: [...saved, ...d.passwords.filter(entry => !ids.has(entry.id))] }))
+    toast(tr('Passwords imported: {{count}}', { count: saved.length }))
+  }, [currentOrgId, toast])
+
+  const updatePassword = useCallback(async ({ password, ...entry }: PasswordEntry & { password?: string }) => {
+    await guarded(() => passwordsApi.update(entry.id, { ...entry, password }), 'Failed to update password')
+    if (currentOrgRef.current !== currentOrgId) return
+    setData(d => ({ ...d, passwords: d.passwords.map(x => x.id === entry.id ? { ...x, ...entry } : x) }))
+    try { await reloadPasswords() } catch { toast(tr('Failed to reload passwords'), 'error') }
+    toast(tr("Password \"{{value1}}\" updated", { value1: entry.name }))
+  }, [currentOrgId, guarded, reloadPasswords, toast])
 
   const deletePassword = useCallback(async (id: string) => {
     const name = data.passwords.find(p => p.id === id)?.name
@@ -716,7 +733,7 @@ export function AppProvider({ children, loadOrganizationData = true }: { childre
     isLoading: loadOrganizationData && (isLoading || (!!access && loadedAccess !== access)),
     toasts, dismissToast, toast,
     addAsset, updateAsset, deleteAsset, toggleStarAsset,
-    addPassword, updatePassword, deletePassword, toggleStarPassword, revealPassword,
+    addPassword, importPasswords, reloadPasswords, updatePassword, deletePassword, toggleStarPassword, revealPassword,
     syncNetworkAssets, addSubnet, updateSubnet, deleteSubnet, addIPEntry, reserveIPEntries, updateIPEntry, deleteIPEntry,
     addLicense, updateLicense, deleteLicense, toggleStarLicense,
     addContact, updateContact, deleteContact, toggleStarContact,

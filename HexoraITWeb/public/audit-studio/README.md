@@ -47,7 +47,7 @@ Wybierz **Generuj / zapisz PDF**, a w oknie drukowania **Zapisz jako PDF**. W ra
 - Unikaj edycji tej samej przestrzeni w dwóch kartach. Studio rozpoznaje zmianę zapisu z zewnątrz. Tam, gdzie przeglądarka udostępnia blokadę zapisu między kartami, używa jej do skoordynowania zapisów.
 - Dane w `localStorage` są jawne. Traktuj projekty oraz wyeksportowane pliki jako potencjalnie poufne. Korzystaj z chronionej lokalizacji na kopie i przejrzyj treść przed udostępnieniem.
 
-W osadzonym Studio projekty zapisują się osobno dla każdej pary konto–organizacja. Aby udostępnić kopię JSON lub raport PDF organizacji, dołącz go po eksporcie w **Audyty → Historia audytów**. Historia i jej załączniki korzystają z uprawnień organizacji oraz zapisu po stronie HexoraIT.
+W HexoraIT Studio otwiera się pod adresem `/audyt` i zajmuje całą przestrzeń strony. Do HexoraIT wrócisz przyciskiem **Wróć do HexoraIT** albo przyciskiem **Wstecz** przeglądarki po wejściu z menu. Projekty zapisują się osobno dla każdej pary konto–organizacja. Aby udostępnić kopię JSON lub raport PDF organizacji, dołącz go po eksporcie w **Audyty → Historia audytów**. Historia i jej załączniki korzystają z uprawnień organizacji oraz zapisu po stronie HexoraIT.
 
 ## Ograniczenia
 

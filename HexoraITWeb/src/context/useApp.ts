@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { PasswordImportEntry } from '../lib/passwordImport'
 import type {
   CreateOrganizationInput, OrganizationInput, Asset, PasswordEntry, Subnet, IPEntry, IpReservationTarget, License, Contact, Contract,
   Plan, Incident, KnowledgeArticle, Task, Group, WarrantyItem,
@@ -39,6 +40,8 @@ export interface AppContextValue {
   toggleStarAsset: (id: string) => Promise<void>
 
   addPassword: (p: Omit<PasswordEntry, 'id' | 'updatedAt' | 'strength'> & { password: string }) => Promise<void>
+  importPasswords: (entries: PasswordImportEntry[]) => Promise<void>
+  reloadPasswords: () => Promise<PasswordEntry[]>
   updatePassword: (p: PasswordEntry & { password?: string }) => Promise<void>
   deletePassword: (id: string) => Promise<void>
   toggleStarPassword: (id: string) => Promise<void>

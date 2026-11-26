@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import type { View } from '../App'
+import { MODULE_ID } from '../lib/permissions'
 import { useAuth } from '../context/useAuth'
 
 export default function PermissionGate({ view, children }: { view: View; children: ReactNode }) {
@@ -24,8 +25,9 @@ export default function PermissionGate({ view, children }: { view: View; childre
   if (view === 'settings' && canRead('data-transfer')) return children
   if (view === 'reports' && isClient) return children
   if (view === 'private-notes') return children
+  if (view === 'audit-studio' && canRead('audit-history', MODULE_ID)) return children
   const resource = view === 'asset-detail' ? 'assets' : ['organization-customization', 'organization-documentation'].includes(view) ? 'settings' : view
-  if (!canRead(resource)) {
+  if (!canRead(resource, resource === 'audit-history' ? MODULE_ID : undefined)) {
     return (
       <div role="alert" className="p-8 flex flex-col items-center gap-3 text-center text-ink-secondary">
         <ShieldAlert size={32} className="text-orange-400" />

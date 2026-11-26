@@ -1,0 +1,17 @@
+Diceware Polski 1.0.1 by Michał Piórkowski (Poltrax)
+Project: https://github.com/Poltrax-live/diceware-polski
+Release: https://pypi.org/project/diceware-polski/1.0.1/
+The two word lists are redistributed without changes.
+
+The word lists in lists/ and the derived data in data/ are licensed under the
+Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
+Full text: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+Copyright (c) 2026 Poltrax
+
+Built from:
+- SJP.pl dictionary (https://sjp.pl), licensed under GPL 2, LGPL 2.1, Apache 2.0
+  and CC BY 4.0; used here under CC BY 4.0.
+- FrequencyWords by Hermit Dave (https://github.com/hermitdave/FrequencyWords),
+  content licensed under CC BY-SA 4.0, generated from OpenSubtitles 2018
+  (http://opus.nlpl.eu/OpenSubtitles2018.php).

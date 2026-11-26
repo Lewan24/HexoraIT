@@ -333,6 +333,7 @@ app.MapAdminEndpoints();
 app.MapAuditEndpoints();
 app.MapOrganizationEndpoints();
 app.MapOrganizationActivityEndpoints();
+app.MapOrganizationAuditEndpoints();
 app.MapDocumentationEndpoints();
 app.MapDataTransferEndpoints();
 app.MapOrganizationRoleEndpoints();

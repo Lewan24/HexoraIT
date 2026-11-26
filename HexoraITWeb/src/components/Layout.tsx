@@ -1,12 +1,12 @@
 import { tr, useLocale } from '../i18n'
-import { useState, useEffect, useRef, useId } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard, Server, KeyRound, BookOpen,
   Network, CreditCard, Settings, ChevronLeft, ChevronRight,
   Search, Bell, LogOut, ChevronDown, X, Plus, Check, Building2, Menu,
   Users, FileSignature, Lightbulb, AlertTriangle, CheckSquare,
   ShieldCheck, Layers, Share2, Sun, Moon,
-  FolderOpen, BookOpenText, FileText,
+  FolderOpen, BookOpenText, FileText, ClipboardCheck, History,
 } from 'lucide-react'
 import type { View } from '../App'
 import { useApp } from '../context/useApp'
@@ -18,6 +18,7 @@ import { toggleTheme, getTheme } from '../lib/theme'
 import { buildSearchResults, type SearchResult } from '../lib/search'
 import logoHex from '../../public/logo/HexoraIT_HexLogoNoBg.png'
 import UpdateDialog from './updateDialog'
+import { MODULE_ID } from '../lib/permissions'
 import { useVersionCheck } from '../context/useVersionCheck'
 
 type NavSection = { label: string; items: { id: View; label: string; icon: React.ReactNode }[] }
@@ -67,28 +68,12 @@ const NAV_SECTIONS: NavSection[] = [
   }
 ]
 
-function NavigationSection({ label, active, compact, children, defaultExpanded = false }: {
-  label: string; active: boolean; compact: boolean; children: React.ReactNode; defaultExpanded?: boolean
+function NavigationSection({ label, compact, children }: {
+  label: string; compact: boolean; children: React.ReactNode
 }) {
-  const [expanded, setExpanded] = useState(active || defaultExpanded)
-  const [wasActive, setWasActive] = useState(active)
-  // Reveal a newly selected section, including navigation from search or the dashboard.
-  if (active !== wasActive) {
-    setWasActive(active)
-    if (active) setExpanded(true)
-  }
-  const id = useId()
-  return <section className={`sidebar-section ${active ? 'is-current' : ''}`}>
-    {!compact && <button className="sidebar-section-toggle" aria-expanded={expanded}
-      aria-controls={id} onClick={() => setExpanded(value => !value)}>
-      <span className="flex-1 text-left">{tr(label)}</span>
-      {active && <span className="sidebar-section-dot" aria-hidden="true" />}
-      <ChevronDown size={16} className={expanded ? 'rotate-180' : ''} />
-    </button>}
-    <div id={id} className="sidebar-section-content" data-expanded={compact || expanded}
-      inert={!compact && !expanded}>
-      <div className="sidebar-section-inner">{children}</div>
-    </div>
+  return <section className="sidebar-section" aria-label={tr(label)}>
+    {!compact && <h2 className="sidebar-section-heading">{tr(label)}</h2>}
+    <div className="sidebar-section-inner">{children}</div>
   </section>
 }
 
@@ -151,7 +136,7 @@ function Sidebar({
     return <div className="flex h-full flex-col bg-navy-900">
       <button onClick={() => handleNav(user?.systemRole === 'Client' ? 'reports' : 'home')} aria-label="HexoraIT" className={`flex items-center gap-3 py-5 ${showLabels ? 'px-5' : 'justify-center'}`}><img src={logoHex} alt="" className="h-9 w-9 shrink-0 object-contain" />{showLabels && <span className="text-xl font-semibold tracking-tight text-ink-primary">Hexora<span className="text-blue-400">IT</span></span>}</button>
       {showLabels && <p className="border-y border-edge-subtle px-5 py-4 text-xs font-medium text-ink-secondary">{tr('Your workspace')}</p>}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">{globalLinks.map(link => <button key={link.view} aria-current={currentView === link.view ? 'page' : undefined} title={tr(link.label)} onClick={() => handleNav(link.view)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${currentView === link.view ? 'bg-blue-500/10 text-ink-link font-semibold' : 'text-ink-secondary hover:bg-navy-700'} ${!showLabels ? 'justify-center' : ''}`}><span className="shrink-0">{link.icon}</span>{showLabels && <span className="truncate">{tr(link.label)}</span>}</button>)}</nav>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2">{globalLinks.map(link => <button key={link.view} aria-current={currentView === link.view ? 'page' : undefined} title={tr(link.label)} onClick={() => handleNav(link.view)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] ${currentView === link.view ? 'bg-blue-500/10 text-ink-link font-semibold' : 'text-ink-secondary hover:bg-navy-700'} ${!showLabels ? 'justify-center' : ''}`}><span className="shrink-0">{link.icon}</span>{showLabels && <span className="truncate">{tr(link.label)}</span>}</button>)}</nav>
       <button onClick={onLogout} title={tr('Sign out')} className={`flex items-center gap-3 border-t border-edge-subtle px-5 py-4 text-sm text-ink-muted hover:text-red-400 ${!showLabels ? 'justify-center px-0' : ''}`}><LogOut size={16} />{showLabels && tr('Sign out')}</button>
       {!isMobile && <button onClick={onToggleCollapse} title={tr(collapsed ? 'Expand' : 'Collapse')} aria-label={tr(collapsed ? 'Expand' : 'Collapse')} className="flex justify-center border-t border-edge-subtle p-3 text-ink-muted hover:text-ink-primary">{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>}
     </div>
@@ -213,8 +198,7 @@ function Sidebar({
           <AlertTriangle size={18} />{!compact && <span>{tr('Report a problem')}</span>}
         </button>}
         {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !(item.id === 'private-notes' && currentOrg.isTemporary) && !hiddenModules.includes(item.id) && (item.id !== 'operations' || canRead('operations')) && (user?.systemRole !== 'Client' || canRead(item.id))) })).filter(section => section.items.length > 0).map(section => (
-          <NavigationSection key={section.label} label={section.label} compact={compact}
-            active={section.items.some(item => currentView === item.id || (currentView === 'asset-detail' && item.id === 'assets'))}>
+          <NavigationSection key={section.label} label={section.label} compact={compact}>
             {section.items.map(item => <button key={item.id} onClick={() => handleNav(item.id)}
               title={tr(item.label)} aria-label={tr(item.label)} className="sidebar-link"
               aria-current={currentView === item.id || (currentView === 'asset-detail' && item.id === 'assets') ? 'page' : undefined}>
@@ -223,8 +207,15 @@ function Sidebar({
             </button>)}
           </NavigationSection>
         ))}
-        {canManageOrganization(currentOrg) && <NavigationSection label="Organization tools" compact={compact} defaultExpanded
-          active={currentView === 'organization-customization' || currentView === 'organization-documentation'}>
+        {canRead('audit-history', MODULE_ID) && <NavigationSection label="Audits" compact={compact}>
+          {([{ id: 'audit-studio', label: 'Conduct an audit', icon: <ClipboardCheck size={18} /> },
+            { id: 'audit-history', label: 'Audit history', icon: <History size={18} /> }] as const).map(item => (
+            <button key={item.id} className="sidebar-link" onClick={() => handleNav(item.id)}
+              title={tr(item.label)} aria-label={tr(item.label)} aria-current={currentView === item.id ? 'page' : undefined}>
+              {item.icon}{!compact && <span>{tr(item.label)}</span>}
+            </button>))}
+        </NavigationSection>}
+        {canManageOrganization(currentOrg) && <NavigationSection label="Organization tools" compact={compact}>
           {([{ id: 'organization-customization', label: 'Customize organization', icon: <Settings size={18} /> },
             { id: 'organization-documentation', label: 'Documentation PDF', icon: <FileText size={18} /> }] as const).map(item => (
             <button key={item.id} className="sidebar-link" onClick={() => handleNav(item.id)}
@@ -232,8 +223,7 @@ function Sidebar({
               {item.icon}{!compact && <span>{tr(item.label)}</span>}
             </button>))}
         </NavigationSection>}
-        <NavigationSection label="Preferences and support" compact={compact}
-          active={currentView === 'settings' || currentView === 'adminpanel' || currentView === 'help'}>
+        <NavigationSection label="Preferences and support" compact={compact}>
           <button className="sidebar-link" title={tr('Settings')} aria-label={tr('Settings')}
             aria-current={currentView === 'settings' ? 'page' : undefined} onClick={() => handleNav('settings')}>
             <Settings size={18} />{!compact && <span>{tr('Settings')}</span>}
@@ -248,7 +238,7 @@ function Sidebar({
       <div className="border-t border-edge-subtle p-2 flex-shrink-0">
         <button onClick={() => handleNav('help')} title={tr('User guide')} aria-label={tr('User guide')}
           aria-current={currentView === 'help' ? 'page' : undefined}
-          className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-sm transition-colors ${collapsed && !isMobile ? 'justify-center' : ''} ${currentView === 'help' ? 'bg-blue-500/10 text-ink-primary' : 'text-ink-secondary hover:bg-navy-700 hover:text-ink-primary'}`}>
+          className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-[13px] transition-colors ${collapsed && !isMobile ? 'justify-center' : ''} ${currentView === 'help' ? 'bg-blue-500/10 text-ink-primary' : 'text-ink-secondary hover:bg-navy-700 hover:text-ink-primary'}`}>
           <BookOpenText size={18} className="flex-shrink-0" />
           {(!collapsed || isMobile) && <span>{tr('User guide')}</span>}
         </button>

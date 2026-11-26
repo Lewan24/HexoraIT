@@ -12,6 +12,8 @@ import PermissionGate from './components/PermissionGate'
 import ItemContextMenu from './components/ui/ItemContextMenu'
 import type { ContextResource } from './components/ui/contextItems'
 
+const AuditStudio = lazy(() => import('./components/AuditStudio'))
+const OrganizationAuditHistory = lazy(() => import('./components/OrganizationAuditHistory'))
 const OrganizationDocumentation = lazy(() => import('./components/OrganizationDocumentation'))
 const OrganizationHub = lazy(() => import('./components/OrganizationHub'))
 const OrganizationCustomization = lazy(() => import('./components/OrganizationCustomization'))
@@ -39,22 +41,59 @@ const ClientReports = lazy(() => import('./components/ClientReports'))
 const UserGuide = lazy(() => import('./components/UserGuide'))
 
 export type View =
-  | 'home' | 'organization-documentation' | 'organization-customization' | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
+  | 'home' | 'audit-studio' | 'audit-history' | 'organization-documentation' | 'organization-customization' | 'dashboard' | 'assets' | 'asset-detail' | 'passwords' | 'files'
   | 'networks' | 'licenses' | 'contacts' | 'contracts' | 'operations'
   | 'plans' | 'incidents' | 'knowledge' | 'tasks' | 'settings'
   | 'groups' | 'warranty' | 'diagram' | 'adminpanel' | 'private-notes' | 'reports' | 'help'
+
+const AUDIT_PATH = `${import.meta.env.BASE_URL}audyt`
+const isAuditPath = (path: string) => path === AUDIT_PATH || path === AUDIT_PATH + '/'
 
 function AuthenticatedApp() {
   useLocale()
   const { logout, user } = useAuth()
   const [view, setView] = useState<View>(user?.systemRole === 'Client' ? 'reports' : 'home')
+  const [auditPage, setAuditPage] = useState<'unopened' | 'active' | 'retained'>(() =>
+    isAuditPath(window.location.pathname) ? 'active' : 'unopened')
+  const returningFromAudit = useRef(false)
+  const inAudit = auditPage === 'active'
+  const activeView = inAudit ? 'audit-studio' : view
   const draftRequest = useRef(0)
   const [operationDraft, setOperationDraft] = useState<{ organizationId: string; resources: ContextResource[]; request: number }>()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
+  useEffect(() => {
+    const syncAuditPath = () => {
+      returningFromAudit.current = false
+      setAuditPage(previous => isAuditPath(window.location.pathname) ? 'active' : previous === 'unopened' ? 'unopened' : 'retained')
+    }
+    window.addEventListener('popstate', syncAuditPath)
+    return () => window.removeEventListener('popstate', syncAuditPath)
+  }, [])
+
+  const leaveAudit = () => {
+    if (returningFromAudit.current) return
+    if (window.history.state?.enteredFromHexora) {
+      returningFromAudit.current = true
+      window.history.back()
+    } else {
+      window.history.replaceState(null, '', import.meta.env.BASE_URL)
+      setAuditPage('retained')
+    }
+  }
+
   const navigate = (v: View, id?: string) => {
+    if (v === 'audit-studio') {
+      if (!isAuditPath(window.location.pathname)) {
+        auditApi.report('navigation', AUDIT_PATH)
+        window.history.pushState({ enteredFromHexora: true }, '', AUDIT_PATH)
+        setAuditPage('active')
+      }
+      return
+    }
     auditApi.report('navigation', '/' + v)
     setOperationDraft(undefined)
+    if (inAudit) leaveAudit()
     setView(v)
     if (id !== undefined) setSelectedAssetId(id)
   }
@@ -62,6 +101,7 @@ function AuthenticatedApp() {
   const content = (() => {
     switch (view) {
       case 'home': return <OrganizationHub navigate={navigate} />
+      case 'audit-history': return <OrganizationAuditHistory onStudio={() => navigate('audit-studio')} />
       case 'organization-documentation': return <OrganizationDocumentation />
       case 'organization-customization': return <div className="mx-auto max-w-4xl p-4 sm:p-6"><OrganizationCustomization onExport={() => navigate('organization-documentation')} /></div>
       case 'help': return <UserGuide />
@@ -91,24 +131,34 @@ function AuthenticatedApp() {
   })()
 
   return (
-    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram', 'operations'].includes(view)}>
-      <OrganizationLifecycleRedirect view={view} navigate={navigate} />
-      <ItemContextMenu onCreate={(organizationId, resources) => {
+    <AppProvider loadOrganizationData={['dashboard', 'assets', 'asset-detail', 'passwords', 'networks', 'licenses', 'contacts', 'contracts', 'plans', 'incidents', 'knowledge', 'tasks', 'groups', 'warranty', 'diagram', 'operations'].includes(activeView)}>
+      <OrganizationLifecycleRedirect view={activeView} navigate={navigate} />
+      {/* Keep Studio mounted on return so pending local saves can finish. */}
+      {auditPage !== 'unopened' && <div hidden={!inAudit}>
+        <Suspense fallback={(
+          <div className="flex h-dvh items-center justify-center bg-navy-950">
+            <span className="text-xs font-mono text-ink-muted">{tr('loading...')}</span>
+          </div>
+        )}>
+          <AuditStudio onBack={leaveAudit} onHistory={() => navigate('audit-history')} />
+        </Suspense>
+      </div>}
+      {!inAudit && <ItemContextMenu onCreate={(organizationId, resources) => {
         navigate('operations')
         setOperationDraft({ organizationId, resources, request: ++draftRequest.current })
       }}>
-      <Layout currentView={view} navigate={navigate} onLogout={logout}>
-        <PermissionGate view={view}>
-          <Suspense fallback={(
-            <div className="flex min-h-64 items-center justify-center">
-              <span className="text-xs font-mono text-ink-muted">{tr('loading...')}</span>
-            </div>
-          )}>
-            {content}
-          </Suspense>
-        </PermissionGate>
-      </Layout>
-      </ItemContextMenu>
+        <Layout currentView={view} navigate={navigate} onLogout={logout}>
+          <PermissionGate view={view}>
+            <Suspense fallback={(
+              <div className="flex min-h-64 items-center justify-center">
+                <span className="text-xs font-mono text-ink-muted">{tr('loading...')}</span>
+              </div>
+            )}>
+              {content}
+            </Suspense>
+          </PermissionGate>
+        </Layout>
+      </ItemContextMenu>}
       <ToastContainer/>
     </AppProvider>
   )
@@ -128,7 +178,7 @@ function Gate() {
   const { isAuthenticated, isLoading } = useAuth()
   useEffect(() => {
     const path = window.location.pathname
-    if (path !== '/') {
+    if (path !== '/' && !isAuditPath(path)) {
       const probe = /\/(?:\.env|\.git|wp-admin|wp-login|phpmyadmin|actuator|server-status)|\.\.%2f|\.\.\//i.test(path)
       auditApi.report(probe ? 'security_probe' : 'client_not_found', path)
     }
