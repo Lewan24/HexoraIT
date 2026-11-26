@@ -89,7 +89,8 @@ test('odrzuca zły schemat i uszkodzone sekcje, ignoruje klucze spoza katalogu',
 });
 
 const {
-  indicators, findingFromQuestion, newProject, migrateProject, normalizeV3, normalizeWorkspace, learningProgram
+  indicators, findingFromQuestion, newProject, migrateProject, normalizeV3, normalizeWorkspace, learningProgram,
+  scoreStatus,evidenceReferences,questionSource,reportPrograms,recordDecision,latestClosingDecision,actionRows
 } = sandbox.window.AUDIT_PROJECT_DATA;
 sandbox.structuredClone = structuredClone;
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/templates-data.js'), 'utf8'), sandbox);
@@ -151,7 +152,10 @@ test('odczyt schematu 3 odrzuca niespójny indeks i szablon bez uprawnienia odcz
   program.template.questions[0].permission='read';
   const id=program.template.questions[0].id;
   program.answers[id]={status:'notapp',note:'',evidence:'E-001'};
-  assert.equal(normalizeV3(project,normalize).learning.programs['BAZ-1'].answers[id].status,'unassessed');
+  const draft=normalizeV3(project,normalize).learning.programs['BAZ-1'].answers[id];
+  assert.equal(draft.status,'notapp');
+  assert.equal(scoreStatus(draft),'unassessed');
+  assert.equal(scoreStatus({...draft,note:'Brak usługi w zakresie.'}),'notapp');
 });
 
 test('wynik zachowuje pytania nieocenione w mianowniku i pomija N/D', () => {
@@ -178,4 +182,91 @@ test('ustalenie używa oceny, dowodu, rekomendacji i wagi pytania', () => {
   assert.equal(finding.likelihood*finding.impact,16);
   assert.equal(findingFromQuestion(question,{...answer,status:'conform'},'U-008'),null);
   assert.equal(findingFromQuestion(question,{...answer,status:'unassessed'},'U-008'),null);
+});
+
+test('identyfikatory dowodów są dopasowywane bez względu na wielkość liter, a usunięte pozostają widoczne', () => {
+  const value=evidenceReferences('e-001 E-005; pismo 2026\nE-001, E-007',['E-001','Pismo 2026','E-007']);
+  assert.deepEqual(Array.from(value,ref=>({...ref})),[
+    {id:'E-001',known:true},{id:'E-005',known:false},{id:'Pismo 2026',known:true},{id:'E-007',known:true}
+  ]);
+  assert.equal(evidenceReferences('materiał spoza projektu',[])[0].id,'materiał spoza projektu');
+});
+
+test('ustalenie zachowuje wersję pytania i ocenę z dnia utworzenia, starsze wiąże wyłącznie przy jednym dopasowaniu', () => {
+  const one=learningProgram(starter), two=learningProgram(starter);
+  two.template.version=2;
+  const question=one.template.questions[0], programs={'BAZ-1':one,'BAZ-2':two};
+  const answer={status:'partial',note:'Stan pierwotny',evidence:'E-001'};
+  const finding=findingFromQuestion(question,answer,'U-002','BAZ-1');
+  answer.note='Ocena zmieniona';
+  assert.equal(finding.assessment.note,'Stan pierwotny');
+  assert.equal(questionSource(finding,programs).key,'BAZ-1');
+  assert.equal(questionSource({questionId:question.id},programs),null);
+  assert.equal(questionSource({questionId:question.id},{'BAZ-1':one}).key,'BAZ-1');
+  assert.equal(questionSource({...finding,programKey:'BAZ-7'},programs),null);
+});
+
+test('ponowne sprawdzenie wymaga istniejącego dowodu, a nieudany wynik nie zamyka ustalenia', () => {
+  const record={status:'doing'}, input={kind:'retest',actor:'Audytor',date:'2026-11-26',note:'Wynik w ustalonej próbie.',
+    evidence:'e-001',outcome:'ineffective'};
+  const today='2026-11-27';
+  assert.ok(recordDecision(record,input,[],today).error);
+  assert.ok(recordDecision(record,{...input,date:'2026-11-28'},['E-001'],today).error);
+  const first=recordDecision(record,input,['E-001'],today).finding;
+  assert.equal(record.status,'doing');
+  assert.equal(first.status,'retest');
+  assert.equal(first.decisions[0].evidence,'E-001');
+  assert.equal(latestClosingDecision(first),null);
+  const second=recordDecision(first,{...input,outcome:'effective'},['E-001'],today).finding;
+  assert.equal(second.status,'closed');
+  assert.equal(second.decisions.length,2);
+  assert.equal(latestClosingDecision(second).outcome,'effective');
+  assert.equal(latestClosingDecision({...second,status:'open'}),null);
+});
+
+test('akceptacja ryzyka zachowuje uzasadnienie i decyzję, a stary status sam nie tworzy nowego wpisu', () => {
+  const input={kind:'acceptance',actor:'Osoba uprawniona',date:'2026-11-26',note:'Decyzja D-01 i uzasadnienie.'};
+  const today='2026-11-27', old={status:'accepted',managementResponse:'Starsza notatka'};
+  assert.equal(latestClosingDecision(old),null);
+  assert.ok(recordDecision(old,{...input,actor:''},[],today).error);
+  const finding=recordDecision(old,input,[],today).finding;
+  assert.equal(finding.status,'accepted');
+  assert.equal(finding.managementResponse,old.managementResponse);
+  assert.equal(latestClosingDecision(finding).actor,'Osoba uprawniona');
+  assert.equal(latestClosingDecision(finding).note,input.note);
+});
+
+test('wybór modułów i decyzje są zachowane po eksporcie oraz wczytaniu projektu ze schematem 3', () => {
+  const project=newProject(defaults(),'projekt-1');
+  project.learning.programs['BAZ-1']=learningProgram(starter);
+  const module=sandbox.window.AUDIT_TEMPLATES.templates[1];
+  project.learning.programs['KON-1']=learningProgram(module);
+  project.learning.selected='BAZ-1';
+  assert.deepEqual(Array.from(reportPrograms(project.learning)),['BAZ-1']);
+  project.learning.reportPrograms=['KON-1','BAZ-1','KON-1','nieaktualny'];
+  const answer={status:'partial',note:'Próba',evidence:'E-001'};
+  const finding=findingFromQuestion(starter.questions[0],answer,'U-001','BAZ-1');
+  const accepted=recordDecision(finding,{kind:'acceptance',actor:'Właściciel',date:'2026-11-26',note:'Decyzja D-01'},[],'2026-11-27').finding;
+  project.findings=[accepted];
+  const reopened=normalizeV3(JSON.parse(JSON.stringify(project)),normalize);
+  assert.deepEqual(Array.from(reportPrograms(reopened.learning)),['KON-1','BAZ-1']);
+  assert.equal(reopened.findings[0].assessment.evidence,'E-001');
+  assert.equal(reopened.findings[0].decisions[0].note,'Decyzja D-01');
+  reopened.learning.reportPrograms=[];
+  assert.deepEqual(Array.from(reportPrograms(reopened.learning)),[]);
+});
+
+test('widok działań filtruje według właściciela, terminu i statusu', () => {
+  const entries=[
+    {id:'U-002',owner:'IT',due:'2026-12-01',status:'doing'},
+    {id:'U-010',owner:'IT',due:'2026-11-20',status:'retest'},
+    {id:'U-003',owner:'IT',due:'2026-11-20',status:'closed'},
+    {id:'U-004',owner:'',due:'',status:'open'}
+  ];
+  const list=(owner,period)=>Array.from(actionRows(entries,owner,period,'2026-11-26','2026-12-03'),item=>item.id);
+  assert.deepEqual(list('IT','overdue'),['U-010']);
+  assert.deepEqual(list('IT','soon'),['U-002']);
+  assert.deepEqual(list(null,'open'),['U-010','U-002','U-004']);
+  assert.deepEqual(list('','missing'),['U-004']);
+  assert.deepEqual(list('IT','all'),['U-003','U-010','U-002']);
 });

@@ -1,5 +1,12 @@
 # Historia zmian
 
+## CyberAudit Studio 2.2
+
+- Wskazówki przy ocenach pokazują brak uzasadnienia, brak dowodu i nieaktualne odwołania. Dodano wybór dowodu z rejestru i powrót do pytania po zapisaniu nowego dowodu.
+- Ustalenia zachowują źródłowy moduł i ocenę z chwili utworzenia. Krótki raport łączy ustalenia ze śladem oceny i dowodami.
+- Widok działań filtruje według właściciela i terminu. Zapis ponownego sprawdzenia oraz akceptacja ryzyka mają osobne formularze i historię decyzji.
+- Krótki raport przyjmuje kilka wybranych modułów i pokazuje każdy wynik osobno. Projekty i pliki nadal korzystają ze schematu 3.
+
 ## CyberAudit Studio 2.1
 
 - Domyślny tryb Nauka z przewodnikiem, słowniczkiem, zestawem 149 pytań do pasywnego przeglądu i fikcyjnym ćwiczeniem. Dotychczasowe 93 zadania i macierz wymagań są w trybie Audytor.

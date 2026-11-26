@@ -7,7 +7,7 @@
  */
 (() => {
   'use strict';
-  const APP_VERSION='2.1';
+  const APP_VERSION='2.2';
   const A=window.AUDIT_DATA, G=window.AUDIT_GUIDE, R=window.AUDIT_REQUIREMENTS;
   const ALL=A.stages.flatMap(s=>s.tasks.map(t=>({...t,stage:s.id,stageTitle:s.title,phase:s.mode})));
   const TASK_BY_ID=Object.assign(Object.create(null),Object.fromEntries(ALL.map(t=>[t.id,t])));
@@ -22,7 +22,8 @@
   const LAST_COPY_KEY=KEY+'-last-backup';
   const STORAGE_ESTIMATE=5*1024*1024;
   const {normalizeProject,dateOnly,risk,learningProgram,
-    newProject,migrateProject,normalizeV3,normalizeWorkspace}=window.AUDIT_PROJECT_DATA;
+    newProject,migrateProject,normalizeV3,normalizeWorkspace,latestClosingDecision,questionSource,evidenceReferences,results}=window.AUDIT_PROJECT_DATA;
+  const {createAuditFollowupUI,decisionLabel,labels:findingLabels}=window.AUDIT_FOLLOWUP;
   const {templates}=window.AUDIT_TEMPLATES;
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -108,6 +109,25 @@
     refreshRecords:()=>{renderEvidence();renderFindings();renderDashboard();renderReport();}});
   const renderLearner=learningUI.render;
   const setupLearningEvents=learningUI.bind;
+  const followup=createAuditFollowupUI({h,getState:()=>state,save,dateNow,openQuestion,showFinding,
+    refresh:()=>{renderFindings();renderDashboard();renderReport();}});
+
+  function openQuestion(key,id){
+    if(!Object.hasOwn(state.learning.programs,key)||!state.learning.programs[key].template.questions.some(item=>item.id===id))return;
+    state.mode='learning';
+    state.learning.selected=key;
+    save();
+    applyMode();
+    go('audit/'+key+'/'+id);
+  }
+
+  function showFinding(id){
+    const index=state.findings.findIndex(item=>item.id===id);
+    if(index<0)return;
+    const field=v('finding-'+index+'-observation');
+    field?.focus({preventScroll:true});
+    field?.scrollIntoView({block:'center'});
+  }
 
   function resetContentSnapshot(){
     contentSnapshot=projectContent(state);
@@ -117,6 +137,7 @@
   function activate(){
     state=workspaceState.projects.find(project=>project.id===workspaceState.activeId)??newProject(initial(),makeId());
     resetContentSnapshot();
+    v('evidence-return').hidden=true;
   }
 
   function archiveRecovery(raw,key){
@@ -704,11 +725,11 @@
   function riskOptions(value){
     return [1,2,3,4,5].map(number=>`<option value="${h(number)}"${number===value?' selected':''}>${h(number)}</option>`).join('');
   }
-  function renderFindings(){v('findings-count').textContent=state.findings.length+' ustaleń';
+  function renderFindings(){followup.renderBoard();v('findings-count').textContent=state.findings.length+' ustaleń';
     v('findings-list').innerHTML=state.findings.length?state.findings.map((f,i)=>{const risk=riskGrade(f);return `<article class="finding" data-finding="${i}"><div class="finding-top"><div><span class="task-id">${h(f.id)}</span><h3>${h(f.title)}</h3><p class="muted">${h(f.criterion)} • ${h(f.task)}</p></div><span class="risk-score ${risk.cls}" data-risk-score>${risk.value}/25 · ${risk.name}</span></div><p><b>Wpływ:</b> ${h(f.impactText||'Nie opisano')}</p><div class="finding-edit-grid">
     <div class="field"><label for="finding-${h(i)}-likelihood">Prawdopodobieństwo (1–5)</label><select id="finding-${h(i)}-likelihood" data-finding-field="likelihood">${riskOptions(f.likelihood)}</select></div>
     <div class="field"><label for="finding-${h(i)}-impact">Skutek (1–5)</label><select id="finding-${h(i)}-impact" data-finding-field="impact">${riskOptions(f.impact)}</select></div>
-    <div class="field field-wide"><label for="finding-${h(i)}-observation">Opis ustalenia</label><textarea id="finding-${h(i)}-observation" data-finding-field="observation" rows="2">${h(f.observation)}</textarea></div><div class="field"><label for="finding-${h(i)}-evidence">Identyfikatory dowodów</label><input id="finding-${h(i)}-evidence" data-finding-field="evidence" value="${h(f.evidence)}"></div><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div><div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ponownego sprawdzenia</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div><div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div><div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Stanowisko kierownictwa / formalna akceptacja</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div></div><div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button><span class="status-tag warn" data-closure-warning ${f.status==='closed'&&!f.retestEvidence.trim()?'':'hidden'}>Zamknięte bez dowodu ponownego sprawdzenia</span></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
+    <div class="field field-wide"><label for="finding-${h(i)}-observation">Opis ustalenia</label><textarea id="finding-${h(i)}-observation" data-finding-field="observation" rows="2">${h(f.observation)}</textarea></div><div class="field"><label for="finding-${h(i)}-evidence">Identyfikatory dowodów</label><input id="finding-${h(i)}-evidence" data-finding-field="evidence" value="${h(f.evidence)}"></div><div class="field"><label for="finding-${h(i)}-status">Status</label><select id="finding-${h(i)}-status" data-finding-field="status">${[['open','Otwarte'],['doing','W realizacji'],['retest','Do ponownego sprawdzenia'],['closed','Zamknięte po ponownym sprawdzeniu'],['accepted','Ryzyko zaakceptowane']].map(([key,name])=>`<option value="${key}" ${f.status===key?'selected':''}>${name}</option>`).join('')}</select></div><div class="field"><label for="finding-${h(i)}-owner">Właściciel działania</label><input id="finding-${h(i)}-owner" data-finding-field="owner" value="${h(f.owner)}"></div><div class="field"><label for="finding-${h(i)}-due">Termin</label><input id="finding-${h(i)}-due" type="date" data-finding-field="due" value="${h(f.due)}"></div>${f.retestEvidence?`<div class="field"><label for="finding-${h(i)}-retestEvidence">Dowód ze starszej notatki</label><input id="finding-${h(i)}-retestEvidence" data-finding-field="retestEvidence" value="${h(f.retestEvidence||'')}" placeholder="E-011 + wynik ponownego sprawdzenia"></div>`:''}<div class="field field-wide"><label for="finding-${h(i)}-action">Działanie i kryterium zamknięcia</label><textarea id="finding-${h(i)}-action" data-finding-field="action" rows="2">${h(f.action)}</textarea></div>${f.managementResponse?`<div class="field field-wide"><label for="finding-${h(i)}-managementResponse">Wcześniejsza notatka kierownictwa</label><textarea id="finding-${h(i)}-managementResponse" data-finding-field="managementResponse" rows="2">${h(f.managementResponse||'')}</textarea></div>`:''}</div>${followup.markup(f)}<div class="finding-actions"><button class="btn btn-outline-danger btn-sm" type="button" data-delete-finding="${i}">Usuń ustalenie</button></div></article>`;}).join(''):'<div class="empty-state">Brak ustaleń. Możesz dodać problem ręcznie lub z poziomu zadania.</div>';
   }
   function renderLibrary(){v('docs-grid').innerHTML=DOCS.map(([id,title,desc])=>`<article class="doc-card"><div class="doc-icon">PDF</div><div><b>${h(title)}</b><p>${h(desc)}</p><small>PDF z polami + edytowalny Markdown</small></div><div class="doc-links"><button class="btn btn-light btn-sm" data-pdf="dodatki/formularze_pdf/${id}.pdf" data-title="${h(title)}" type="button">Podgląd</button><a class="btn btn-light btn-sm" href="dodatki/formularze_pdf/${id}.pdf" download>Pobierz PDF</a><a href="dodatki/szablony_edytowalne/${id}.md" download>Wzór MD ↓</a></div></article>`).join('');}
   function renderHelp(){const rows=[
@@ -763,9 +784,9 @@
     if(unverified.length)add('warn',`Sprawdzenia bez potwierdzenia dowodu i próby: ${unverified.length}`,'W karcie zadania potwierdź weryfikację i opisz sposób pozyskania dowodu oraz badaną próbę.');
     const incompleteActions=state.findings.filter(x=>['open','doing','retest'].includes(x.status)&&(!x.action.trim()||!x.owner.trim()||!x.due.trim()));
     if(incompleteActions.length)add('warn',`Ustalenia bez kompletnego planu działań: ${incompleteActions.length}`,'Uzupełnij działanie, kryterium zamknięcia, właściciela i termin albo odnotuj uzgodnioną decyzję.');
-    const unapprovedRisk=state.findings.filter(x=>x.status==='accepted'&&!x.managementResponse.trim());
+    const unapprovedRisk=state.findings.filter(x=>x.status==='accepted'&&!latestClosingDecision(x));
     if(unapprovedRisk.length)add('warn',`Akceptacje ryzyka bez decyzji: ${unapprovedRisk.length}`,'Zapisz osobę uprawnioną, datę i odwołanie do formalnej akceptacji.');
-    const missingRetest=state.findings.filter(x=>x.status==='closed'&&!x.retestEvidence.trim());if(missingRetest.length)add('warn',`Zamknięcia bez dowodu ponownego sprawdzenia: ${missingRetest.length}`,'Zapisz test po zmianie i jego wynik.');
+    const missingRetest=state.findings.filter(x=>x.status==='closed'&&!latestClosingDecision(x));if(missingRetest.length)add('warn',`Zamknięcia bez dowodu ponownego sprawdzenia: ${missingRetest.length}`,'Zapisz test po zmianie i jego wynik.');
     if(!state.report.summary.trim())add('warn','Brak podsumowania dla kierownictwa','Opisz najważniejsze wnioski, ograniczenia i decyzje.');
     if(!state.report.approved.trim())add('warn','Brak osoby zatwierdzającej','Raport roboczy powinien to jasno wskazywać.');
     return problems;
@@ -774,6 +795,22 @@
   }
   function printedDate(){return new Date().toLocaleString('pl-PL',{dateStyle:'long',timeStyle:'short'});}
   function printableText(x,placeholder='Nie podano'){return h(String(x||'').trim()||placeholder).replace(/\n/g,'<br>');}
+  function fullFindingTrace(finding,preview){
+    const source=questionSource(finding,state.learning.programs);
+    const assessment=finding.assessment??source?.program.answers[finding.questionId];
+    const ids=state.evidence.map(item=>item.id);
+    const proof=value=>evidenceReferences(value,ids).map(ref=>{
+      const index=ids.indexOf(ref.id);
+      return index>=0&&!preview?`<a href="#full-evidence-${h(index)}">${h(ref.id)}</a>`:h(ref.id)+(ref.known?'':' (brak w rejestrze)');
+    }).join(', ')||'Nie podano';
+    return (finding.questionId?`<p><b>Pytanie i ocena:</b> ${h(finding.questionId)} · ${h(source?.program.template.name??'Moduł nieustalony')}<br>
+      ${printableText(source?.question.question??finding.title)} · ${h(results[assessment?.status]??'Brak zapisu')}${finding.assessment?' (w chwili utworzenia ustalenia)':''}<br>
+      <b>Uzasadnienie:</b> ${printableText(assessment?.note)} · <b>Dowody oceny:</b> ${proof(assessment?.evidence)}</p>`:'')+
+      ((finding.decisions??[]).length?`<p><b>Historia decyzji:</b></p><ul class="pdf-list">${finding.decisions.map(decision=>
+        `<li>${h(decisionLabel(decision))} · ${h(decision.date)} · ${h(decision.actor)}<br>${printableText(decision.note)}
+        ${decision.kind==='retest'?'<br>Dowód: '+proof(decision.evidence):''}</li>`).join('')}</ul>`:'')+
+      (['closed','accepted'].includes(finding.status)&&!latestClosingDecision(finding)?'<p>Wcześniejszy status. Brak pełnego zapisu decyzji.</p>':'');
+  }
   function reportBody(withAppendix=true,preview=false){const c=state.config,p=state.report,t=activeTasks(),rt=selectedRequirements(),stat=totals(),rs=reqTotals(),checks=quality();
     const selectedSources=new Set(['KSC26','NIS2','ISO19011']);for(const x of t)sourceTokens(x).forEach(y=>selectedSources.add(y));
     const legal=({unknown:'Nieustalony - wymaga weryfikacji',key:'Podmiot kluczowy (wg kwalifikacji klienta)',important:'Podmiot ważny (wg kwalifikacji klienta)',none:'Poza KSC (wg kwalifikacji klienta)'})[c.legal]||'Nieustalony';
@@ -787,11 +824,11 @@
     const tasksExcludedNote=manuallyExcluded.length?`<p><b>Ręcznie wyłączone zadania (${manuallyExcluded.length}):</b></p><ul class="pdf-list">${manuallyExcluded.map(id=>`<li><b>${h(id)} ${h(TASK_BY_ID[id]?.name||'')}:</b> ${printableText(taskState(id).reason,'Nie podano uzasadnienia')}</li>`).join('')}</ul>`:'';
     const methodology=`<section class="pdf-section"><h2>2. Zakres, kryteria i metodologia</h2><table class="pdf-table"><tbody>
       <tr><th>Cel / typ</th><td>${h(phaseName)}</td></tr><tr><th>Głębokość</th><td>${h(Object.hasOwn(DEPTH,c.depth)?DEPTH[c.depth]:c.depth)} • złożoność: ${h(Object.hasOwn(SIZE,c.size)?SIZE[c.size]:c.size)}</td></tr><tr><th>Kryteria</th><td>${h(c.standards.map(id=>FRAMEWORKS.find(z=>z.id===id)?.name||id).join('; ')||'Kryteria umowne / do zatwierdzenia')}</td></tr><tr><th>Obszary</th><td>${h(c.topics.map(id=>TOPICS.find(z=>z.id===id)?.name||id).join('; '))}</td></tr><tr><th>Zakres objęty audytem</th><td>${printableText(c.scope)}</td></tr><tr><th>Zakres wyłączony</th><td>${printableText(c.exclusions,'Nie wyspecyfikowano')}</td></tr><tr><th>Badany okres</th><td>${printableText(c.period)}</td></tr><tr><th>Poprzedni audyt / zmiana</th><td>${printableText(c.previous,'Nie dotyczy / brak informacji')}</td></tr><tr><th>Identyfikatory zadań do ponownego sprawdzenia</th><td>${printableText(c.targets,'Nie dotyczy')}</td></tr><tr><th>Status KSC</th><td>${h(legal)}</td></tr><tr><th>Podstawa kwalifikacji</th><td>${printableText(c.legalEvidence,'Nie udokumentowano')}</td></tr><tr><th>Metoda i próbkowanie</th><td>${printableText(p.method)}</td></tr><tr><th>Ograniczenia</th><td>${printableText(p.limits,'Patrz wyłączenia oraz niezakończone zadania w aneksie')}</td></tr></tbody></table>${scopeNote}${tasksExcludedNote}<p class="pdf-small">Uwaga: wymogi polskich podmiotów w zakresie NIS2 wynikają przede wszystkim z aktualnego KSC, aktów wykonawczych i właściwych regulacji sektorowych. Wpisy w tej macierzy to wskazówki do planu audytu, nie kompletne teksty norm i ustaw.</p></section>`;
-    const issues=`<section class="pdf-section"><h2>3. Rejestr ustaleń, ryzyko i plan naprawczy (${state.findings.length})</h2>${state.findings.length?state.findings.map(f=>{const r=riskGrade(f);return `<div class="pdf-finding"><div><b>${h(f.id)} · ${h(f.title)}</b><span>${r.value}/25 • ${r.name}</span></div><p><b>Kryterium:</b> ${printableText(f.criterion)} • <b>Zadanie:</b> ${printableText(f.task)}</p><p><b>Stan faktyczny / próba:</b> ${printableText(f.observation)}</p><p><b>Potencjalny wpływ:</b> ${printableText(f.impactText)}</p><p><b>Dowód:</b> ${printableText(f.evidence)}</p><p><b>Działanie i kryterium zamknięcia:</b> ${printableText(f.action)}</p><p><b>Właściciel:</b> ${printableText(f.owner)} • <b>Termin:</b> ${printableText(f.due)} • <b>Status:</b> ${h(LABEL[f.status]||f.status)}</p><p><b>Ponowne sprawdzenie:</b> ${printableText(f.retestEvidence)} • <b>Stanowisko kierownictwa:</b> ${printableText(f.managementResponse)}</p></div>`;}).join(''):'<p>Brak zarejestrowanych ustaleń. Brak wpisu nie przesądza o braku niezgodności.</p>'}</section>`;
+    const issues=`<section class="pdf-section"><h2>3. Rejestr ustaleń, ryzyko i plan naprawczy (${state.findings.length})</h2>${state.findings.length?state.findings.map(f=>{const r=riskGrade(f);return `<div class="pdf-finding"><div><b>${h(f.id)} · ${h(f.title)}</b><span>${r.value}/25 • ${r.name}</span></div><p><b>Kryterium:</b> ${printableText(f.criterion)} • <b>Zadanie:</b> ${printableText(f.task)}</p><p><b>Stan faktyczny / próba:</b> ${printableText(f.observation)}</p><p><b>Potencjalny wpływ:</b> ${printableText(f.impactText)}</p><p><b>Dowód:</b> ${printableText(f.evidence)}</p><p><b>Działanie i kryterium zamknięcia:</b> ${printableText(f.action)}</p><p><b>Właściciel:</b> ${printableText(f.owner)} • <b>Termin:</b> ${printableText(f.due)} • <b>Status:</b> ${h(findingLabels[f.status])}</p><p><b>Ponowne sprawdzenie:</b> ${printableText(f.retestEvidence)} • <b>Stanowisko kierownictwa:</b> ${printableText(f.managementResponse)}</p>${fullFindingTrace(f,preview)}</div>`;}).join(''):'<p>Brak zarejestrowanych ustaleń. Brak wpisu nie przesądza o braku niezgodności.</p>'}</section>`;
     const criteria=`<section class="pdf-section"><h2>4. Wyniki kryteriów / wymagań (${rt.length})</h2>${rt.length?`<table class="pdf-table"><thead><tr><th>Kryterium</th><th>Ocena i zastosowanie</th><th>Dowody / uzasadnienie</th></tr></thead><tbody>${rt.map(x=>{const s=reqState(x.id);return `<tr><td><b>${h(x.id)} ${h(x.title)}</b><br><small>${h(x.reference)}</small></td><td>${h(LABEL[s.status]||s.status)}<br><small>${h(({yes:'Dotyczy',no:'Nie dotyczy - wg oceny',pending:'Do ustalenia'})[s.applicability]||s.applicability)}</small></td><td>${printableText(s.evidence,'Bez wskazanego dowodu')}<br><small>${printableText(s.notes,'Bez komentarza')}</small></td></tr>`;}).join('')}</tbody></table>`:'<p>Brak wybranych ram odniesienia. Uzupełnij konfigurację.</p>'}</section>`;
     const gate=`<section class="pdf-section"><h2>5. Ograniczenia i punkty jakości (${checks.length})</h2>${checks.length?`<ul class="pdf-list">${checks.map(x=>`<li><b>${h(x.title)}:</b> ${h(x.detail)}</li>`).join('')}</ul>`:'<p>Nie wykryto braków na poziomie automatycznej kontroli jakości. Przegląd ekspercki pozostaje wymagany.</p>'}<p class="pdf-small">Statusy i listy kontrolne są deklaracjami audytora; nie są dowodami niekwestionowanej zgodności.</p></section>`;
     const workflow=`<section class="pdf-section"><h2>6. Przebieg i pokrycie etapów</h2><table class="pdf-table"><thead><tr><th>Etap</th><th>Liczba</th><th>Wykonane</th><th>Blokady</th><th>N/D</th></tr></thead><tbody>${A.stages.map(s=>{const st=s.tasks.filter(included);if(!st.length)return '';return `<tr><td>${h(s.id+' · '+s.title)}</td><td>${st.length}</td><td>${st.filter(t=>taskState(t.id).status==='done').length}</td><td>${st.filter(t=>taskState(t.id).status==='waiting').length}</td><td>${st.filter(t=>taskState(t.id).status==='na').length}</td></tr>`;}).join('')}</tbody></table></section>`;
-    const evidence=`<section class="pdf-section"><h2>7. Indeks dowodów (${state.evidence.length})</h2>${state.evidence.length?`<table class="pdf-table"><thead><tr><th>Dowód / zadanie</th><th>Opis i typ</th><th>Źródło / lokalizacja</th><th>Weryfikacja</th></tr></thead><tbody>${state.evidence.map(x=>`<tr><td>${h(x.id)}<br><small>${h(x.task)}</small></td><td>${h(x.title)}<br><small>${h(x.kind)}; ${h(x.classification)}</small></td><td>${h(x.owner)} • ${h(x.date)}<br><small>${h(x.location)}</small></td><td>${x.verified?'Tak':'Nie'}</td></tr>`).join('')}</tbody></table>`:'<p>Rejestr dowodów nie został uzupełniony. Odwołania w zadaniach mogą być niekompletne.</p>'}</section>`;
+    const evidence=`<section class="pdf-section"><h2>7. Indeks dowodów (${state.evidence.length})</h2>${state.evidence.length?`<table class="pdf-table"><thead><tr><th>Dowód / zadanie</th><th>Opis i typ</th><th>Źródło / lokalizacja</th><th>Weryfikacja</th></tr></thead><tbody>${state.evidence.map((x,index)=>`<tr id="full-evidence-${h(index)}"><td>${h(x.id)}<br><small>${h(x.task)}</small></td><td>${h(x.title)}<br><small>${h(x.kind)}; ${h(x.classification)}</small></td><td>${h(x.owner)} • ${h(x.date)}<br><small>${h(x.location)}</small></td><td>${x.verified?'Tak':'Nie'}</td></tr>`).join('')}</tbody></table>`:'<p>Rejestr dowodów nie został uzupełniony. Odwołania w zadaniach mogą być niekompletne.</p>'}</section>`;
     const annex=`<section class="pdf-section pdf-appendix"><h2>8. Aneks: pełne karty zadań (${t.length})</h2><p class="pdf-small">Wykonanie podpunktu oraz ocena wyniku są niezależnymi polami. Każde zadanie zachowuje status, kryterium, wskazany dowód, próbę i komentarz.</p>${A.stages.map(s=>{const tasks=s.tasks.filter(included);if(!tasks.length)return '';return `<h3>${h(s.title)}</h3><p class="pdf-small">Cel: ${h(s.goal)} • kryterium zakończenia: ${h(s.gate)}</p>${tasks.map(x=>{const q=taskState(x.id),steps=G.steps[x.id]||[];return `<div class="pdf-task"><h4>${h(x.id)} · ${h(x.name)}</h4><div class="pdf-task-cols"><div><b>Status:</b> ${h(LABEL[q.status]||q.status)}<br><b>Ocena:</b> ${h(LABEL[q.assessment]||q.assessment)}</div><div><b>Osoba:</b> ${printableText(q.owner)}<br><b>ID dowodów:</b> ${printableText(q.evidence)}</div></div><p><b>Kryteria:</b> ${h(x.refs)} • <b>Oczekiwany dowód:</b> ${h(x.evidence)}</p><p><b>Zakres próby:</b> ${printableText(q.sample)} • <b>Weryfikacja źródła:</b> ${q.verified?'Tak':'Nie'}</p><ol class="pdf-checks">${steps.map((step,i)=>`<li>${q.checks[i]?'[X]':'[ ]'} ${h(step)}</li>`).join('')}</ol><p><b>Obserwacja:</b> ${printableText(q.notes,'Brak komentarza')}<br><b>Wyłączenie / uwagi:</b> ${printableText(q.reason,'Brak')}</p></div>`;}).join('')}`;}).join('')}</section>`;
     const refs=`<section class="pdf-section"><h2>${withAppendix?'9':'8'}. Źródła i podstawa metodyczna</h2><ul class="pdf-list">${A.sources.filter(s=>selectedSources.has(s.id)||c.standards.some(f=>({KSC:['KSC26','NIS2','KSC_TIMES'],ISO:['ISO27001','ISO19011'],CIS:['CIS81'],NIST:['NISTCSF'],GDPR:['GDPR'],DORA:['DORA'],EU2690:['EU2690'],CRA:['CRA'],OWASP:['OWASPASVS']})[f]?.includes?.(s.id))).map(s=>`<li><b>${h(s.title)}</b> (${h(s.org)})<br><small>${h(s.url)}</small></li>`).join('')}</ul><p class="pdf-small">Źródła weryfikowano 04.11.2026. Przed podpisaniem raportu sprawdź zmiany prawa, normy i dokumentację umowną.</p></section>`;
     const sign=`<section class="pdf-section"><h2>Przekazanie i zatwierdzenie</h2><table class="pdf-table"><tbody><tr><th>Audytor wiodący</th><td>${printableText(c.lead)}</td></tr><tr><th>Odbiorca / zatwierdzający</th><td>${printableText(p.approved,'Do zatwierdzenia')}</td></tr><tr><th>Klasyfikacja i dystrybucja</th><td>${printableText(p.classification)}</td></tr><tr><th>Weryfikacja działań naprawczych</th><td>Termin i właściciele zgodnie z rejestrem działań naprawczych / do uzgodnienia</td></tr></tbody></table><p class="pdf-small">Automatyczne wygenerowanie raportu nie stanowi podpisu, poświadczenia zgodności, certyfikatu ani potwierdzenia wykonania audytu ustawowego.</p></section>`;
@@ -804,6 +841,7 @@
   }
   function renderReport(){
     if(state.mode==='auditor')renderQuality();
+    else learningUI.renderModuleSelection();
     v('report-preview').innerHTML=currentReport(true);
   }
   const REPORT_STANDALONE_CSS=`@page{size:A4;margin:16mm 14mm}*{box-sizing:border-box}body{background:#fff;color:#1a2636;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;margin:0;overflow-wrap:anywhere}h1,h2,h3,h4{color:#0b213a;line-height:1.24}h1{font-size:29px}h2{font-size:18px;border-bottom:2px solid #dbe6ee;padding-bottom:7px;margin-top:21px}h3{font-size:14px;margin-top:16px}h4{font-size:11.5px;margin:0 0 7px}.pdf-cover{min-height:240mm;page-break-after:always;padding-top:19mm}.pdf-brand{letter-spacing:1.4px;font-weight:800;color:#123052}.pdf-brand span{float:right;font-weight:normal;color:#566b80}.pdf-kicker{margin-top:45mm;color:#1f7b87;font-weight:700;letter-spacing:2px}.pdf-sub{font-size:15px;color:#566b80}.pdf-meta-grid{margin-top:24mm;display:grid;grid-template-columns:1fr 1fr;gap:20px}.pdf-meta-grid div{border-top:1px solid #cfd8e2;padding-top:10px}.pdf-meta-grid small{font-size:9px;color:#576d7c;display:block}.pdf-meta-grid b{display:block;font-size:13px}.pdf-cover-note{margin-top:20mm;font-size:10px;color:#677788}.pdf-section{break-before:auto;page-break-inside:auto}.pdf-section>h2{break-after:avoid}.pdf-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:10px 0 15px}.pdf-table th,.pdf-table td{border:1px solid #dce5ed;padding:6px;vertical-align:top;word-wrap:break-word;text-align:left}.pdf-table th{background:#eef3f7;font-size:10px}.pdf-table tr{break-inside:avoid}.pdf-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:18px 0}.pdf-kpis div{padding:12px 8px;border:1px solid #dce5ed}.pdf-kpis b{display:block;font-size:22px;color:#123052}.pdf-kpis small{font-size:9px;color:#53667a}.pdf-warning{border-left:3px solid #b77939;padding:10px;background:#fff6e9}.pdf-small{font-size:10px;color:#586a7f}.pdf-list{padding-left:17px}.pdf-list li{margin-bottom:7px;overflow-wrap:anywhere}.pdf-finding,.pdf-task{border:1px solid #dce5ed;padding:10px 12px;margin:12px 0;break-inside:avoid}.pdf-finding>div:first-child{display:flex;justify-content:space-between;border-bottom:1px solid #dce5ed}.pdf-finding p,.pdf-task p{margin:5px 0}.pdf-task h4{color:#1f5568}.pdf-task-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pdf-checks{padding-left:17px;margin:7px 0}.pdf-checks li{margin:2px 0}.pdf-preview-note{display:none}a{color:#123052}`;
@@ -904,9 +942,15 @@
     v('evidence-form').addEventListener('submit',ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.currentTarget).entries());d.id=String(d.id||'').trim();if(state.evidence.some(x=>x.id.toLowerCase()===d.id.toLowerCase())){alert('Istnieje dowód o takim identyfikatorze. Użyj unikalnego ID.');return;}if(!d.id){alert('Wpisz identyfikator dowodu.');return;}d.date=dateOnly(d.date);d.verified=Boolean(d.verified);state.evidence.push(d);learningUI.linkEvidence(d);save();ev.currentTarget.reset();renderEvidence();renderReport();});
     v('evidence-table').addEventListener('click',ev=>{const b=ev.target.closest('[data-delete-evidence]');if(!b)return;const i=n(b.dataset.deleteEvidence,-1);if(i<0||!state.evidence[i])return;if(confirm('Usunąć metadane dowodu? Odesłania do jego ID pozostaną w zadaniach.')){state.evidence.splice(i,1);save();renderEvidence();renderReport();}});
     v('finding-form').addEventListener('submit',ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.currentTarget).entries());const id=nextFindingId();state.findings.push({...f,id,due:dateOnly(f.due),likelihood:risk(f.likelihood),impact:risk(f.impact),status:'open',managementResponse:'',retestEvidence:''});save();ev.currentTarget.reset();renderFindings();renderDashboard();renderReport();});
+    v('evidence-return-link').addEventListener('click',event=>{
+      const [,key,id]=v('evidence-return-link').hash.slice(1).split('/');
+      event.preventDefault();
+      openQuestion(key,id);
+    });
     const fList=v('findings-list');
     fList.addEventListener('click',ev=>{const b=ev.target.closest('[data-delete-finding]');if(!b)return;const i=n(b.dataset.deleteFinding,-1);if(i<0||!state.findings[i])return;if(confirm('Usunąć wskazane ustalenie?')){state.findings.splice(i,1);save();renderFindings();renderDashboard();renderReport();}});
     function updateFinding(ev){const box=ev.target.closest('.finding');if(!box)return;const i=n(box.dataset.finding,-1),el=ev.target;if(!state.findings[i]||!el.matches('[data-finding-field]'))return;const finding=state.findings[i],field=el.dataset.findingField;
+      if(field==='status'&&followup.pickStatus(finding,el))return;
       const riskField=field==='likelihood'||field==='impact';
       finding[field]=riskField?risk(el.value):el.type==='date'?dateOnly(el.value):el.value;
       if(riskField){
@@ -915,8 +959,12 @@
         badge.textContent=score.value+'/25 · '+score.name;
       }
       save();
-      $('[data-closure-warning]',box).hidden=finding.status!=='closed'||Boolean(finding.retestEvidence.trim());
-      if(ev.type==='change'){renderDashboard();renderReport();}}
+      if(ev.type==='change'){
+        if(field==='status')preserveFocus(renderFindings);
+        else if(field==='owner'||field==='due'||field==='action')followup.renderBoard();
+        renderDashboard();renderReport();
+      }
+    }
     fList.addEventListener('input',ev=>{if(ev.target.matches('input,textarea'))updateFinding(ev);});fList.addEventListener('change',updateFinding);
     for(const [id,key] of Object.entries(reportFields)){const el=v(id);el[el.type==='checkbox'?'checked':'value']=state.report[key];const change=()=>{state.report[key]=el.type==='checkbox'?el.checked:el.value;save();if(el.type==='checkbox'||el.tagName==='SELECT')renderReport();};el.addEventListener('input',change);el.addEventListener('change',()=>{change();renderReport();});}
     v('top-export').addEventListener('click',exportJson);v('top-pdf').addEventListener('click',printPdf);v('generate-pdf').addEventListener('click',printPdf);
@@ -924,6 +972,7 @@
     v('download-html-report').addEventListener('click',()=>download(`${filenameBase()}-raport.html`,htmlStandalone(),'text/html;charset=utf-8'));
     setupWorkspaceEvents();
     setupLearningEvents();
+    followup.bind();
     v('docs-grid').addEventListener('click',ev=>{const b=ev.target.closest('[data-pdf]');if(!b)return;v('pdf-dialog-title').textContent=b.dataset.title;v('pdf-dialog-frame').src=b.dataset.pdf;v('pdf-dialog').showModal();});
     v('close-pdf').addEventListener('click',()=>v('pdf-dialog').close());
     v('pdf-dialog').addEventListener('close',()=>v('pdf-dialog-frame').removeAttribute('src'));
@@ -957,7 +1006,7 @@
     v('menu-toggle').setAttribute('aria-expanded',String(open));
   }
   function route(moveFocus=false){
-    const [page,locationAnchor]=(location.hash.slice(1)||'home').split('/');
+    const [page,locationAnchor,questionId]=(location.hash.slice(1)||'home').split('/');
     const titles={home:'Pulpit',projects:'Projekty',audit:'Audyt',glossary:'Słowniczek',setup:'Konfigurator audytu',plan:'Plan i listy kontrolne',criteria:'Macierz wymagań',evidence:'Rejestr dowodów',findings:'Ustalenia i plan naprawczy',report:'Raport i PDF',library:'Formularze i wzory',help:'Jak audytować?',sources:'Źródła'};
     let name=Object.hasOwn(titles,page)?page:'home';
     if(state.mode!=='auditor'&&['setup','plan','criteria','library','sources'].includes(name))name=hasProject()?'audit':'home';
@@ -973,12 +1022,21 @@
     v('breadcrumb-text').textContent=titles[name];
     setMenu(false);
     if(name==='report')renderReport();
-    if(name==='audit')renderLearner();
+    if(name==='findings')renderFindings();
+    if(name==='audit'){
+      if(questionId&&Object.hasOwn(state.learning.programs,locationAnchor)&&state.learning.selected!==locationAnchor&&
+        state.learning.programs[locationAnchor].template.questions.some(item=>item.id===questionId)){
+        state.learning.selected=locationAnchor;
+        save();
+      }
+      renderLearner();
+    }
     if(moveFocus){
       const heading=$('#view-'+name+' h1');
       heading.tabIndex=-1;
       heading.focus({preventScroll:true});
     }
+    if(name==='audit'&&questionId&&learningUI.jumpToQuestion(questionId))return;
     if(name==='glossary'&&locationAnchor&&v('term-'+locationAnchor)){
       const term=v('term-'+locationAnchor);
       term.focus({preventScroll:true});

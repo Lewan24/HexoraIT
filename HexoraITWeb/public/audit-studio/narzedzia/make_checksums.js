@@ -16,7 +16,7 @@
     return files;
   }
 
-  const lines = ['# CyberAudit Studio 2.1 | SHA-256', '# Każdy plik paczki poza SHA256SUMS.txt', ''];
+  const lines = ['# CyberAudit Studio 2.2 | SHA-256', '# Każdy plik paczki poza SHA256SUMS.txt', ''];
   for (const file of (await list('')).sort()) {
     const hash = createHash('sha256').update(await readFile(path.join(root,file))).digest('hex');
     lines.push(hash+'  '+file);

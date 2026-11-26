@@ -127,3 +127,27 @@ Do decyzji przed etapem 3 są domyślna Nauka z otwieraniem starszych projektów
 - **Próba A4** w silniku druku Chromium dała 3 strony krótkiego raportu i 30 stron raportu pełnego z aneksem dla przykładowego zakresu. Sprawdzono format stron, czytelność wykresu i obecność podsumowania, działań i dowodów.
 
 Pozostałe ograniczenia obejmują jawne dane w pamięci przeglądarki, współdzielony limit miejsca dla projektów, różnice obsługi pamięci plików i blokad kart między przeglądarkami oraz rosnącą liczbę stron raportu przy dużej liczbie ustaleń. Pozostawienie kopii schematu 2 zwiększa zajętość po migracji. Dopasowanie do organizacji i ocena dowodów należą do audytora. Weryfikacja przeglądarkowa dotyczyła Chromium w trybie bez okna, a nie systemowego okna druku innych przeglądarek ani czytników ekranu.
+
+## Etap 6 — oceny, działania i raport 2.2
+
+- Dostępny jest wybór dowodu z rejestru, powrót do pytania po zapisaniu nowego dowodu oraz filtr ocen do uzupełnienia. Brak uzasadnienia, brak dowodu i odwołanie do usuniętej pozycji są widoczne przy pytaniu. Szkic „Nie dotyczy” bez przyczyny zachowuje się przy zapisie i pozostaje w mianowniku jako nieoceniony.
+- Nowe ustalenie zachowuje moduł, wersję pytania i migawkę oceny. Starsze ustalenia łączą się z modułem przy jednym pasującym pytaniu. Przy kilku dopasowaniach widać brak jednoznacznego powiązania. Krótki raport ma odsyłacze od ustalenia do śladu oceny i dostępnych dowodów.
+- Widok działań rozróżnia właścicieli, terminy, zaległości i otwarte ustalenia. Zamknięcie na podstawie ponownego sprawdzenia wymaga skutecznego wyniku, daty, osoby, opisu i istniejącego dowodu. Nieudana próba zostaje w historii. Akceptacja ryzyka zapisuje odrębną decyzję i uzasadnienie. Starsze statusy i notatki pozostają widoczne jako dane zastane.
+- Krótki raport korzysta domyślnie z aktywnego modułu. Można zapisać własny zakres. Wynik i pokrycie są pokazane osobno dla każdego modułu. Ustalenia bez jednoznacznego przypisania do modułu mogą wejść do raportu. Lista dowodów obejmuje pozycje powiązane z jego zakresem.
+- Zachowano schemat 3 oraz odczyt projektów z wersji 2.1. Kopie utworzone w 2.2 najlepiej otwierać w 2.2, ponieważ starszy edytor nie zachowa nowych pól. Studio zapisuje dane osoby podane przez audytora. Zatwierdzenie w Studio ma charakter zapisu dokumentacyjnego, bez potwierdzenia tożsamości ani podpisu.
+
+### Wyniki weryfikacji
+
+- Piętnaście testów Node objęło walidację, zachowanie oceny źródłowej, dopasowanie dowodów, filtrowanie działań, oba rodzaje decyzji i zapis zakresu raportu.
+- Chromium odtworzył przebieg od szkicu przez wybór dowodu i utworzenie ustalenia do nieudanej i skutecznej próby oraz osobnej akceptacji ryzyka. Zweryfikowano nieaktualne odwołanie, filtry, wybór dwóch modułów, eksport i ponowny import.
+- Powtórzono scenariusz z wersji 2.1, w tym import schematów 2 i 3, migrację, odzyskanie po symulowanym braku miejsca i pracę z pliku przy blokadzie połączeń HTTP i HTTPS.
+- Krótki wydruk z dwoma modułami miał 3 strony A4. W pliku PDF potwierdzono cele odsyłaczy do pytań i dowodu. Pełny raport zawiera historię decyzji, dowody i aneks zadań.
+
+### Scenariusz pilotażu z osobą początkującą
+
+Próbę techniczną wykonano w przeglądarce. Poniższy scenariusz jest przygotowany do osobnej sesji z uczestnikiem.
+
+1. Poproś uczestnika o otwarcie ćwiczenia i wybranie jednego pytania o konta. Obserwuj, czy sam znajduje pomoc i materiał firmy potrzebny do oceny.
+2. Poproś go o zapis oceny i uzasadnienia oraz powiązanie dowodu. Następnie poproś o utworzenie ustalenia i nadanie mu właściciela oraz terminu.
+3. Podaj przykładowy wynik ponownego sprawdzenia i identyfikator materiału. Obserwuj, czy uczestnik znajduje właściwą ścieżkę i potrafi wyjaśnić, dlaczego status się zmienił.
+4. Poproś o zapis PDF i odnalezienie pytania oraz dowodu z poziomu raportu. Zanotuj, które kroki wykonał sam, przy których potrzebował wskazówki i jakie słowa były niezrozumiałe.

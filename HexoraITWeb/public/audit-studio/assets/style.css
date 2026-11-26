@@ -389,3 +389,19 @@ dialog iframe{height:calc(100% - 69px);width:100%;border:none;background:#fff}
   .short-page+.short-page{break-before:page}
   .short-page tr,.short-page li{break-inside:avoid}
 }
+
+/* Uzasadnienia, decyzje i zakres krótkiego raportu. */
+.question-warning{margin:8px 0 12px;padding:9px 10px 9px 28px;border-left:3px solid var(--amber);color:var(--amber);background:var(--bg)}
+.followup-warning{color:var(--amber)}
+.followup-history{margin-top:15px;padding-top:13px;border-top:1px solid var(--line)}
+.followup-history details{margin-top:9px}
+.followup-history summary{cursor:pointer;color:var(--accent)}
+.followup-history li p{margin:3px 0 7px;white-space:pre-wrap}
+#decision-dialog,#evidence-picker-dialog{width:min(620px,94vw);height:auto;max-height:90vh;overflow:auto}
+.report-modules{min-width:0;margin:0;padding:12px;border:1px solid var(--line);border-radius:8px}
+.report-modules legend{font-weight:700}
+.report-modules .inline-check{padding-block:6px}
+.short-page a{color:#125570;text-decoration:underline}
+.report-trace{margin:8px 0;padding:8px 10px;border-left:2px solid #91aabd}
+.report-trace p,.report-trace h4{margin:0 0 4px}
+@media print{.report-module,.report-trace{break-inside:avoid}}

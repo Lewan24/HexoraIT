@@ -1,4 +1,4 @@
-# CyberAudit Studio 2.1 PL
+# CyberAudit Studio 2.2 PL
 
 Studio pomaga nauczyć się pierwszego wewnętrznego przeglądu IT i porządkować większe audyty. Działa w przeglądarce z lokalnych plików HTML, CSS i JavaScript. Tryb Nauka zawiera 149 pytań do pasywnego przeglądu, a Audytor udostępnia 93 dotychczasowe zadania i macierz 68 kryteriów.
 
@@ -25,9 +25,16 @@ W nagłówku zmienisz tryb pracy. Nauka pokazuje listę pytań, dowody, ustaleni
 
 Wskaźnik jest orientacyjny. „Zgodne” daje 1 punkt, „Częściowo” 0,5, „Niezgodne” 0. „Nie dotyczy” usuwa pytanie z mianownika. „Nie oceniono” pozostaje w mianowniku bez punktów, a liczba takich pytań jest widoczna osobno. Brak ocen wyświetla się jako opis.
 
+## Oceny, dowody i zamknięcie ustalenia
+
+- **Wybierz z rejestru** przypina już zapisany dowód. **Dodaj dowód** otwiera formularz dla bieżącego pytania i po zapisie pozwala wrócić do oceny.
+- Pod polem uzasadnienia widać brak opisu, brak dowodu i identyfikatory, których nie ma już w rejestrze. Pulpit oceny pozwala wyświetlić pytania do uzupełnienia. „Nie dotyczy” bez przyczyny zapisuje się jako szkic i do chwili uzupełnienia liczy się jak „Nie oceniono”.
+- Ustalenie pochodzące z pytania zachowuje moduł, jego wersję oraz ocenę, uzasadnienie i identyfikatory dowodów z chwili utworzenia. Z karty ustalenia można otworzyć pytanie. W krótkim raporcie odsyłacze prowadzą do śladu oceny i listy dowodów w tym samym dokumencie.
+- W **Ustaleniach** wybierz właściciela i termin, np. „Po terminie” albo „Od dziś do 7 dni”. **Zapisz ponowne sprawdzenie** wymaga osoby, daty, wyniku, opisu i dowodu z rejestru. Skuteczna poprawka zamyka ustalenie, a niepełna zostawia je do ponownego sprawdzenia. **Zapisz akceptację ryzyka** rejestruje osobę uprawnioną, datę i uzasadnienie. Wcześniejsze decyzje są widoczne w historii karty. Dane osoby wpisuje audytor.
+
 ## Raport i druk
 
-W **Raporcie** wpisz podsumowanie i ograniczenia. W Nauce otrzymasz krótki raport A4 z wykresem obszarów, ustaleniami, pilnymi działaniami, właścicielami, terminami i dowodami. Podział jest przygotowany na 3–6 stron przy typowej objętości danych. Dłuższe wpisy i liczne ustalenia mogą zwiększyć liczbę stron. Audytor zachowuje pełny raport z opcjonalnym aneksem kart zadań.
+W **Raporcie** wpisz podsumowanie i ograniczenia. Domyślnie raport korzysta z aktywnego modułu. Aby wybrać kilka, odznacz **Tylko aktywny moduł** i zaznacz moduły do wydruku. Każdy ma osobny wynik i pokrycie. Raport obejmuje również ustalenia bez jednoznacznego przypisania do modułu oraz dowody powiązane z tym zakresem. W Nauce otrzymasz krótki raport A4 z wykresem obszarów, ustaleniami, pilnymi działaniami, właścicielami, terminami i dowodami. Podział jest przygotowany na 3–6 stron przy typowej objętości danych. Dłuższe wpisy i liczne ustalenia mogą zwiększyć liczbę stron. Audytor zachowuje pełny raport z opcjonalnym aneksem kart zadań.
 
 Wybierz **Generuj / zapisz PDF**, a w oknie drukowania **Zapisz jako PDF**. W razie potrzeby wyłącz nagłówki i stopki przeglądarki. Samodzielny raport HTML można pobrać osobno. Przykład pełnego raportu zawierający fikcyjne dane znajduje się w `dodatki/przyklady_raportow/`.
 
@@ -71,6 +78,7 @@ Weryfikacja źródeł: **4 listopada 2026 r.** Potwierdzone materiały w `refere
 | `index.html`, `assets/style.css` | Punkt wejścia, widoki, dostępność i druk. |
 | `assets/app-v2.js`, `assets/project-data.js` | Obsługa projektów, migracja, walidacja i wspólne narzędzia. |
 | `assets/templates-data.js`, `assets/demo-data.js`, `assets/learning-ui.js` | Pytania, fikcyjne materiały, przewodnik i krótki raport. |
+| `assets/followup-ui.js` | Widok działań i formularze decyzji. |
 | `assets/audit-data.js`, `assets/playbook-data.js`, `assets/requirements-data.js` | Dotychczasowy katalog zadań, kroków, kryteriów oraz źródeł. |
 | `dodatki/` | Formularze PDF, odpowiedniki Markdown oraz przykładowe raporty. |
 | `archiwum_v1/`, `archiwum_v2/`, `referencje/` | Starsze przykłady i zrzuty oraz bieżące zestawienia pomocnicze. |

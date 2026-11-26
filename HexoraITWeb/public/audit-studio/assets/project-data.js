@@ -101,7 +101,10 @@
       likelihood: risk(item.likelihood), impact: risk(item.impact), action: text(item.action), owner: text(item.owner),
       due: dateOnly(item.due), status: choice(item.status, findingStatus, 'open'),
       managementResponse: text(item.managementResponse), retestEvidence: text(item.retestEvidence),
-      ...(typeof item.questionId === 'string' ? { questionId: item.questionId } : {})
+      ...(typeof item.questionId === 'string' ? { questionId: item.questionId } : {}),
+      ...(typeof item.programKey === 'string' ? { programKey: item.programKey } : {}),
+      ...(isRecord(item.assessment) ? { assessment: normalizeAnswer(item.assessment) } : {}),
+      ...(Array.isArray(item.decisions) ? { decisions: item.decisions.map(normalizeDecision).filter(Boolean) } : {})
     }));
     const report = project.report ?? {};
     fields(result.report, report, ['classification', 'method', 'summary', 'limits', 'approved']);
@@ -129,11 +132,92 @@
       percent:assessed ? Math.round(points / eligible * 100) : null };
   }
 
-  function findingFromQuestion(question, answer, id) {
+  function normalizeAnswer(answer) {
+    return { status:Object.hasOwn(results,answer.status)?answer.status:'unassessed',
+      note:text(answer.note), evidence:text(answer.evidence) };
+  }
+
+  function scoreStatus(answer) {
+    if (!answer || (answer.status==='notapp' && !answer.note.trim())) return 'unassessed';
+    return answer.status;
+  }
+
+  function evidenceReferences(value, known=[]) {
+    const canonical = new Map(known.map(id=>[id.toLowerCase(),id]));
+    const originals = text(value).split(/[,;\r\n]+/).map(id=>id.trim()).filter(Boolean);
+    const ids = new Map();
+    for (const entry of originals) {
+      const parts = entry.split(/\s+/);
+      // Starsze projekty dopuszczały również oddzielanie prostych ID spacją.
+      const refs = !canonical.has(entry.toLowerCase()) && parts.every(id=>canonical.has(id.toLowerCase())||/^[a-z0-9]+(?:[-_][a-z0-9]+)+$/i.test(id))
+        ? parts : [entry];
+      for (const id of refs) {
+        const key=id.toLowerCase();
+        if (!ids.has(key)) ids.set(key,{ id:canonical.get(key)??id, known:canonical.has(key) });
+      }
+    }
+    return [...ids.values()];
+  }
+
+  function questionSource(finding, programs) {
+    if (!finding.questionId) return null;
+    const candidates = Object.entries(programs).filter(([key])=>!finding.programKey||key===finding.programKey)
+      .map(([key,program])=>({key,program,question:program.template.questions.find(item=>item.id===finding.questionId)}))
+      .filter(item=>item.question);
+    return candidates.length===1?candidates[0]:null;
+  }
+
+  function reportPrograms(learning) {
+    const keys=learning.reportPrograms??(learning.selected?[learning.selected]:[]);
+    return keys.filter(key=>Object.hasOwn(learning.programs,key));
+  }
+
+  function normalizeDecision(value) {
+    if (!isRecord(value)) return null;
+    const date=dateOnly(value.date), actor=text(value.actor).trim(), note=text(value.note).trim();
+    if (!date || !actor || !note) return null;
+    if (value.kind==='acceptance') return {kind:value.kind,date,actor,note};
+    const evidence=text(value.evidence).trim();
+    if (value.kind!=='retest' || !['effective','ineffective'].includes(value.outcome) || !evidence) return null;
+    return {kind:value.kind,date,actor,note,outcome:value.outcome,evidence};
+  }
+
+  function recordDecision(finding, value, knownEvidence, today) {
+    const decision=normalizeDecision(value);
+    if (!decision || decision.date>today) return { error:'Podaj osobę, datę bez przyszłych dni i opis decyzji. Przy sprawdzeniu podaj także wynik oraz dowód.' };
+    if (decision.kind==='retest') {
+      const refs=evidenceReferences(decision.evidence,knownEvidence);
+      if (!refs.length || refs.some(ref=>!ref.known)) return { error:'Podaj co najmniej jeden istniejący identyfikator z rejestru dowodów.' };
+      decision.evidence=refs.map(ref=>ref.id).join(', ');
+    }
+    const status=decision.kind==='acceptance'?'accepted':decision.outcome==='effective'?'closed':'retest';
+    return { finding:{...finding,status,decisions:[...(finding.decisions??[]),decision]} };
+  }
+
+  function latestClosingDecision(finding) {
+    const last=finding.decisions?.at(-1);
+    return (finding.status==='closed'&&last?.kind==='retest'&&last.outcome==='effective')||
+      (finding.status==='accepted'&&last?.kind==='acceptance') ? last : null;
+  }
+
+  function actionRows(findings, owner, period, today, through) {
+    return findings.filter(item=>{
+      if (owner!==null && item.owner.trim()!==owner) return false;
+      if (period==='all') return true;
+      if (['closed','accepted'].includes(item.status)) return false;
+      if (period==='missing') return !item.due;
+      if (period==='overdue') return Boolean(item.due&&item.due<today);
+      if (period==='soon') return Boolean(item.due&&item.due>=today&&item.due<=through);
+      return true;
+    }).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||a.id.localeCompare(b.id,'pl',{numeric:true}));
+  }
+
+  function findingFromQuestion(question, answer, id, programKey) {
     if (!['partial','nonconform'].includes(answer?.status)) return null;
     const [likelihood,impact] = findingScales[question.risk];
     return {
-      id, questionId:question.id, task:question.id, title:question.question,
+      id, questionId:question.id, ...(programKey?{programKey}:{}), assessment:normalizeAnswer(answer),
+      task:question.id, title:question.question,
       criterion:question.reference, observation:results[answer.status]+(answer.note.trim()?' — '+answer.note.trim():' — uzupełnij opis na podstawie dowodu.'),
       evidence:answer.evidence, likelihood, impact, impactText:question.riskReason,
       action:question.recommendation, owner:'', due:'', status:'open', managementResponse:'', retestEvidence:''
@@ -173,12 +257,7 @@
           throw Error('Nieprawidłowe pytanie w zapisanym szablonie.');
         ids.add(question.id);
         const answer = program.answers[question.id];
-        if (isRecord(answer)) {
-          const note = text(answer.note);
-          let status = Object.hasOwn(results,answer.status) ? answer.status : 'unassessed';
-          if (status==='notapp' && !note.trim()) status='unassessed';
-          answers[question.id] = { status, note, evidence:text(answer.evidence) };
-        }
+        if (isRecord(answer)) answers[question.id] = normalizeAnswer(answer);
         return fields({},question,questionFields);
       });
       programs[key] = { template:{
@@ -187,12 +266,14 @@
       }, answers };
     }
     if (value.selected!==null && !Object.hasOwn(programs,value.selected)) throw Error('Brak wybranego szablonu w zapisie.');
-    return { selected:value.selected, programs, consent:text(value.consent), step:Number.isInteger(value.step) ? Math.max(0,Math.min(6,value.step)) : 0 };
+    const reportPrograms=Array.isArray(value.reportPrograms) ?
+      [...new Set(value.reportPrograms.filter(key=>typeof key==='string'&&Object.hasOwn(programs,key)))] : null;
+    return { selected:value.selected, programs, reportPrograms, consent:text(value.consent), step:Number.isInteger(value.step) ? Math.max(0,Math.min(6,value.step)) : 0 };
   }
 
   function newProject(legacy,id,mode='learning') {
     if (!idPattern.test(text(id))) throw Error('Nieprawidłowy identyfikator projektu.');
-    return { ...legacy, schema:3, id, mode, auditDate:'', demo:false, learning:{ selected:null, programs:{}, consent:'', step:0 } };
+    return { ...legacy, schema:3, id, mode, auditDate:'', demo:false, learning:{ selected:null, programs:{}, reportPrograms:null, consent:'', step:0 } };
   }
 
   function migrateProject(project,normalizeLegacy,id) {
@@ -219,5 +300,6 @@
   }
 
   window.AUDIT_PROJECT_DATA = { normalizeProject, dateOnly, risk, indicators, findingFromQuestion, riskLevel, results,
-    learningProgram, newProject, migrateProject, normalizeV3, normalizeWorkspace };
+    learningProgram, newProject, migrateProject, normalizeV3, normalizeWorkspace,
+    scoreStatus, evidenceReferences, questionSource, reportPrograms, recordDecision, latestClosingDecision, actionRows };
 })();

@@ -80,7 +80,7 @@ const html = read('index.html');
 assert.ok(html.includes("connect-src 'none'"));
 const includes = [...html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map(match=>match[1]);
 for (const file of includes) assert.ok(file.startsWith('assets/')&&fs.existsSync(path.join(root,file)),'Brak lokalnego skryptu '+file);
-for (const name of ['project-data','templates-data','demo-data','learning-ui']) {
+for (const name of ['project-data','templates-data','demo-data','learning-ui','followup-ui']) {
   assert.ok(includes.indexOf('assets/'+name+'.js')>=0&&includes.indexOf('assets/'+name+'.js')<includes.indexOf('assets/app-v2.js'),
     'Niewłaściwa kolejność załadowania '+name);
 }
